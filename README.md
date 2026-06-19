@@ -11,9 +11,13 @@ Enable new online shoppers, AI agents, to make purchases in your store securely 
 
 ## Screenshots
 
-| Dashboard | Trust Center | Navigation |
-|-----------|-------------|-----------|
-| ![Dashboard](docs/screenshots/screenshot-01-module-install.png) | ![Trust Center](docs/screenshots/screenshot-02-trust-center.png) | ![Navigation](docs/screenshots/screenshot-03-sidebar-menu.png) |
+| Trust Center | Business Rules | AI Sales |
+|-------------|---------------|---------|
+| ![Trust Center](docs/screenshots/screenshot-02-trust-center.png) | ![Rules](docs/screenshots/screenshot-04-rules.png) | ![Ventas IA](docs/screenshots/screenshot-05-ventas-ia.png) |
+
+| Store Overview |
+|---------------|
+| ![Overview](docs/screenshots/screenshot-03-ps-home.png) |
 
 ## Features
 
