@@ -1,0 +1,2 @@
+-- No custom tables required for MVP.
+-- All state is stored in PrestaShop Configuration table and PS cookie.

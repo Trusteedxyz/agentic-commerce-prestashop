@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.5/phpunit.xsd"
+         bootstrap="bootstrap.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache"
+         failOnWarning="true"
+         failOnRisky="true">
+    <testsuites>
+        <!--
+          The full unit directory. InstallTest.php self-skips when PrestaShop is
+          not bootstrapped (no vendor/PS kernel in CI), so this suite is safe to
+          run with zero PrestaShop dependencies.
+        -->
+        <testsuite name="unit">
+            <directory>unit</directory>
+        </testsuite>
+        <!--
+          The PrestaShop-independent, network-free suite that MUST stay green in
+          CI on every push. TokenBrokerTest exercises the real TokenBroker
+          (SSRF api_base guard, multishop scope claims, expires_in resolution).
+        -->
+        <testsuite name="no-ps">
+            <file>unit/TokenBrokerTest.php</file>
+        </testsuite>
+    </testsuites>
+</phpunit>
