@@ -11,13 +11,9 @@ Enable new online shoppers, AI agents, to make purchases in your store securely 
 
 ## Screenshots
 
-| Module Install | Trust Center | Merchant Center |
-|---------------|-------------|----------------|
-| ![Install](docs/screenshots/screenshot-01-module-install.png) | ![Trust](docs/screenshots/screenshot-02-trust-center.png) | ![Merchant](docs/screenshots/screenshot-03-merchant-center.png) |
-
-| Onboarding Wizard | Agent Orders |
-|-------------------|-------------|
-| ![Wizard](docs/screenshots/screenshot-04-onboarding-wizard.png) | ![Orders](docs/screenshots/screenshot-05-agent-orders.png) |
+| Dashboard | Trust Center |
+|-----------|-------------|
+| ![Dashboard](docs/screenshots/screenshot-01-module-install.png) | ![Trust Center](docs/screenshots/screenshot-02-trust-center.png) |
 
 ## Features
 
