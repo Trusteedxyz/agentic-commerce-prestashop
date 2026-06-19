@@ -11,9 +11,9 @@ Enable new online shoppers, AI agents, to make purchases in your store securely 
 
 ## Screenshots
 
-| Dashboard | Trust Center |
-|-----------|-------------|
-| ![Dashboard](docs/screenshots/screenshot-01-module-install.png) | ![Trust Center](docs/screenshots/screenshot-02-trust-center.png) |
+| Dashboard | Trust Center | Navigation |
+|-----------|-------------|-----------|
+| ![Dashboard](docs/screenshots/screenshot-01-module-install.png) | ![Trust Center](docs/screenshots/screenshot-02-trust-center.png) | ![Navigation](docs/screenshots/screenshot-03-sidebar-menu.png) |
 
 ## Features
 
