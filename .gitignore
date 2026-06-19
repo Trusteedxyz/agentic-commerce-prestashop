@@ -1,0 +1,6 @@
+vendor/
+*.zip
+tests/.phpunit.cache/
+views/js/.vite/
+.DS_Store
+composer.lock
