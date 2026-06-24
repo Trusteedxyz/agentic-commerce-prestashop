@@ -11,13 +11,21 @@ Enable new online shoppers, AI agents, to make purchases in your store securely 
 
 ## Screenshots
 
-| Trust Center | Business Rules | AI Sales |
-|-------------|---------------|---------|
-| ![Trust Center](docs/screenshots/screenshot-02-trust-center.png) | ![Rules](docs/screenshots/screenshot-04-rules.png) | ![Ventas IA](docs/screenshots/screenshot-05-ventas-ia.png) |
+| Dashboard | Trust Score |
+|-----------|------------|
+| ![Dashboard](screenshots/01-home-dashboard.png) | ![Trust Score](screenshots/02-trust-score-breakdown.png) |
 
-| Store Overview |
-|---------------|
-| ![Overview](docs/screenshots/screenshot-03-ps-home.png) |
+| Orders | Payments |
+|--------|---------|
+| ![Orders](screenshots/03-merchant-center-orders.png) | ![Payments](screenshots/03b-merchant-center-payments.png) |
+
+| Certifications | My Sales |
+|---------------|---------|
+| ![Certifications](screenshots/04-merchant-center-certifications.png) | ![My Sales](screenshots/05-my-sales-orders.png) |
+
+| AI Receipts | Agents |
+|------------|-------|
+| ![AI Receipts](screenshots/06-my-sales-ai-receipts.png) | ![Agents](screenshots/07-agents.png) |
 
 ## Features
 
