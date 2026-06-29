@@ -8,7 +8,7 @@
  * never fail and tested nothing about the real module.
  *
  * A MEANINGFUL install/uninstall test requires a live PrestaShop kernel:
- * `Module::getInstanceByName('agenticmcpstores')->install()` touches
+ * `Module::getInstanceByName('trusteed')->install()` touches
  * `Configuration`, `Db`, tab/controller registration and the `sql/install.php`
  * schema — none of which exist without a bootstrapped PS install. Standing one
  * up in CI is out of scope (no PS kernel, no DB), so rather than fake it we:
@@ -56,7 +56,7 @@ class InstallTest extends TestCase
     public function testInstallIsIdempotent(): void
     {
         /** @var \Module|false $module */
-        $module = \Module::getInstanceByName('agenticmcpstores');
+        $module = \Module::getInstanceByName('trusteed');
         $this->assertNotFalse($module, 'module instance must resolve');
 
         // install → uninstall → install must all succeed without error.
@@ -68,7 +68,7 @@ class InstallTest extends TestCase
     public function testInstallSeedsRequiredConfiguration(): void
     {
         /** @var \Module|false $module */
-        $module = \Module::getInstanceByName('agenticmcpstores');
+        $module = \Module::getInstanceByName('trusteed');
         $this->assertNotFalse($module);
         $this->assertTrue($module->install());
 
@@ -81,7 +81,7 @@ class InstallTest extends TestCase
     public function testUninstallRemovesConfiguration(): void
     {
         /** @var \Module|false $module */
-        $module = \Module::getInstanceByName('agenticmcpstores');
+        $module = \Module::getInstanceByName('trusteed');
         $this->assertNotFalse($module);
         $this->assertTrue($module->install());
         $this->assertTrue($module->uninstall());
