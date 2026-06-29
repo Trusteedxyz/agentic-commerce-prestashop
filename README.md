@@ -48,11 +48,13 @@ Enable new online shoppers, AI agents, to make purchases in your store securely 
 
 [Coming soon]
 
-### Option 2: Manual upload
+### Option 2: Manual upload (recommended)
 
-1. Download the latest release ZIP from GitHub Releases.
+1. **Download the installable `.zip`** from the latest GitHub Release:
+   [**⬇ trusteed-agentic-commerce-prestashop-1.0.0.zip**](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases/latest/download/trusteed-agentic-commerce-prestashop-1.0.0.zip)
+   — or browse all versions at the [Releases page](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases).
 2. In your PS Back Office: **Modules → Module Manager → Upload a module**.
-3. Upload `agenticmcpstores-x.y.z.zip`.
+3. Upload the downloaded `trusteed-agentic-commerce-prestashop-1.0.0.zip`.
 4. Click **Configure** → the Setup Wizard opens automatically.
 
 ### Option 3: Docker / dev
@@ -60,7 +62,7 @@ Enable new online shoppers, AI agents, to make purchases in your store securely 
 ```bash
 docker compose -f e2e/docker/ps-staging.yml up -d
 docker compose -f e2e/docker/ps-staging.yml exec prestashop \
-  php bin/console prestashop:module install agenticmcpstores
+  php bin/console prestashop:module install trusteed
 ```
 
 ## Quick Setup Wizard
