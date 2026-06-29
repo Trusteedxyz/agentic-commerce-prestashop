@@ -22,7 +22,7 @@
  *   - die() replaced with exit(0) (PS 8.2+ recommendation)
  */
 
-require_once _PS_MODULE_DIR_ . 'agenticmcpstores/classes/TokenBroker.php';
+require_once _PS_MODULE_DIR_ . 'trusteed/classes/TokenBroker.php';
 
 use AgenticMcpStores\Mvp\TokenBroker;
 
@@ -82,7 +82,7 @@ class AdminAgenticTrustController extends ModuleAdminController
             'api_base'    => Configuration::get('AGENTICMCP_API_BASE'),
             'employee_id' => (int) ($this->context->employee->id ?? 0),
             'id_shop'     => (int) ($this->context->shop->id ?? 1),
-            'module_dir'  => _MODULE_DIR_ . 'agenticmcpstores/',
+            'module_dir'  => _MODULE_DIR_ . 'trusteed/',
         ]);
         $this->setTemplate('trust.tpl');
     }

@@ -23,11 +23,11 @@ if (!defined('_PS_VERSION_')) {
 
 require_once __DIR__ . '/classes/TokenBroker.php';
 
-class AgenticMcpStores extends Module
+class Trusteed extends Module
 {
     public function __construct()
     {
-        $this->name             = 'agenticmcpstores';
+        $this->name             = 'trusteed';
         $this->tab              = 'administration';
         $this->version          = '1.0.0';
         $this->author           = 'Trusteed';

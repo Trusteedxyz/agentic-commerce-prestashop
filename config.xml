@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <module>
-    <name>agenticmcpstores</name>
+    <name>trusteed</name>
     <displayName><![CDATA[Trusteed Trust Center]]></displayName>
     <version><![CDATA[1.0.0]]></version>
     <description><![CDATA[Embed the Trusteed Trust Center inside PrestaShop Back Office.]]></description>
