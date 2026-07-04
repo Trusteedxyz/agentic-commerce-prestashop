@@ -21,10 +21,10 @@
  *   - Opaque token returned in JSON response body; SPA stores in sessionStorage
  *     (tab-scoped) and refreshes on 401 (token TTL <= 900s).
  *
- * @namespace AgenticMcpStores\Mvp
+ * @namespace Trusteed\Mvp
  */
 
-namespace AgenticMcpStores\Mvp;
+namespace Trusteed\Mvp;
 
 class TokenBroker
 {

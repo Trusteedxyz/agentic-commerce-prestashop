@@ -1,6 +1,6 @@
 <?php
 /**
- * InstallTest — install/uninstall lifecycle for the AgenticMcpStores module.
+ * InstallTest — install/uninstall lifecycle for the Trusteed module.
  *
  * The previous version of this file was TAUTOLOGICAL: it asserted string
  * literals against themselves (e.g. `assertSame('agenticmcpstores',
@@ -18,7 +18,7 @@
  *      green-but-empty pass.
  *   2. Delegate the real, CI-resident coverage to TokenBrokerTest.php, which
  *      tests the only network-free, PrestaShop-independent production class
- *      (`AgenticMcpStores\Mvp\TokenBroker`) with no skips.
+ *      (`Trusteed\Mvp\TokenBroker`) with no skips.
  *
  * When run inside a real PS environment (PHPUnit launched with the PrestaShop
  * test kernel on the include path, defining `_PS_ROOT_DIR_` and providing the
@@ -29,7 +29,7 @@
  *   vendor/bin/phpunit -c tests/phpunit.xml --testsuite unit
  */
 
-namespace AgenticMcpStores\Tests\Unit;
+namespace Trusteed\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 

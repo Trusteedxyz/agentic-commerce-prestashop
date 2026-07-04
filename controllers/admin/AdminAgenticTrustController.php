@@ -24,7 +24,7 @@
 
 require_once _PS_MODULE_DIR_ . 'trusteed/classes/TokenBroker.php';
 
-use AgenticMcpStores\Mvp\TokenBroker;
+use Trusteed\Mvp\TokenBroker;
 
 class AdminAgenticTrustController extends ModuleAdminController
 {

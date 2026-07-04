@@ -7,13 +7,13 @@
  * execWithRetry signature. The network relay (exchange()) is exercised by the
  * backend integration suite (apps/api embed-ps routes), not here.
  *
- * Run: vendor/bin/phpunit packages/ps-module-agenticmcpstores/tests/unit/TokenBrokerTest.php
+ * Run: vendor/bin/phpunit packages/ps-module-trusteed/tests/unit/TokenBrokerTest.php
  */
 
-namespace AgenticMcpStores\Tests\Unit;
+namespace Trusteed\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use AgenticMcpStores\Mvp\TokenBroker;
+use Trusteed\Mvp\TokenBroker;
 
 class TokenBrokerTest extends TestCase
 {

@@ -25,6 +25,16 @@ require_once __DIR__ . '/classes/TokenBroker.php';
 
 class Trusteed extends Module
 {
+    /**
+     * Configuration keys — single source of truth shared by the module main
+     * class, the onboarding wizard and the Trust Center controller so the three
+     * never drift apart. (spec-042 C9: previously the wizard used `TRUSTEED_*`
+     * while install()/getContent()/the hook used `AGENTICMCP_*`.)
+     */
+    public const CFG_MERCHANT_ID     = 'AGENTICMCP_MERCHANT_ID';
+    public const CFG_BOOTSTRAP_SECRET = 'AGENTICMCP_BOOTSTRAP_SECRET';
+    public const CFG_API_BASE        = 'AGENTICMCP_API_BASE';
+
     public function __construct()
     {
         $this->name             = 'trusteed';
@@ -54,9 +64,9 @@ class Trusteed extends Module
         // Generate a fresh bootstrap secret on first install.
         // Production onboarding overwrites this with the portal-issued secret.
         $defaultSecret = bin2hex(random_bytes(32));
-        Configuration::updateValue('AGENTICMCP_BOOTSTRAP_SECRET', $defaultSecret);
-        Configuration::updateValue('AGENTICMCP_MERCHANT_ID', '');
-        Configuration::updateValue('AGENTICMCP_API_BASE', 'https://api.trusteed.xyz');
+        Configuration::updateValue(self::CFG_BOOTSTRAP_SECRET, $defaultSecret);
+        Configuration::updateValue(self::CFG_MERCHANT_ID, '');
+        Configuration::updateValue(self::CFG_API_BASE, 'https://api.trusteed.xyz');
 
         $this->registerHook('displayBackOfficeTop');
 
@@ -66,9 +76,9 @@ class Trusteed extends Module
     public function uninstall(): bool
     {
         $this->uninstallTabs();
-        Configuration::deleteByName('AGENTICMCP_BOOTSTRAP_SECRET');
-        Configuration::deleteByName('AGENTICMCP_MERCHANT_ID');
-        Configuration::deleteByName('AGENTICMCP_API_BASE');
+        Configuration::deleteByName(self::CFG_BOOTSTRAP_SECRET);
+        Configuration::deleteByName(self::CFG_MERCHANT_ID);
+        Configuration::deleteByName(self::CFG_API_BASE);
         return parent::uninstall();
     }
 
@@ -138,7 +148,7 @@ class Trusteed extends Module
      */
     public function hookDisplayBackOfficeTop(): string
     {
-        $merchantId = (string) Configuration::get('AGENTICMCP_MERCHANT_ID');
+        $merchantId = (string) Configuration::get(self::CFG_MERCHANT_ID);
         if ($merchantId === '') {
             return '';
         }
@@ -165,8 +175,8 @@ class Trusteed extends Module
     public function getContent(): string
     {
         // Redirect to the Quick Setup wizard when credentials are not yet set.
-        $merchantId = (string) Configuration::get('AGENTICMCP_MERCHANT_ID');
-        $secret     = (string) Configuration::get('AGENTICMCP_BOOTSTRAP_SECRET');
+        $merchantId = (string) Configuration::get(self::CFG_MERCHANT_ID);
+        $secret     = (string) Configuration::get(self::CFG_BOOTSTRAP_SECRET);
         $isDefaultSecret = strlen($secret) === 64 && $merchantId === '';
 
         if ($merchantId === '' || $isDefaultSecret) {
@@ -177,14 +187,14 @@ class Trusteed extends Module
 
         $output = '';
         if (Tools::isSubmit('submitAgenticMcpStores')) {
-            $merchantId = (string) Tools::getValue('AGENTICMCP_MERCHANT_ID');
-            $secret     = (string) Tools::getValue('AGENTICMCP_BOOTSTRAP_SECRET');
-            $apiBase    = trim((string) Tools::getValue('AGENTICMCP_API_BASE'));
+            $merchantId = (string) Tools::getValue(self::CFG_MERCHANT_ID);
+            $secret     = (string) Tools::getValue(self::CFG_BOOTSTRAP_SECRET);
+            $apiBase    = trim((string) Tools::getValue(self::CFG_API_BASE));
 
             // Validate api_base before saving (SSRF prevention).
             if ($apiBase !== '') {
                 try {
-                    \AgenticMcpStores\Mvp\TokenBroker::validateApiBasePublic($apiBase);
+                    \Trusteed\Mvp\TokenBroker::validateApiBasePublic($apiBase);
                 } catch (\InvalidArgumentException $e) {
                     $output .= $this->displayError(
                         $this->l('Invalid API Base URL: must be HTTPS and target an external host.')
@@ -193,7 +203,7 @@ class Trusteed extends Module
                 }
             }
 
-            Configuration::updateValue('AGENTICMCP_MERCHANT_ID', $merchantId);
+            Configuration::updateValue(self::CFG_MERCHANT_ID, $merchantId);
 
             // S042-002: validate hex format before saving; empty means "keep existing".
             if ($secret !== '') {
@@ -203,10 +213,10 @@ class Trusteed extends Module
                     );
                     return $output . $this->renderForm();
                 }
-                Configuration::updateValue('AGENTICMCP_BOOTSTRAP_SECRET', $secret);
+                Configuration::updateValue(self::CFG_BOOTSTRAP_SECRET, $secret);
             }
 
-            Configuration::updateValue('AGENTICMCP_API_BASE', $apiBase);
+            Configuration::updateValue(self::CFG_API_BASE, $apiBase);
             $output .= $this->displayConfirmation($this->l('Settings updated'));
         }
         return $output . $this->renderForm();
@@ -221,21 +231,21 @@ class Trusteed extends Module
                     [
                         'type'     => 'text',
                         'label'    => $this->l('Merchant ID'),
-                        'name'     => 'AGENTICMCP_MERCHANT_ID',
+                        'name'     => self::CFG_MERCHANT_ID,
                         'desc'     => $this->l('UUID provided by Trusteed onboarding'),
                         'required' => true,
                     ],
                     [
                         'type'     => 'password',
                         'label'    => $this->l('Bootstrap Secret'),
-                        'name'     => 'AGENTICMCP_BOOTSTRAP_SECRET',
+                        'name'     => self::CFG_BOOTSTRAP_SECRET,
                         'desc'     => $this->l('Hex secret from portal onboarding'),
                         'required' => true,
                     ],
                     [
                         'type'     => 'text',
                         'label'    => $this->l('API Base URL'),
-                        'name'     => 'AGENTICMCP_API_BASE',
+                        'name'     => self::CFG_API_BASE,
                         'desc'     => $this->l('Default: https://api.trusteed.xyz'),
                         'required' => true,
                     ],
@@ -255,9 +265,9 @@ class Trusteed extends Module
             . '&configure=' . $this->name;
         $helper->default_form_language = (int) Configuration::get('PS_LANG_DEFAULT');
         $helper->fields_value = [
-            'AGENTICMCP_MERCHANT_ID'       => Configuration::get('AGENTICMCP_MERCHANT_ID'),
-            'AGENTICMCP_BOOTSTRAP_SECRET'  => '', // S042-001: never echo the secret back to the browser
-            'AGENTICMCP_API_BASE'          => Configuration::get('AGENTICMCP_API_BASE'),
+            self::CFG_MERCHANT_ID      => Configuration::get(self::CFG_MERCHANT_ID),
+            self::CFG_BOOTSTRAP_SECRET => '', // S042-001: never echo the secret back to the browser
+            self::CFG_API_BASE         => Configuration::get(self::CFG_API_BASE),
         ];
         return $helper->generateForm([$fieldsForm]);
     }

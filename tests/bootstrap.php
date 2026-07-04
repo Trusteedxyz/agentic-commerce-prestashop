@@ -3,19 +3,19 @@
 declare(strict_types=1);
 
 /**
- * tests/bootstrap.php — PHPUnit bootstrap for the ps-module-agenticmcpstores
- * (the REAL "Trust Center" module: class `AgenticMcpStores`).
+ * tests/bootstrap.php — PHPUnit bootstrap for the ps-module-trusteed
+ * (the REAL "Trust Center" module: class `Trusteed`).
  *
  * No Composer / vendor dir ships with this module (it is a pure-PHP PrestaShop
  * add-on), so the CI-resident unit suite cannot rely on a generated autoloader.
  * This bootstrap registers a minimal PSR-4 loader so the tests exercise the
- * REAL production classes — chiefly `AgenticMcpStores\Mvp\TokenBroker`
+ * REAL production classes — chiefly `Trusteed\Mvp\TokenBroker`
  * (classes/TokenBroker.php) — instead of inline mock re-implementations.
  *
  * Mapping:
- *   AgenticMcpStores\Mvp\<Name>  →  classes/<Name>.php
+ *   Trusteed\Mvp\<Name>  →  classes/<Name>.php
  *
- * `classes/TokenBroker.php` declares namespace `AgenticMcpStores\Mvp` and is the
+ * `classes/TokenBroker.php` declares namespace `Trusteed\Mvp` and is the
  * only network-free, PrestaShop-independent class, which is exactly why it is the
  * CI-resident real test (TokenBrokerTest.php). Anything that needs live PS
  * globals (Configuration, Db, Module::install/uninstall) is guarded with
@@ -23,7 +23,7 @@ declare(strict_types=1);
  */
 
 spl_autoload_register(static function (string $class): void {
-    $prefix  = 'AgenticMcpStores\\Mvp\\';
+    $prefix  = 'Trusteed\\Mvp\\';
     $baseDir = __DIR__ . '/../classes/';
 
     if (strncmp($class, $prefix, strlen($prefix)) !== 0) {

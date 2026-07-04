@@ -60,9 +60,9 @@ class AdminAgenticWizardController extends ModuleAdminController
         $employee   = $this->context->employee;
         $isMainShop = ((int) $this->context->shop->id === (int) Configuration::get('PS_SHOP_DEFAULT'));
 
-        $merchantId = (string) Configuration::get('TRUSTEED_MERCHANT_ID');
-        $hasSecret  = (string) Configuration::get('TRUSTEED_BOOTSTRAP_SECRET') !== '';
-        $apiBase    = (string) Configuration::get('TRUSTEED_API_BASE');
+        $merchantId = (string) Configuration::get(Trusteed::CFG_MERCHANT_ID);
+        $hasSecret  = (string) Configuration::get(Trusteed::CFG_BOOTSTRAP_SECRET) !== '';
+        $apiBase    = (string) Configuration::get(Trusteed::CFG_API_BASE);
 
         // Wizard is only useful when configuration is incomplete.
         $isConfigured = ($merchantId !== '' && $hasSecret);
@@ -96,8 +96,8 @@ class AdminAgenticWizardController extends ModuleAdminController
      *
      * Calls POST /v1/embed/ps/auto-register with store data derived from
      * the PS context (no user input required). On success saves
-     * TRUSTEED_MERCHANT_ID, TRUSTEED_BOOTSTRAP_SECRET, and TRUSTEED_INSTALL_KEY
-     * to PS Configuration automatically.
+     * Trusteed::CFG_MERCHANT_ID, Trusteed::CFG_BOOTSTRAP_SECRET, and
+     * TRUSTEED_INSTALL_KEY to PS Configuration automatically.
      */
     public function ajaxProcessAutoRegister(): void
     {
@@ -116,7 +116,7 @@ class AdminAgenticWizardController extends ModuleAdminController
             exit(0);
         }
 
-        $apiBase       = (string) (Configuration::get('TRUSTEED_API_BASE') ?: 'https://api.trusteed.xyz');
+        $apiBase       = (string) (Configuration::get(Trusteed::CFG_API_BASE) ?: 'https://api.trusteed.xyz');
         $storeUrl      = (string) $this->context->shop->getBaseURL(true);
         $storeName     = (string) Configuration::get('PS_SHOP_NAME');
         $adminEmail    = (string) ($employee->email ?? '');
@@ -135,8 +135,8 @@ class AdminAgenticWizardController extends ModuleAdminController
                 $installKey
             );
 
-            Configuration::updateValue('TRUSTEED_MERCHANT_ID', $result['merchant_id']);
-            Configuration::updateValue('TRUSTEED_BOOTSTRAP_SECRET', $result['bootstrap_secret']);
+            Configuration::updateValue(Trusteed::CFG_MERCHANT_ID, $result['merchant_id']);
+            Configuration::updateValue(Trusteed::CFG_BOOTSTRAP_SECRET, $result['bootstrap_secret']);
             if ($result['install_key'] !== '') {
                 Configuration::updateValue('TRUSTEED_INSTALL_KEY', $result['install_key']);
             }
@@ -215,11 +215,11 @@ class AdminAgenticWizardController extends ModuleAdminController
                 echo json_encode(['error' => 'invalid_api_base']);
                 exit(0);
             }
-            Configuration::updateValue('TRUSTEED_API_BASE', $apiBase);
+            Configuration::updateValue(Trusteed::CFG_API_BASE, $apiBase);
         }
 
-        Configuration::updateValue('TRUSTEED_MERCHANT_ID', $merchantId);
-        Configuration::updateValue('TRUSTEED_BOOTSTRAP_SECRET', $secret);
+        Configuration::updateValue(Trusteed::CFG_MERCHANT_ID, $merchantId);
+        Configuration::updateValue(Trusteed::CFG_BOOTSTRAP_SECRET, $secret);
 
         echo json_encode(['success' => true]);
         exit(0);
@@ -244,9 +244,9 @@ class AdminAgenticWizardController extends ModuleAdminController
             return;
         }
 
-        $merchantId = (string) Configuration::get('TRUSTEED_MERCHANT_ID');
-        $secret     = (string) Configuration::get('TRUSTEED_BOOTSTRAP_SECRET');
-        $apiBase    = (string) Configuration::get('TRUSTEED_API_BASE');
+        $merchantId = (string) Configuration::get(Trusteed::CFG_MERCHANT_ID);
+        $secret     = (string) Configuration::get(Trusteed::CFG_BOOTSTRAP_SECRET);
+        $apiBase    = (string) Configuration::get(Trusteed::CFG_API_BASE);
 
         if ($merchantId === '' || $secret === '') {
             $this->emitJsonError('configure_module_first');
