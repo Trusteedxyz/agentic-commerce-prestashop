@@ -88,10 +88,11 @@ On first install (or when `AGENTICMCP_MERCHANT_ID` is not set), the module redir
 ## Module Files
 
 ```
-agenticmcpstores/
-├── agenticmcpstores.php          — Module class (install/uninstall/hooks)
+trusteed/
+├── trusteed.php                  — Module class `Trusteed` (install/uninstall/hooks)
 ├── classes/
-│   └── TokenBroker.php           — HS256 JWT signer + curl exchange
+│   ├── TokenBroker.php           — HS256 JWT signer + curl exchange
+│   └── AutoRegister.php          — Best-effort store auto-registration against the Trusteed backend
 ├── controllers/admin/
 │   ├── AdminAgenticTrustController.php  — Trust Center embed page + AJAX bootstrap
 │   └── AdminAgenticWizardController.php — Setup wizard
