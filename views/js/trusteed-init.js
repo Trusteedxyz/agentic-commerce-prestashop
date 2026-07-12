@@ -1,91 +1,141 @@
-/*
- * Trusteed Trust Center — CSP-safe SPA bootstrap.
+/**
+ * trusteed-init.js — Token relay + SPA mount para el back office PrestaShop.
  *
- * This file is loaded as an EXTERNAL script (no inline <script>), so it works
- * under a strict Content-Security-Policy that forbids inline JS. All values
- * that Smarty injects (CSRF token, AJAX endpoint) are read from data-* attributes
- * on the #amcp-root container instead of being interpolated into source.
+ * Lee la configuración desde los atributos data-amcp-* del elemento #amcp-root,
+ * evitando inline scripts para compatibilidad con Content-Security-Policy estricta.
  *
- * The PS token is an OPAQUE token with a short TTL (<= 900s) issued by the
- * controller relay to POST /v1/embed/ps/issue-token. The shared SPA api-client
- * calls getToken() before every request but does NOT retry on 401, so we refresh
- * proactively here: re-fetch once the cached token enters its last 60s of life.
- * _expiresAtMs/_inflight are module-scoped so the token can be invalidated and
- * re-issued without touching the shared bundle. The token is held in JS memory
- * (and the SPA persists it in tab-scoped sessionStorage) and sent as a Bearer
- * header — it is NOT an httpOnly cookie.
+ * Cargado con defer después del bundle SPA (trusteed admin-spa.js), por lo que
+ * TrusteedEmbed puede no estar disponible aún cuando este script se ejecuta.
+ * mountWhenReady() sondea hasta que el bundle esté listo.
+ *
+ * CSP requirement: 'self' en script-src — sin 'unsafe-inline' necesario.
  */
 (function () {
-  var rootEl = document.getElementById("amcp-root");
-  if (!rootEl) {
-    return;
+  "use strict";
+
+  var EXPIRY_BUFFER_MS = 30000; // 30 s de margen antes de que expire el token
+
+  var tokenCache = null;
+  var tokenExpiresAt = 0;
+
+  /**
+   * Lee la configuración del elemento #amcp-root via data-amcp-* attributes.
+   * Devuelve null si el elemento no existe o faltan atributos obligatorios.
+   *
+   * @returns {{ ajaxUrl: string, adminToken: string, apiBase: string,
+   *             merchantId: string, shopId: number, shopDomain: string,
+   *             locale: string } | null}
+   */
+  function readConfig() {
+    var root = document.getElementById("amcp-root");
+    if (!root) return null;
+
+    var ajaxUrl = root.getAttribute("data-amcp-ajax-url");
+    var adminToken = root.getAttribute("data-amcp-admin-token");
+    var apiBase = root.getAttribute("data-amcp-api-base");
+    var merchantId = root.getAttribute("data-amcp-merchant-id");
+    var shopId = parseInt(root.getAttribute("data-amcp-shop-id") || "0", 10);
+    var shopDomain = root.getAttribute("data-amcp-shop-domain") || "";
+    var locale = root.getAttribute("data-amcp-locale") || "en";
+
+    if (!ajaxUrl || !adminToken || !apiBase || !merchantId) return null;
+
+    return {
+      ajaxUrl: ajaxUrl,
+      adminToken: adminToken,
+      apiBase: apiBase,
+      merchantId: merchantId,
+      shopId: shopId,
+      shopDomain: shopDomain,
+      locale: locale,
+    };
   }
 
-  var CSRF_TOKEN = rootEl.dataset.csrfToken || "";
-  var AJAX_URL = rootEl.dataset.tokenEndpoint || "";
-
-  var _cachedToken = null;
-  var _expiresAtMs = 0;
-  var _inflight = null;
-  var REFRESH_SKEW_MS = 60 * 1000;
-
-  function fetchToken() {
-    return fetch(AJAX_URL + "&token=" + encodeURIComponent(CSRF_TOKEN), {
-      method: "POST",
-      headers: { Accept: "application/json" },
-    })
-      .then(function (r) {
-        return r.json();
-      })
-      .then(function (data) {
-        if (data.success && data.access_token) {
-          _cachedToken = data.access_token;
-          // expires_in is seconds; default to 300s if absent/invalid.
-          var ttlSec =
-            typeof data.expires_in === "number" && data.expires_in > 0
-              ? data.expires_in
-              : 300;
-          _expiresAtMs = Date.now() + ttlSec * 1000;
-          return _cachedToken;
-        }
-        _cachedToken = null;
-        _expiresAtMs = 0;
-        return null;
-      })
-      .catch(function () {
-        _cachedToken = null;
-        _expiresAtMs = 0;
-        return null;
-      });
-  }
-
-  function getToken() {
-    var fresh = _cachedToken && Date.now() < _expiresAtMs - REFRESH_SKEW_MS;
-    if (fresh) {
-      return Promise.resolve(_cachedToken);
+  /**
+   * Obtiene un access token Ed25519 vía relay AJAX S2S.
+   *
+   * PHP hace el relay S2S a /v1/embed/ps/issue-token con X-Embed-Ps-Secret.
+   * El secreto nunca sale al navegador (constraint C-003).
+   *
+   * @returns {Promise<string>}
+   */
+  async function psGetToken() {
+    var now = Date.now();
+    if (tokenCache !== null && now < tokenExpiresAt - EXPIRY_BUFFER_MS) {
+      return tokenCache;
     }
-    // Coalesce concurrent refreshes so a burst of requests issues one token.
-    if (_inflight) {
-      return _inflight;
+
+    var cfg = readConfig();
+    if (!cfg) {
+      throw new Error("[Trusteed] configuración no disponible en #amcp-root");
     }
-    _inflight = fetchToken().then(
-      function (t) {
-        _inflight = null;
-        return t;
-      },
-      function () {
-        _inflight = null;
-        return null;
-      }
+
+    var resp = await fetch(
+      cfg.ajaxUrl +
+        "&ajax=1&action=token&token=" +
+        encodeURIComponent(cfg.adminToken),
+      { method: "POST", headers: { Accept: "application/json" } }
     );
-    return _inflight;
+
+    if (!resp.ok) {
+      throw new Error("[Trusteed] token relay failed: HTTP " + resp.status);
+    }
+
+    var data = await resp.json();
+    if (data.error) {
+      throw new Error("[Trusteed] token error: " + data.error);
+    }
+    if (!data.token) {
+      throw new Error("[Trusteed] No token in PS response");
+    }
+
+    tokenCache = data.token;
+    tokenExpiresAt = data.expires_at
+      ? new Date(data.expires_at).getTime()
+      : Date.now() + 300 * 1000;
+    return tokenCache;
   }
 
-  if (window.TrusteedEmbed && window.TrusteedEmbed.mount) {
-    window.TrusteedEmbed.mount(rootEl, {
-      section: "trust-center",
-      source: "ps-embed",
-      getToken: getToken,
-    });
+  /**
+   * Espera a que el bundle esté cargado y monta la SPA.
+   * Sondea cada 50 ms; abort tras 30 s para no bloquear el navegador indefinidamente.
+   */
+  function mountWhenReady() {
+    var attempts = 0;
+    var MAX_ATTEMPTS = 600; // 600 * 50ms = 30 s
+
+    var interval = setInterval(function () {
+      attempts++;
+      if (attempts > MAX_ATTEMPTS) {
+        clearInterval(interval);
+        console.error("[Trusteed] timeout esperando TrusteedEmbed bundle");
+        return;
+      }
+
+      if (typeof window.TrusteedEmbed === "undefined") return;
+
+      clearInterval(interval);
+
+      var rootEl = document.getElementById("amcp-root");
+      if (!rootEl) return;
+
+      var cfg = readConfig();
+      if (!cfg) {
+        console.error(
+          "[Trusteed] atributos data-amcp-* no encontrados en #amcp-root"
+        );
+        return;
+      }
+
+      window.TrusteedEmbed.mount(rootEl, {
+        section: rootEl.dataset.section || "inicio",
+        source: "ps-embed",
+        apiBase: cfg.apiBase,
+        getToken: psGetToken,
+        locale: cfg.locale,
+      });
+    }, 50);
   }
+
+  document.addEventListener("DOMContentLoaded", mountWhenReady);
 })();

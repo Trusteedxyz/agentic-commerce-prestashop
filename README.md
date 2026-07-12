@@ -1,159 +1,119 @@
-**English** | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md)
+# Trusteed AgenticTools — PrestaShop Module
 
-# Trusteed Agentic Commerce for PrestaShop
+Panel de confianza para PrestaShop que permite a los comerciantes gestionar ventas a agentes de IA (Claude, ChatGPT, etc.), visualizar su puntuación de confianza y emitir comprobantes de venta firmados digitalmente.
 
-Enable new online shoppers, AI agents, to make purchases in your store securely and reliably thanks to Trusteed: the network that fosters trust between businesses and agents.
+- **Compatible:** PrestaShop 8.0.0 – 9.99.99
+- **PHP:** 8.1+
+- **Autor:** Trusteed
+- **Licencia:** MIT
 
-- **Set your business rules**: who you allow to buy, up to what amount, which categories you don't want to offer to agents, set price limits, maintain stock levels to protect yourself against potential fraudulent agents, and more.
-- **Tamper-proof receipts**: we generate electronically signed and cryptographically tamper-proof receipts that serve as proof of the actual transaction in case of any dispute. Compatible with eIDAS (EU, UK) and eSIGN (USA) regulations.
-- **Agent analytics**: view statistics on agent purchases — how much they spend, what products they buy, and how often.
-- **Agent blocking**: block potentially dangerous or problematic agents.
-- **Digital currencies**: enables purchases in digital currencies thanks to the X402 protocol.
-- **Peer-to-peer transactions**: enables direct peer-to-peer commerce between agents and merchants.
+## Capturas de pantalla
 
-## Screenshots
+### Panel de inicio — Reputación y ventas recientes
 
-| Dashboard | Trust Score |
-|-----------|------------|
-| ![Dashboard](screenshots/01-home-dashboard.png) | ![Trust Score](screenshots/02-trust-score-breakdown.png) |
+![Home dashboard](screenshots/01-home-dashboard.png)
 
-| Orders | Payments |
-|--------|---------|
-| ![Orders](screenshots/03-merchant-center-orders.png) | ![Payments](screenshots/03b-merchant-center-payments.png) |
+### Desglose de puntuación de confianza
 
-| Certifications | My Sales |
-|---------------|---------|
-| ![Certifications](screenshots/04-merchant-center-certifications.png) | ![My Sales](screenshots/05-my-sales-orders.png) |
+![Trust score breakdown](screenshots/02-trust-score-breakdown.png)
 
-| AI Receipts | Agents |
-|------------|-------|
-| ![AI Receipts](screenshots/06-my-sales-ai-receipts.png) | ![Agents](screenshots/07-agents.png) |
+### Merchant Center — Pedidos
 
-## Features
+![Merchant Center orders](screenshots/03-merchant-center-orders.png)
 
-- Trust Center: receipts, signing keys, audit log, trust score
-- Merchant Center: orders, payment methods, agents, checkout config, certification + NLWeb
-- Onboarding wizard (4 steps — no config page needed)
-- Super-admin-only Trust Center access (fail-closed bootstrap relay) with the
-  super-admin `all_shops` scope derived server-side
-- `displayBackOfficeTop` trust badge in every BO page
+### Merchant Center — Métodos de pago
 
-## Requirements
+![Merchant Center payments](screenshots/03b-merchant-center-payments.png)
 
-- PrestaShop 8.0.0 – 9.99.99
+### Merchant Center — Certificaciones y NLWeb
+
+![Merchant Center certifications](screenshots/04-merchant-center-certifications.png)
+
+### Mis ventas — Lista de pedidos
+
+![My sales orders](screenshots/05-my-sales-orders.png)
+
+### Mis ventas — Comprobantes de venta IA (Trust Receipts)
+
+![My sales AI receipts](screenshots/06-my-sales-ai-receipts.png)
+
+### Agentes de compra
+
+![Agents](screenshots/07-agents.png)
+
+---
+
+## Instalación
+
+1. Instala el add-on PrestaShop MCP Server (marketplace ID `96617`).
+2. Copia este módulo en `modules/trusteed/` y ejecuta `composer install`.
+3. Instala desde Back Office → Módulos → "Trusteed AgenticTools".
+4. Configura `TRUSTEED_API_BASE` y `TRUSTEED_BOOTSTRAP_TOKEN` desde el dashboard de Trusteed.
+
+## Integración con herramientas agénticas (MCP)
+
+Este módulo expone cinco herramientas MCP canónicas mediante el atributo PHP `#[McpTool]`
+(`php-mcp/server`). Cuando el add-on MCP Server `96617` está presente lo descubre
+automáticamente — `Trusteed::isMcpCompliant()` devuelve `true` y el add-on
+escanea `src/AgenticTools/Tools/` durante el registro de herramientas.
+
+### Herramientas expuestas
+
+Fuente: `src/AgenticTools/Tools/`.
+
+| Herramienta (MCP)                 | Archivo fuente                 | Propósito                                                               |
+| --------------------------------- | ------------------------------ | ----------------------------------------------------------------------- |
+| `trusteed_sign_trust_receipt`     | `SignTrustReceiptTool.php`     | Emite un Trust Receipt JWS Ed25519 para un pedido PrestaShop.           |
+| `trusteed_verify_agent_signature` | `VerifyAgentSignatureTool.php` | Verifica una firma de mensaje HTTP RFC 9421 para una petición agéntica. |
+| `trusteed_dispatch_payment_acp`   | `DispatchPaymentAcpTool.php`   | Despacha un checkout ACP (Agent Commerce Protocol) para un carrito.     |
+| `trusteed_dispatch_payment_x402`  | `DispatchPaymentX402Tool.php`  | Despacha un pago x402 en stablecoin para un carrito PrestaShop.         |
+| `trusteed_dispatch_payment_ap2`   | `DispatchPaymentAp2Tool.php`   | **[EXPERIMENTAL]** Despacha un pago AP2 basado en mandato agéntico.     |
+
+### Requisitos
+
 - PHP 8.1+
-- A Trusteed account at app.trusteed.xyz
+- PrestaShop 9.x (también funciona en 8.0+)
+- Add-on PrestaShop MCP Server `96617` instalado y habilitado
+- `php-mcp/server` disponible (dependencia transitiva del add-on `96617`)
 
-## Installation
+### Cómo funciona
 
-### Option 1: PrestaShop Addons (recommended)
+1. El add-on `96617` llama a `Trusteed::isMcpCompliant()` durante el arranque.
+2. Si devuelve `true`, escanea el namespace PSR-4 de este módulo buscando clases con el atributo `#[McpTool(name: ..., description: ...)]`.
+3. Las cinco herramientas se registran en el MCP Server y quedan disponibles para cualquier cliente agente conectado.
 
-[Coming soon]
+### Verificar la integración
 
-### Option 2: Manual upload (recommended)
+Desde Claude Desktop (o cualquier cliente MCP) conectado al PrestaShop MCP Server, ejecuta `list_tools`. Las cinco herramientas deben aparecer con el prefijo `trusteed_`.
 
-1. **Download the installable `.zip`** from the latest GitHub Release:
-   [**⬇ trusteed-agentic-commerce-prestashop-1.0.0.zip**](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases/latest/download/trusteed-agentic-commerce-prestashop-1.0.0.zip)
-   — or browse all versions at the [Releases page](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases).
-2. In your PS Back Office: **Modules → Module Manager → Upload a module**.
-3. Upload the downloaded `trusteed-agentic-commerce-prestashop-1.0.0.zip`.
-4. Click **Configure** → the Setup Wizard opens automatically.
+Ejemplo de invocación de agente:
 
-### Option 3: Docker / dev
+> "Firma un comprobante de venta para el pedido 123."
 
-```bash
-docker compose -f e2e/docker/ps-staging.yml up -d
-docker compose -f e2e/docker/ps-staging.yml exec prestashop \
-  php bin/console prestashop:module install trusteed
-```
+→ Claude llama a `trusteed_sign_trust_receipt({ orderId: "123" })` y el módulo devuelve `{ receiptId, jws, kid, signedAt }`.
 
-## Quick Setup Wizard
+### Degradación elegante
 
-On first install (or when `AGENTICMCP_MERCHANT_ID` is not set), the module redirects to the Quick Setup Wizard:
+Si el add-on `96617` **no** está instalado, `class_exists('PhpMcp\\Server\\Attributes\\McpTool')` devuelve `false` y las clases de atributos se omiten silenciosamente. El módulo sigue siendo instalable y funcional para flujos no-agénticos — solo la superficie de AgenticTools no estará disponible.
 
-1. **Welcome** — confirm prerequisites (account + HTTPS outbound)
-2. **Connect** — open the Trusteed Portal, navigate to "Connect a Store → PrestaShop"
-3. **Credentials** — paste your Merchant ID and Bootstrap Secret
-4. **Test** — click "Check credentials" to verify the connection
+## Claves de configuración
 
-## Multi-shop (PrestaShop Multistore)
+| Clave                      | Por defecto                | Propósito                                   |
+| -------------------------- | -------------------------- | ------------------------------------------- |
+| `TRUSTEED_API_BASE`        | `https://api.trusteed.xyz` | URL base del backend de Trusteed.           |
+| `TRUSTEED_BOOTSTRAP_TOKEN` | _(vacío)_                  | Token embed-bootstrap emitido por Trusteed. |
 
-- Each shop has a separate embed context (scoped `id_shop` claim).
-- **Only super-admins (`id_profile === _PS_ADMIN_PROFILE_`) can open the Trust
-  Center.** The bootstrap relay fails closed (HTTP 403) for every other
-  profile, so non-super-admins never obtain an embed token at all — there is no
-  scoped-down "regular employee" view of the Trust Center.
-- For super-admins, the `all_shops` list is derived server-side from the real
-  shop list (`Shop::getCompleteListOfShopsID()`), never from caller-controlled
-  BO context, and the SPA shows a shop switcher dropdown.
+## Changelog
 
-## Module Files
+### 2.0.0
 
-```
-trusteed/
-├── trusteed.php                  — Module class `Trusteed` (install/uninstall/hooks)
-├── classes/
-│   ├── TokenBroker.php           — HS256 JWT signer + curl exchange
-│   └── AutoRegister.php          — Best-effort store auto-registration against the Trusteed backend
-├── controllers/admin/
-│   ├── AdminAgenticTrustController.php  — Trust Center embed page + AJAX bootstrap
-│   └── AdminAgenticWizardController.php — Setup wizard
-├── views/
-│   ├── templates/admin/
-│   │   ├── trust.tpl             — SPA host page
-│   │   └── wizard.tpl            — 4-step setup wizard
-│   └── js/
-│       ├── admin-spa.js          — Bundled SPA (post-build copy from WP plugin)
-│       └── trusteed-init.js      — CSP-safe external bootstrap (token + mount)
-├── tests/unit/
-│   ├── InstallTest.php
-│   └── TokenBrokerTest.php
-└── translations/                 — XLIFF locale files (en-US, es-ES, fr-FR, de-DE)
-```
+**Corrección importante:** este release reemplaza el contenido publicado previamente bajo `v1.0.0` en este repositorio, que por error correspondía a un módulo distinto (Trust Center standalone). Este release contiene el módulo real y vigente: `Trusteed` (technical name `trusteed`), que consolida Trust Center + Merchant Center + AgenticTools (5 MCP tools) + Checkout Enforcement en un solo módulo PrestaShop, con 9 controladores de administración.
 
-## Security Notes
+- **Fix**: enforcement de checkout se saltaba por completo en checkouts orgánicos (sin agente) — reglas de merchant (monto máximo, países bloqueados, horario comercial) ahora aplican siempre.
+- **Añadido**: evaluador offline de respaldo (`OfflineSafetyValveEvaluator`) para cuando la API remota de reglas no está disponible.
+- **Añadido**: auto-registro self-serve (un clic para registrar la tienda en Trusteed y obtener credenciales automáticamente, además del método manual existente).
+- **Rebrand técnico completo**: namespace PSR-4, nombre técnico del módulo, constantes de configuración y nombres de las 5 MCP tools pasan de `mcpwebstore`/`Mcpwebstore` a `trusteed`/`Trusteed`.
 
-- Bootstrap secret stored in PS `Configuration` table (encrypted at DB level with PS native encryption).
-- JWT TTL: 30 seconds. Access tokens: 5 minutes.
-- `X-Frame-Options: SAMEORIGIN` on all admin responses.
-- CSRF validated via `Tools::getAdminTokenLite`.
-- **Trust Center access is super-admin only.** The AJAX bootstrap relay
-  (`ajaxProcessIssueBootstrap`) fails closed for any employee whose
-  `id_profile` is not `_PS_ADMIN_PROFILE_` (HTTP 403 `insufficient_capability`).
-  PrestaShop tab ACL only guarantees *view* permission, which is
-  low-privilege; since the minted token carries an `admin_trusteed`
-  capability (merchant-wide trust write) we restrict it to super-admins.
-- **Token storage — Bearer in DOM, NOT an httpOnly cookie.** The relay
-  endpoint `POST /v1/embed/ps/issue-token` returns a short-lived (TTL ≤ 900s)
-  **opaque** token in the JSON `access_token` field. The external bootstrap
-  (`views/js/trusteed-init.js`) holds it in JS memory and the shared SPA
-  persists it in tab-scoped `sessionStorage`; it is sent to the API as a
-  `Bearer` Authorization header via the api-client `getToken` callback.
-  httpOnly cookies are deliberately NOT used because JS cannot read them to
-  attach the Bearer header. The token is therefore exposed to the page's JS,
-  so its short TTL + proactive refresh (last-60s skew) are the primary
-  mitigation, not cookie isolation.
+## Licencia
 
-### CSP — no inline scripts
-
-`trust.tpl` contains **no inline `<script>` blocks**, so it works under a
-strict Content-Security-Policy. It loads two external scripts in order:
-
-1. `views/js/admin-spa.js` — the bundled SPA (defines `window.TrusteedEmbed`).
-2. `views/js/trusteed-init.js` — the CSP-safe bootstrap that fetches/refreshes
-   the opaque token and calls `TrusteedEmbed.mount(...)`.
-
-Smarty-injected values (CSRF token, AJAX token endpoint) are passed to
-`trusteed-init.js` via `data-*` attributes on the `#amcp-root` container and
-read with `element.dataset` — nothing is interpolated into executable JS.
-
-## Compatibility
-
-| PrestaShop | PHP  | Status                    |
-| ---------- | ---- | ------------------------- |
-| 8.0 – 8.2  | 8.1+ | ✅ Tested                 |
-| 9.x        | 8.2+ | ⚠️ Should work (untested) |
-
-## License
-
-MIT © Trusteed
+MIT — ver `composer.json`.
