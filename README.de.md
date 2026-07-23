@@ -60,20 +60,31 @@ Trusteed AgenticTools vereint Trust Center, Merchant Center, agentische MCP-Tool
 
 ### Manueller Upload
 
-1. Laden Sie den Quellcode von der aktuellen [Releases-Seite](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases) herunter (oder führen Sie `git clone` für dieses Repository aus).
-2. Benennen Sie den extrahierten obersten Ordner in `trusteed` um (PrestaShop verlangt, dass der Ordnername mit dem technischen Namen des Moduls übereinstimmt) und komprimieren Sie ihn erneut als `.zip`.
-3. In Ihrem PrestaShop-**Back Office**: **Module → Modul-Manager → Modul hochladen**.
-4. Wählen Sie die soeben erstellte `trusteed.zip` aus und klicken Sie auf **Dieses Modul hochladen**.
-5. Klicken Sie auf **Konfigurieren**.
+1. **Laden Sie die installierbare `.zip`** aus dem neuesten GitHub-Release herunter:
+   [**⬇ trusteed-agentic-commerce-prestashop-2.0.1.zip**](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases/latest/download/trusteed-agentic-commerce-prestashop-2.0.1.zip)
+   — oder durchsuchen Sie alle Versionen auf der [Releases-Seite](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases).
+2. In Ihrem PrestaShop-**Back Office**: **Module → Modul-Manager → Modul hochladen**.
+3. Wählen Sie die heruntergeladene `.zip` aus und klicken Sie auf **Dieses Modul hochladen**.
+4. Klicken Sie auf **Konfigurieren**.
 
-### Über Composer (für die Entwicklung)
+### Aus dem Quellcode (die Zip selbst bauen)
+
+```bash
+git clone https://github.com/Trusteedxyz/agentic-commerce-prestashop.git
+cd agentic-commerce-prestashop
+bash bin/build-zip.sh   # erzeugt dist/trusteed-agentic-commerce-prestashop-<version>.zip
+```
+
+Das Modul enthält einen PSR-4-Fallback-Autoloader für den Namespace `Trusteed\` und funktioniert daher auch ohne `vendor/`-Verzeichnis korrekt (das Build-Skript enthält keins — `composer install` ist optional, nicht erforderlich).
+
+### Über Composer (optional, für IDE-Tooling / lokale Entwicklung)
 
 ```bash
 git clone https://github.com/Trusteedxyz/agentic-commerce-prestashop.git trusteed
 cd trusteed
 composer install --no-dev --optimize-autoloader
 ```
-Laden Sie anschließend den resultierenden Ordner `trusteed/` wie oben beschrieben als `.zip` hoch. Das Modul enthält außerdem einen PSR-4-Fallback-Autoloader und funktioniert daher auch ohne `vendor/`-Verzeichnis (composer install ist optional, nicht erforderlich).
+Laden Sie anschließend den resultierenden Ordner `trusteed/` wie oben beschrieben als `.zip` hoch. Für die Produktion nicht erforderlich — siehe den Hinweis zum Fallback-Autoloader oben.
 
 ## Konfiguration
 
