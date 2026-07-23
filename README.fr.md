@@ -127,6 +127,11 @@ Après l'installation, un menu **Trusteed** apparaît dans la barre latérale du
 
 ## Historique des versions
 
+### 2.0.1
+
+- **Correctif** — bundle SPA d'administration reconstruit (preuve de litige Phase A : la vraie liste de reçus est désormais montée dans Mes Ventes, comme sur Magento/WooCommerce).
+- **Ajout** — script d'empaquetage `bin/build-zip.sh` ; le `.zip` installable est désormais publié en tant qu'asset de Release GitHub, au lieu d'exiger que le marchand le compile lui-même.
+
 ### 2.0.0
 
 **Important :** cette version remplace le contenu publié par erreur sous `v1.0.0` dans ce dépôt — un module distinct et autonome ("Trusteed Trust Center") avait été publié à la place de ce module d'application des règles de commande + AgenticTools. Il s'agit de la première version correcte.
