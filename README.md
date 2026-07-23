@@ -60,11 +60,22 @@ Trusteed AgenticTools consolidates Trust Center, Merchant Center, MCP agentic to
 
 ### Manual upload
 
-1. Download the source from the latest [Releases page](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases) (or `git clone` this repository).
-2. Rename the extracted top-level folder to `trusteed` (PrestaShop requires the folder name to match the module's technical name) and compress it back into a `.zip`.
-3. In your PrestaShop **Back Office**: **Modules → Module Manager → Upload a module**.
-4. Select the `trusteed.zip` you just created and click **Upload this module**.
-5. Click **Configure**.
+1. **Download the installable `.zip`** from the latest GitHub Release:
+   [**⬇ trusteed-agentic-commerce-prestashop-2.0.1.zip**](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases/latest/download/trusteed-agentic-commerce-prestashop-2.0.1.zip)
+   — or browse all versions at the [Releases page](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases).
+2. In your PrestaShop **Back Office**: **Modules → Module Manager → Upload a module**.
+3. Select the downloaded `.zip` and click **Upload this module**.
+4. Click **Configure**.
+
+### From source (build the zip yourself)
+
+```bash
+git clone https://github.com/Trusteedxyz/agentic-commerce-prestashop.git
+cd agentic-commerce-prestashop
+bash bin/build-zip.sh   # outputs dist/trusteed-agentic-commerce-prestashop-<version>.zip
+```
+
+The module ships a PSR-4 fallback autoloader for the `Trusteed\` namespace, so it runs correctly even without a `vendor/` directory (the build script does not include one — `composer install` is optional, not required).
 
 ### Via Composer (for development)
 
