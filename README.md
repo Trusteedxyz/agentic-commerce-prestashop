@@ -127,6 +127,11 @@ After installation a **Trusteed** menu appears in the PrestaShop Back Office sid
 
 ## Changelog
 
+### 2.0.1
+
+- **Fix** — admin SPA bundle rebuilt (dispute-evidence Fase A: real receipt list mounted under My Sales, matching Magento/WooCommerce).
+- **Added** — `bin/build-zip.sh` packaging script; the installable `.zip` is now published as a GitHub Release asset instead of requiring merchants to build it themselves.
+
 ### 2.0.0
 
 **Important:** this release replaces content published in error under `v1.0.0` in this repository — a different, standalone module ("Trusteed Trust Center") was shipped instead of this checkout-enforcement + AgenticTools module. This is the first correct release.
