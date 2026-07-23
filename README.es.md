@@ -29,7 +29,7 @@ Permite que los nuevos compradores online, los agentes de IA, realicen compras e
 |--------------------------------------------|
 | ![Descarga de comprobante](screenshots/08-my-sales-receipt-download.png) |
 
-Cada transacción de un agente genera un **recibo de confianza** firmado criptográficamente — un registro a prueba de manipulación (compatible con eIDAS / eSIGN) que aparece en **Mis Ventas → Ventas IA**.
+Cada transacción de un agente genera un **recibo de confianza** firmado criptográficamente — un registro a prueba de manipulación (compatible con eIDAS / eSIGN) que aparece en **Mis Ventas → Ventas IA**. Haz clic en cualquier fila para ver el detalle completo (ID del agente, herramienta invocada, hashes de entrada/salida, JWS) y descargar el comprobante como ZIP para presentarlo como respaldo ante una disputa.
 
 ## Funcionalidades
 
