@@ -60,20 +60,31 @@ Trusteed AgenticTools consolida Trust Center, Merchant Center, herramientas agé
 
 ### Subida manual
 
-1. Descarga el código fuente desde la [página de Releases](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases) más reciente (o haz `git clone` de este repositorio).
-2. Renombra la carpeta raíz extraída a `trusteed` (PrestaShop exige que el nombre de la carpeta coincida con el nombre técnico del módulo) y vuelve a comprimirla en un `.zip`.
-3. En tu **Back Office** de PrestaShop: **Módulos → Gestor de módulos → Subir un módulo**.
-4. Selecciona el `trusteed.zip` que acabas de crear y haz clic en **Subir este módulo**.
-5. Haz clic en **Configurar**.
+1. **Descarga el `.zip` instalable** desde el último Release de GitHub:
+   [**⬇ trusteed-agentic-commerce-prestashop-2.0.1.zip**](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases/latest/download/trusteed-agentic-commerce-prestashop-2.0.1.zip)
+   — o consulta todas las versiones en la [página de Releases](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases).
+2. En tu **Back Office** de PrestaShop: **Módulos → Gestor de módulos → Subir un módulo**.
+3. Selecciona el `.zip` descargado y haz clic en **Subir este módulo**.
+4. Haz clic en **Configurar**.
 
-### Vía Composer (para desarrollo)
+### Desde el código fuente (compilar el zip tú mismo)
+
+```bash
+git clone https://github.com/Trusteedxyz/agentic-commerce-prestashop.git
+cd agentic-commerce-prestashop
+bash bin/build-zip.sh   # genera dist/trusteed-agentic-commerce-prestashop-<versión>.zip
+```
+
+El módulo incluye un autoloader PSR-4 de respaldo para el namespace `Trusteed\`, por lo que funciona correctamente incluso sin un directorio `vendor/` (el script de build no lo incluye — `composer install` es opcional, no obligatorio).
+
+### Vía Composer (opcional, para herramientas de IDE / desarrollo local)
 
 ```bash
 git clone https://github.com/Trusteedxyz/agentic-commerce-prestashop.git trusteed
 cd trusteed
 composer install --no-dev --optimize-autoloader
 ```
-Después sube la carpeta `trusteed/` resultante como `.zip` según lo descrito arriba. El módulo también incluye un autoloader PSR-4 de respaldo, por lo que funcionará incluso sin un directorio `vendor/` (el `composer install` es opcional, no obligatorio).
+Después sube la carpeta `trusteed/` resultante como `.zip` según lo descrito arriba. No es necesario para producción — ver la nota del autoloader de respaldo arriba.
 
 ## Configuración
 
