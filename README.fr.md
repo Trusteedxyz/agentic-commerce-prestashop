@@ -25,7 +25,11 @@ Permettez aux nouveaux acheteurs en ligne, les agents IA, d'effectuer des achats
 |---------------------------------------|--------|
 | ![Reçus](screenshots/06-my-sales-ai-receipts.png) | ![Agents](screenshots/07-agents.png) |
 
-Chaque transaction d'un agent génère un **reçu de confiance** signé cryptographiquement — un enregistrement infalsifiable (compatible eIDAS / eSIGN) répertorié sous **Mes Ventes → Ventes IA**.
+| Détail du reçu — téléchargement en ZIP |
+|------------------------------------------|
+| ![Téléchargement du reçu](screenshots/08-my-sales-receipt-download.png) |
+
+Chaque transaction d'un agent génère un **reçu de confiance** signé cryptographiquement — un enregistrement infalsifiable (compatible eIDAS / eSIGN) répertorié sous **Mes Ventes → Ventes IA**. Cliquez sur une ligne pour voir le détail complet (ID de l'agent, outil appelé, hachages d'entrée/sortie, JWS) et télécharger le reçu au format ZIP à fournir en cas de litige.
 
 ## Fonctionnalités
 
