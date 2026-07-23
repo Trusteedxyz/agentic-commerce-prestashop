@@ -127,6 +127,11 @@ Nach der Installation erscheint ein **Trusteed**-Menü in der Seitenleiste des P
 
 ## Änderungsprotokoll
 
+### 2.0.1
+
+- **Fix** — Admin-SPA-Bundle neu gebaut (Streitfall-Nachweis Phase A: die echte Belegliste wird jetzt unter Meine Verkäufe eingebunden, genau wie bei Magento/WooCommerce).
+- **Hinzugefügt** — Paketier-Skript `bin/build-zip.sh`; die installierbare `.zip` wird jetzt als GitHub-Release-Asset veröffentlicht, statt vom Händler selbst gebaut werden zu müssen.
+
 ### 2.0.0
 
 **Wichtig:** Dieses Release ersetzt den fälschlicherweise unter `v1.0.0` in diesem Repository veröffentlichten Inhalt — es war ein anderes, eigenständiges Modul ("Trusteed Trust Center") anstelle dieses Checkout-Enforcement- + AgenticTools-Moduls veröffentlicht worden. Dies ist das erste korrekte Release.
