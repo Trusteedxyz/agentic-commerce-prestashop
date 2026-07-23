@@ -60,20 +60,31 @@ Trusteed AgenticTools regroupe Trust Center, Merchant Center, les outils agentiq
 
 ### Téléversement manuel
 
-1. Téléchargez le code source depuis la [page des Releases](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases) la plus récente (ou faites un `git clone` de ce dépôt).
-2. Renommez le dossier racine extrait en `trusteed` (PrestaShop exige que le nom du dossier corresponde au nom technique du module) et recompressez-le en `.zip`.
-3. Dans votre **Back Office** PrestaShop : **Modules → Gestionnaire de modules → Téléverser un module**.
-4. Sélectionnez le `trusteed.zip` que vous venez de créer et cliquez sur **Téléverser ce module**.
-5. Cliquez sur **Configurer**.
+1. **Téléchargez le `.zip` installable** depuis la dernière Release GitHub :
+   [**⬇ trusteed-agentic-commerce-prestashop-2.0.1.zip**](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases/latest/download/trusteed-agentic-commerce-prestashop-2.0.1.zip)
+   — ou parcourez toutes les versions sur la [page des Releases](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases).
+2. Dans votre **Back Office** PrestaShop : **Modules → Gestionnaire de modules → Téléverser un module**.
+3. Sélectionnez le `.zip` téléchargé et cliquez sur **Téléverser ce module**.
+4. Cliquez sur **Configurer**.
 
-### Via Composer (pour le développement)
+### Depuis les sources (compiler le zip vous-même)
+
+```bash
+git clone https://github.com/Trusteedxyz/agentic-commerce-prestashop.git
+cd agentic-commerce-prestashop
+bash bin/build-zip.sh   # génère dist/trusteed-agentic-commerce-prestashop-<version>.zip
+```
+
+Le module intègre un autoloader PSR-4 de secours pour l'espace de noms `Trusteed\`, il fonctionne donc correctement même sans dossier `vendor/` (le script de build n'en inclut pas — `composer install` est facultatif, pas obligatoire).
+
+### Via Composer (facultatif, pour l'outillage IDE / le développement local)
 
 ```bash
 git clone https://github.com/Trusteedxyz/agentic-commerce-prestashop.git trusteed
 cd trusteed
 composer install --no-dev --optimize-autoloader
 ```
-Téléversez ensuite le dossier `trusteed/` obtenu sous forme de `.zip` comme décrit ci-dessus. Le module intègre également un autoloader PSR-4 de secours, il fonctionnera donc même sans dossier `vendor/` (le `composer install` est facultatif, pas obligatoire).
+Téléversez ensuite le dossier `trusteed/` obtenu sous forme de `.zip` comme décrit ci-dessus. Non requis pour la production — voir la note sur l'autoloader de secours ci-dessus.
 
 ## Configuration
 
