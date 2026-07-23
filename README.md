@@ -77,14 +77,14 @@ bash bin/build-zip.sh   # outputs dist/trusteed-agentic-commerce-prestashop-<ver
 
 The module ships a PSR-4 fallback autoloader for the `Trusteed\` namespace, so it runs correctly even without a `vendor/` directory (the build script does not include one — `composer install` is optional, not required).
 
-### Via Composer (for development)
+### Via Composer (optional, for IDE tooling / local dev)
 
 ```bash
 git clone https://github.com/Trusteedxyz/agentic-commerce-prestashop.git trusteed
 cd trusteed
 composer install --no-dev --optimize-autoloader
 ```
-Then upload the resulting `trusteed/` folder as a `.zip` as described above. The module also ships a PSR-4 fallback autoloader, so it will still run even without a `vendor/` directory (composer install is optional, not required).
+Then upload the resulting `trusteed/` folder as a `.zip` as described above. Not required for production — see the fallback autoloader note above.
 
 ## Configuration
 
