@@ -25,7 +25,11 @@ Enable new online shoppers, AI agents, to make purchases in your store securely 
 |---------------------------------------|--------|
 | ![Trust Receipts](screenshots/06-my-sales-ai-receipts.png) | ![Agents](screenshots/07-agents.png) |
 
-Every agent transaction produces a cryptographically signed **trust receipt** — a tamper-proof record (compatible with eIDAS / eSIGN) listed under **My Sales → AI Sales**.
+| Trust Receipt detail — download as ZIP |
+|-----------------------------------------|
+| ![Trust Receipt download](screenshots/08-my-sales-receipt-download.png) |
+
+Every agent transaction produces a cryptographically signed **trust receipt** — a tamper-proof record (compatible with eIDAS / eSIGN) listed under **My Sales → AI Sales**. Click any row to see the full detail (agent ID, tool called, input/output hashes, JWS) and download the receipt as a ZIP file to hand over as backup in case of a dispute.
 
 ## Features
 
