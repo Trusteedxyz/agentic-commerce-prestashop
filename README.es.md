@@ -127,6 +127,11 @@ Tras la instalación aparece un menú **Trusteed** en la barra lateral del Back 
 
 ## Historial de cambios
 
+### 2.0.1
+
+- **Corrección** — bundle del SPA de administración reconstruido (Fase A de evidencia de disputas: la lista real de recibos ahora se monta en Mis Ventas, igual que en Magento/WooCommerce).
+- **Añadido** — script de empaquetado `bin/build-zip.sh`; el `.zip` instalable ahora se publica como asset del Release de GitHub en vez de requerir que el comercio lo compile por su cuenta.
+
 ### 2.0.0
 
 **Importante:** este release reemplaza el contenido publicado por error bajo `v1.0.0` en este repositorio — se había publicado un módulo distinto e independiente ("Trusteed Trust Center") en lugar de este módulo de enforcement de checkout + AgenticTools. Este es el primer release correcto.
