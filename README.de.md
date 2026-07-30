@@ -127,6 +127,14 @@ Nach der Installation erscheint ein **Trusteed**-Menü in der Seitenleiste des P
 
 ## Änderungsprotokoll
 
+### 2.1.0
+
+- **Sicherheitsfix** — der Agent-Token-Verifizierer behandelte `exp`, `iat` und `nonce` als optional. Jede darauf aufbauende Schutzmaßnahme — Ablauf, die 330s-Lebensdauergrenze, der Replay-Schutz — hing an einem `isset`, sodass ein Token, das den Claim schlicht wegließ, die Prüfung übersprang: ohne `exp` galt es ewig, ohne `nonce` wurde nichts dedupliziert. Alle drei sind jetzt verpflichtend (`nonce` 16–64 Zeichen), passend zum kanonischen Token-Schema.
+- **Sicherheitsfix** — ein `iat` in der Zukunft wird nun abgelehnt. Zusammen mit der 330s-Grenze ergab sich ein gleitendes Fenster: ein um eine Stunde vorgezogenes `iat` erkaufte eine Stunde reale Gültigkeit, obwohl `exp - iat` innerhalb der Grenze blieb.
+- **Fix** — Regel R036 (maximaler Positionswert) las ihre Obergrenze aus einem Parameter namens `maxCents`, von R035 übernommen. Der kanonische Name lautet `maxCentsPerLine` und ist der einzige, den das strikte Schema des Händlerpanels akzeptiert — die Regel konnte nie auslösen.
+- **Entfernt** — der R007-Zweig des Offline-Evaluators. Er blockierte bei `trustScore < 0.3` unter einem Kommentar, der von einer "Hochrisikoland-Prüfung" sprach: er tat also weder das, was der Kommentar behauptete, noch das, was der kanonische Regelname bedeutet. Das echte Signal von R007 ist händlerübergreifender Missbrauchszustand, der in der Backend-Datenbank liegt und für den Offline-Pfad unerreichbar ist — hier ALLOW zurückzugeben ist kein Fail-Open über ein verfügbares Signal, sondern ein Signal, das es in diesem Kontext nicht gibt. Das maßgebliche R007-Urteil liefert der Server. Wer die Vertrauensschwelle wollte, meint R006; wer das Land meinte, R014/R019.
+- **Neu** — das Modul meldet jetzt, welche Warenkorb-Signale diese Installation projizieren kann (`POST /api/v1/enforcement/capabilities`, HMAC-signiert, einmal pro Modulversion aus einem bereits registrierten Back-Office-Hook). Ohne das liefert eine Regel, deren Signal nie eintrifft, bei jedem Checkout `NO_SIGNAL`: sie passiert stillschweigend, und der Händler sieht eine Regel in ENFORCE, die nichts blockiert.
+
 ### 2.0.1
 
 - **Fix** — Admin-SPA-Bundle neu gebaut (Streitfall-Nachweis Phase A: die echte Belegliste wird jetzt unter Meine Verkäufe eingebunden, genau wie bei Magento/WooCommerce).
