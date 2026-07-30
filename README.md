@@ -127,6 +127,14 @@ After installation a **Trusteed** menu appears in the PrestaShop Back Office sid
 
 ## Changelog
 
+### 2.1.0
+
+- **Security fix** — the agent token verifier treated `exp`, `iat` and `nonce` as optional. Every protection below them — expiry, the 330s lifetime cap, anti-replay — hung off an `isset`, so a token that simply omitted the claim skipped the check: without `exp` it was valid forever, and without `nonce` nothing was deduplicated. All three are now mandatory (`nonce` 16–64 chars), matching the canonical token schema.
+- **Security fix** — an `iat` in the future is now rejected. Combined with the 330s lifetime cap it gave a sliding window: an `iat` an hour ahead bought an hour of wall-clock validity even though `exp - iat` stayed within the cap.
+- **Fix** — rule R036 (max line-item value) read its cap from a parameter named `maxCents`, copied from R035. The canonical name is `maxCentsPerLine`, and it is the only one the merchant panel's strict schema accepts, so the rule could never fire.
+- **Removed** — the offline evaluator's R007 branch. It blocked on `trustScore < 0.3` under a comment that said "high-risk country check", so it did neither what the comment claimed nor what the rule's canonical name means. R007's real signal is cross-merchant abuse state that lives in the backend database, which the offline path cannot reach — returning ALLOW here is not fail-open over an available signal, it is the signal not existing in this context. The authoritative R007 verdict comes from the server. If you wanted the trust threshold, the rule is R006; if you wanted the country, R014/R019.
+- **Added** — the module now reports which cart signals this installation can project (`POST /api/v1/enforcement/capabilities`, HMAC-signed, sent once per module version from an already-registered back-office hook). Without it, a rule whose signal never arrives returns `NO_SIGNAL` on every checkout: it passes silently, and the merchant sees a rule in ENFORCE that blocks nothing.
+
 ### 2.0.1
 
 - **Fix** — admin SPA bundle rebuilt (dispute-evidence Fase A: real receipt list mounted under My Sales, matching Magento/WooCommerce).
