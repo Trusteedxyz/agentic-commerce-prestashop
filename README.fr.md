@@ -127,6 +127,14 @@ Après l'installation, un menu **Trusteed** apparaît dans la barre latérale du
 
 ## Historique des versions
 
+### 2.1.0
+
+- **Correctif de sécurité** — le vérificateur de jetons d'agent traitait `exp`, `iat` et `nonce` comme facultatifs. Toutes les protections qui en dépendent — expiration, plafond de durée de vie de 330s, anti-rejeu — reposaient sur un `isset`, si bien qu'un jeton omettant simplement le claim échappait au contrôle : sans `exp` il était valable indéfiniment, et sans `nonce` rien n'était dédupliqué. Les trois sont désormais obligatoires (`nonce` de 16 à 64 caractères), conformément au schéma canonique du jeton.
+- **Correctif de sécurité** — un `iat` dans le futur est désormais rejeté. Combiné au plafond de 330s, il donnait une fenêtre glissante : un `iat` avancé d'une heure achetait une heure de validité en temps réel alors même que `exp - iat` restait dans le plafond.
+- **Correctif** — la règle R036 (valeur maximale par ligne) lisait son plafond dans un paramètre nommé `maxCents`, copié de R035. Le nom canonique est `maxCentsPerLine`, seul accepté par le schéma strict du panneau marchand : la règle ne pouvait jamais se déclencher.
+- **Supprimé** — la branche R007 de l'évaluateur hors ligne. Elle bloquait sur `trustScore < 0.3` sous un commentaire annonçant un « contrôle de pays à risque » : elle ne faisait donc ni ce que disait le commentaire, ni ce que signifie le nom canonique de la règle. Le vrai signal de R007 est l'état d'abus inter-marchands, qui vit dans la base de données du backend et reste hors de portée du chemin hors ligne — renvoyer ALLOW ici n'est pas un fail-open sur un signal disponible, c'est un signal qui n'existe pas dans ce contexte. Le verdict faisant autorité pour R007 vient du serveur. Si vous vouliez le seuil de confiance, la règle est R006 ; si vous vouliez le pays, R014/R019.
+- **Nouveauté** — le module déclare désormais quels signaux de panier cette installation sait projeter (`POST /api/v1/enforcement/capabilities`, signé en HMAC, envoyé une fois par version du module depuis un hook back-office déjà enregistré). Sans cela, une règle dont le signal n'arrive jamais renvoie `NO_SIGNAL` à chaque paiement : elle passe en silence, et le marchand voit une règle en ENFORCE qui ne bloque rien.
+
 ### 2.0.1
 
 - **Correctif** — bundle SPA d'administration reconstruit (preuve de litige Phase A : la vraie liste de reçus est désormais montée dans Mes Ventes, comme sur Magento/WooCommerce).
