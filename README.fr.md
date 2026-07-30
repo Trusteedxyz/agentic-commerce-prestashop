@@ -61,7 +61,7 @@ Trusteed AgenticTools regroupe Trust Center, Merchant Center, les outils agentiq
 ### Téléversement manuel
 
 1. **Téléchargez le `.zip` installable** depuis la dernière Release GitHub :
-   [**⬇ trusteed-agentic-commerce-prestashop-2.0.1.zip**](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases/latest/download/trusteed-agentic-commerce-prestashop-2.0.1.zip)
+   [**⬇ trusteed-agentic-commerce-prestashop-2.1.0.zip**](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases/latest/download/trusteed-agentic-commerce-prestashop-2.1.0.zip)
    — ou parcourez toutes les versions sur la [page des Releases](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases).
 2. Dans votre **Back Office** PrestaShop : **Modules → Gestionnaire de modules → Téléverser un module**.
 3. Sélectionnez le `.zip` téléchargé et cliquez sur **Téléverser ce module**.

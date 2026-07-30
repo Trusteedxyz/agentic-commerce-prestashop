@@ -61,7 +61,7 @@ Trusteed AgenticTools consolida Trust Center, Merchant Center, herramientas agé
 ### Subida manual
 
 1. **Descarga el `.zip` instalable** desde el último Release de GitHub:
-   [**⬇ trusteed-agentic-commerce-prestashop-2.0.1.zip**](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases/latest/download/trusteed-agentic-commerce-prestashop-2.0.1.zip)
+   [**⬇ trusteed-agentic-commerce-prestashop-2.1.0.zip**](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases/latest/download/trusteed-agentic-commerce-prestashop-2.1.0.zip)
    — o consulta todas las versiones en la [página de Releases](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases).
 2. En tu **Back Office** de PrestaShop: **Módulos → Gestor de módulos → Subir un módulo**.
 3. Selecciona el `.zip` descargado y haz clic en **Subir este módulo**.

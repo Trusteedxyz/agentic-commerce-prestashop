@@ -140,17 +140,42 @@ class TokenVerifier
             return null;
         }
 
+        // H4 (verificación 2026-07-28) — `exp`, `iat` y `nonce` son
+        // OBLIGATORIOS. El schema canónico los exige
+        // (`AgentTokenPayloadSchema` en packages/shared/src/enforcement/types.ts:
+        // `iat`/`exp` enteros positivos y `nonce` de 16..64 caracteres), y el
+        // verificador de WooCommerce ya los exigía. Aquí cada protección de
+        // abajo (caducidad, tope de vida de 330s, anti-replay) colgaba de un
+        // `isset`, así que un token que simplemente OMITÍA el claim se saltaba
+        // la comprobación: sin `exp` era válido para siempre, y sin `nonce` no
+        // se deduplicaba nada. Rechazo fail-closed.
+        if (!isset($payload['exp']) || !is_numeric($payload['exp'])) {
+            return null;
+        }
+        if (!isset($payload['iat']) || !is_numeric($payload['iat'])) {
+            return null;
+        }
+        $nonceClaim = isset($payload['nonce']) ? (string) $payload['nonce'] : '';
+        $nonceLen = strlen($nonceClaim);
+        if ($nonceLen < 16 || $nonceLen > 64) {
+            return null;
+        }
+
         // Validate expiry — allow 30s clock skew grace
         $now = time();
-        if (isset($payload['exp']) && ((int) $payload['exp'] + 30) < $now) {
+        if (((int) $payload['exp'] + 30) < $now) {
+            return null;
+        }
+
+        // `iat` futuro: combinado con el tope de 330s daría una ventana
+        // deslizante (iat=+1h ⇒ el token vive 1h+330s de reloj de pared aunque
+        // exp-iat ≤ 330s). Mismo guard que el verificador de WooCommerce.
+        if (((int) $payload['iat'] - 30) > $now) {
             return null;
         }
 
         // Validate token lifetime — max 5min (300s) + 30s grace = 330s
-        if (
-            isset($payload['exp'], $payload['iat'])
-            && ((int) $payload['exp'] - (int) $payload['iat']) > 330
-        ) {
+        if (((int) $payload['exp'] - (int) $payload['iat']) > 330) {
             return null;
         }
 
@@ -159,9 +184,9 @@ class TokenVerifier
             return null;
         }
 
-        // Best-effort nonce deduplication
-        $nonce = (string) ($payload['nonce'] ?? '');
-        if ($nonce !== '' && !$this->isNonceNew($nonce, $agentDid)) {
+        // Nonce deduplication (offline, best-effort). El claim ya se validó
+        // como obligatorio arriba, así que aquí sólo queda comprobar unicidad.
+        if (!$this->isNonceNew($nonceClaim, $agentDid)) {
             return null;
         }
 

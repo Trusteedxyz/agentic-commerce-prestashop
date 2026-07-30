@@ -95,7 +95,7 @@ final class CartSignalsR035R036Test extends TestCase
             ['id_product' => 9, 'total_wt' => 150.00],  // 15000c — HIT
             ['id_product' => 11, 'total_wt' => 999.00], // would also hit
         ]);
-        $res = $signals->evaluateR036($cart, ['maxCents' => 10000]);
+        $res = $signals->evaluateR036($cart, ['maxCentsPerLine' => 10000]);
         $this->assertTrue($res['hit']);
         $this->assertSame('line 9 value 15000 exceeds cap 10000', $res['reason']);
     }
@@ -107,7 +107,7 @@ final class CartSignalsR035R036Test extends TestCase
             ['id_product' => 1, 'total_wt' => 10.00],
             ['id_product' => 2, 'total_wt' => 100.00], // exactly cap — strict >
         ]);
-        $res = $signals->evaluateR036($cart, ['maxCents' => 10000]);
+        $res = $signals->evaluateR036($cart, ['maxCentsPerLine' => 10000]);
         $this->assertFalse($res['hit']);
     }
 
@@ -125,7 +125,7 @@ final class CartSignalsR035R036Test extends TestCase
     {
         $signals = new CartSignals();
         $cart = $this->makeCart(0.0, []);
-        $res = $signals->evaluateR036($cart, ['maxCents' => 100]);
+        $res = $signals->evaluateR036($cart, ['maxCentsPerLine' => 100]);
         $this->assertFalse($res['hit']);
     }
 }

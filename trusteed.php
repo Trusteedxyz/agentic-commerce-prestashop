@@ -54,7 +54,7 @@ class Trusteed extends Module
     {
         $this->name             = 'trusteed';
         $this->tab              = 'administration';
-        $this->version          = '2.0.1';
+        $this->version          = '2.1.0';
         $this->author           = 'Trusteed';
         $this->need_instance    = 0;
         $this->ps_versions_compliancy = ['min' => '8.0.0', 'max' => '9.99.99'];
@@ -414,6 +414,13 @@ class Trusteed extends Module
         if ($merchantId === '') {
             return '';
         }
+
+        // Spec-048 4.9 — reporta las capacidades de señales cuando cambia la
+        // versión del módulo. Se cuelga de aquí porque es el hook de
+        // back-office más barato que ya está registrado: la comprobación
+        // habitual es una lectura de `Configuration`, y sólo hay petición HTTP
+        // el primer arranque tras una actualización.
+        \Trusteed\Enforcement\CapabilitiesReporter::maybeReport((string) $this->version);
 
         $adminLink = $this->context->link->getAdminLink('AdminTrusteed');
         $label     = $this->l('Trusteed');

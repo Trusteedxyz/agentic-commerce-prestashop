@@ -61,7 +61,7 @@ Trusteed AgenticTools consolidates Trust Center, Merchant Center, MCP agentic to
 ### Manual upload
 
 1. **Download the installable `.zip`** from the latest GitHub Release:
-   [**⬇ trusteed-agentic-commerce-prestashop-2.0.1.zip**](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases/latest/download/trusteed-agentic-commerce-prestashop-2.0.1.zip)
+   [**⬇ trusteed-agentic-commerce-prestashop-2.1.0.zip**](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases/latest/download/trusteed-agentic-commerce-prestashop-2.1.0.zip)
    — or browse all versions at the [Releases page](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases).
 2. In your PrestaShop **Back Office**: **Modules → Module Manager → Upload a module**.
 3. Select the downloaded `.zip` and click **Upload this module**.
