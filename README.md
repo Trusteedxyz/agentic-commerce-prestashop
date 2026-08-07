@@ -90,7 +90,7 @@ Then upload the resulting `trusteed/` folder as a `.zip` as described above. Not
 
 1. Log in to your PrestaShop **Back Office**.
 2. Go to **Modules → Trusteed AgenticTools → Configure**.
-3. Either click **Auto-register this store** (one-click registration that fills the Merchant ID and secret automatically), or paste your **Merchant ID** and **S2S secret** manually from [app.trusteed.xyz/settings](https://app.trusteed.xyz/settings).
+3. Either click **Auto-register this store** (one-click registration that fills the Merchant ID and secret automatically), or paste your **Merchant ID** and **S2S secret** manually from [trusteed.xyz/dashboard/settings](https://trusteed.xyz/dashboard/settings).
 4. Save — the module tests connectivity and starts syncing enforcement rules.
 
 ### Configuration keys
