@@ -29,7 +29,7 @@ Ermöglichen Sie neuen Online-Käufern, den KI-Agenten, sichere und zuverlässig
 |-----------------------------------|
 | ![Beleg-Download](screenshots/08-my-sales-receipt-download.png) |
 
-Jede Agenten-Transaktion erzeugt einen kryptografisch signierten **Trust Receipt** — einen manipulationssicheren Nachweis (eIDAS-/eSIGN-kompatibel), der unter **Meine Verkäufe → KI-Verkäufe** aufgeführt wird. Klicke auf eine Zeile, um alle Details zu sehen (Agenten-ID, aufgerufenes Tool, Input-/Output-Hashes, JWS) und den Beleg als ZIP herunterzuladen, um ihn im Streitfall als Nachweis vorzulegen.
+Jede Agenten-Transaktion erzeugt einen **Trust Receipt** — einen mit einem Ed25519-JWS signierten Datensatz, sodass jede nachträgliche Änderung seines Inhalts erkennbar bleibt — der unter **Meine Verkäufe → KI-Verkäufe** aufgeführt wird. Klicke auf eine Zeile, um alle Details zu sehen (Agenten-ID, aufgerufenes Tool, Input-/Output-Hashes, JWS) und den Beleg als ZIP herunterzuladen, um ihn als eigenen Nachweis darüber zu behalten, was der Agent getan hat. Die Belege nutzen dieselben Signaturformate, auf denen eIDAS und eSIGN aufbauen, sind aber **keine** qualifizierten elektronischen Signaturen oder Siegel: dahinter steht heute weder ein von einem QTSP ausgestelltes Zertifikat noch ein qualifizierter Zeitstempel, sie genießen also für sich allein keine Vermutung der Rechtswirksamkeit.
 
 ## Funktionen
 
@@ -41,7 +41,7 @@ Trusteed AgenticTools vereint Trust Center, Merchant Center, agentische MCP-Tool
 - **Checkout-Enforcement** — Händlerregeln (maximaler Bestellbetrag, gesperrte Länder, Geschäftszeiten und mehr) gelten bei jedem Checkout, ob mit oder ohne Agent
 - **Offline-Sicherheitsventil-Evaluator** — wendet dieselben universellen Regeln lokal an, wenn die Remote-Regel-API nicht erreichbar ist, statt eines pauschalen Erlauben/Blockieren
 - **Selbstbedienungs-Auto-Registrierung** — Ein-Klick-Registrierung des Shops; Zugangsdaten können auch manuell eingefügt werden
-- **Fail-closed als Standard** — Enforcement erlaubt bei Fehlkonfiguration niemals stillschweigend
+- **Konfigurierbares Verhalten bei Ausfällen** — ist die Regel-API nicht erreichbar und liegt kein aktueller lokaler Snapshot vor, wird das Modul im Modus `balanced` ausgeliefert: der Checkout wird durchgelassen und dieses Durchlassen protokolliert. Setzen Sie `TRUSTEED_CEL_FALLBACK_MODE` auf `strict`, damit er stattdessen blockiert wird.
 
 ## Kompatibilität
 
@@ -61,7 +61,7 @@ Trusteed AgenticTools vereint Trust Center, Merchant Center, agentische MCP-Tool
 ### Manueller Upload
 
 1. **Laden Sie die installierbare `.zip`** aus dem neuesten GitHub-Release herunter:
-   [**⬇ trusteed-agentic-commerce-prestashop-2.1.0.zip**](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases/latest/download/trusteed-agentic-commerce-prestashop-2.1.0.zip)
+   [**⬇ Neueste Version herunterladen**](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases/latest)
    — oder durchsuchen Sie alle Versionen auf der [Releases-Seite](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases).
 2. In Ihrem PrestaShop-**Back Office**: **Module → Modul-Manager → Modul hochladen**.
 3. Wählen Sie die heruntergeladene `.zip` aus und klicken Sie auf **Dieses Modul hochladen**.
@@ -91,7 +91,7 @@ Laden Sie anschließend den resultierenden Ordner `trusteed/` wie oben beschrieb
 1. Melden Sie sich in Ihrem PrestaShop-**Back Office** an.
 2. Gehen Sie zu **Module → Trusteed AgenticTools → Konfigurieren**.
 3. Klicken Sie entweder auf **Diesen Shop automatisch registrieren** (Ein-Klick-Registrierung, die Merchant ID und Secret automatisch ausfüllt), oder fügen Sie Ihre **Merchant ID** und Ihr **S2S-Secret** manuell von [trusteed.xyz/dashboard/settings](https://trusteed.xyz/dashboard/settings) ein.
-4. Speichern — das Modul testet die Konnektivität und beginnt mit der Synchronisierung der Enforcement-Regeln.
+4. Speichern — die Werte werden geprüft (HTTPS-Endpunkt, 64-stelliges Hex-Secret) und gespeichert. Das Speichern kontaktiert Trusteed **nicht**; nur **Diesen Shop automatisch registrieren** führt einen echten Aufruf aus.
 
 ### Konfigurationsschlüssel
 
@@ -101,21 +101,27 @@ Laden Sie anschließend den resultierenden Ordner `trusteed/` wie oben beschrieb
 | `TRUSTEED_CEL_MERCHANT_ID` | _(leer)_ | Von Trusteed ausgestellte Merchant ID |
 | `TRUSTEED_EMBED_S2S_SECRET` | _(leer)_ | Server-zu-Server-Secret für die Embed-/Enforcement-API |
 | `TRUSTEED_BOOTSTRAP_TOKEN` | _(leer)_ | Veraltetes Embed-Bootstrap-Token (durch Auto-Registrierung ersetzt) |
+| `TRUSTEED_CEL_ENABLED` | `0` | Hauptschalter für das Checkout-Enforcement. Solange `0`, wird bei keinem Checkout eine Regel ausgewertet |
+| `TRUSTEED_CEL_INSTALLATION_ID` | _(leer)_ | Installations-ID für den signierten Regel-Snapshot |
+| `TRUSTEED_CEL_HMAC_SECRET` | _(leer)_ | HMAC-Secret für Snapshot- und Regelauswertungs-Aufrufe |
+| `TRUSTEED_CEL_FALLBACK_MODE` | `balanced` | Verhalten, wenn die Regel-API nicht erreichbar ist und kein lokaler Snapshot vorliegt: `balanced` und `permissive` lassen den Checkout durch und protokollieren das, `strict` blockiert ihn |
+
+Das Enforcement bleibt vollständig inaktiv, bis `TRUSTEED_CEL_ENABLED` den Wert `1` hat **und** alle drei Schlüssel `TRUSTEED_CEL_MERCHANT_ID`, `TRUSTEED_CEL_INSTALLATION_ID` und `TRUSTEED_CEL_HMAC_SECRET` gesetzt sind — fehlt einer davon, lässt das Modul jeden Checkout durch, ohne eine einzige Regel auszuwerten.
 
 ## Admin-Seiten
 
-Nach der Installation erscheint ein **Trusteed**-Menü in der Seitenleiste des PrestaShop-Back-Office:
+Nach der Installation erscheint ein **Trusteed**-Menü in der Seitenleiste des PrestaShop-Back-Office. Nur für Englisch gibt es übersetzte Bezeichnungen: in allen anderen Sprachen, auch auf Deutsch, zeigt die Seitenleiste die unten aufgeführten spanischen Bezeichnungen.
 
 | Seite | Beschreibung |
 |------|-------------|
-| Start | Übersicht über Reputation und aktuelle Verkäufe |
-| Trust Center | Signierte Belege, Signaturschlüssel, Audit-Log, Trust Score |
-| Merchant Center | Bestellungen, Zahlungsmethoden, Agenten, Zertifizierungen, NLWeb |
-| Meine Verkäufe | Bestellliste und KI-Trust-Receipts |
-| Regeln | Checkout-Enforcement-Regeln |
-| Agenten | Verbundene Agenten-Identitäten |
-| Sicherheit | Audit-Log und Anomalie-Warnungen |
-| Config | Moduleinstellungen und Auto-Registrierung |
+| Inicio | Übersicht über Reputation und aktuelle Verkäufe |
+| ¿Cómo va mi tienda? | Signierte Belege, Signaturschlüssel, Audit-Log, Trust Score |
+| Centro de comercio | Bestellungen, Zahlungsmethoden, Agenten, Zertifizierungen, NLWeb |
+| Mis ventas | Bestellliste und KI-Trust-Receipts |
+| Mis Reglas | Checkout-Enforcement-Regeln |
+| Seguridad | Audit-Log und Anomalie-Warnungen |
+| Agentes | Verbundene Agenten-Identitäten |
+| Configuración | Moduleinstellungen und Auto-Registrierung |
 
 ## FAQ
 
@@ -130,7 +136,7 @@ Nach der Installation erscheint ein **Trusteed**-Menü in der Seitenleiste des P
 ### 2.1.1
 
 - **Behoben** — das Admin-Panel-Bundle (`views/js/admin-spa.js`) wurde unminifiziert ausgeliefert: 869 KB / 25.064 Zeilen statt der 490 KB / 41 Zeilen, die der dokumentierte Build-Befehl (`pnpm run build:ps`) tatsächlich erzeugt. Die Herkunft ließ sich nicht verifizieren. Neu aus der Quelle gebaut.
-- **Behoben** — die Regel R047 (Mindestbeitrag) hatte kein Formularfeld im Admin-Panel; ihre Parameter existierten im Schema, konnten aber nur über die API gesetzt werden. Ebenfalls: Beim Anzeigen eines Händler-Kategorienamens wurden die Anti-Injection-Trennzeichen (`<<<MERCHANT_CONTENT_START>>> … <<<MERCHANT_CONTENT_END>>>`) mit ausgegeben, statt sie für die Darstellung zu entfernen.
+- **Behoben** — die Regel R047 (Käuferbestätigung ab einem Betrag anfordern) hatte kein Formularfeld im Admin-Panel; ihre Parameter existierten im Schema, konnten aber nur über die API gesetzt werden.
 
 ### 2.1.0
 

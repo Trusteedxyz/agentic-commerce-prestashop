@@ -21,10 +21,20 @@ namespace {
             public static string $merchantId = '';
             public static int $shopId = 1;
 
+            /**
+             * Arbitrary Configuration key → value overrides, consulted after the
+             * TRUSTEED_CEL_MERCHANT_ID special case so existing tests are
+             * unaffected while the map is empty.
+             *
+             * @var array<string,string>
+             */
+            public static array $config = [];
+
             public static function reset(): void
             {
                 self::$merchantId = '';
                 self::$shopId = 1;
+                self::$config = [];
             }
         }
     }
@@ -37,6 +47,9 @@ namespace {
             {
                 if ($key === 'TRUSTEED_CEL_MERCHANT_ID') {
                     return TestPsState::$merchantId;
+                }
+                if (array_key_exists($key, TestPsState::$config)) {
+                    return TestPsState::$config[$key];
                 }
                 return $default;
             }

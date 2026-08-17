@@ -29,7 +29,7 @@ Permettez aux nouveaux acheteurs en ligne, les agents IA, d'effectuer des achats
 |------------------------------------------|
 | ![Téléchargement du reçu](screenshots/08-my-sales-receipt-download.png) |
 
-Chaque transaction d'un agent génère un **reçu de confiance** signé cryptographiquement — un enregistrement infalsifiable (compatible eIDAS / eSIGN) répertorié sous **Mes Ventes → Ventes IA**. Cliquez sur une ligne pour voir le détail complet (ID de l'agent, outil appelé, hachages d'entrée/sortie, JWS) et télécharger le reçu au format ZIP à fournir en cas de litige.
+Chaque transaction d'un agent génère un **reçu de confiance** — un enregistrement signé par un JWS Ed25519, de sorte que toute modification ultérieure de son contenu reste détectable — répertorié sous **Mes Ventes → Ventes IA**. Cliquez sur une ligne pour voir le détail complet (ID de l'agent, outil appelé, hachages d'entrée/sortie, JWS) et télécharger le reçu au format ZIP afin de le conserver comme votre propre preuve de ce que l'agent a fait. Les reçus reposent sur les mêmes formats de signature que ceux sur lesquels s'appuient eIDAS et eSIGN, mais ce ne sont **pas** des signatures ni des cachets électroniques qualifiés : aucun certificat délivré par un QTSP ni horodatage qualifié ne se trouve derrière eux aujourd'hui, ils ne bénéficient donc à eux seuls d'aucune présomption de validité juridique.
 
 ## Fonctionnalités
 
@@ -41,7 +41,7 @@ Trusteed AgenticTools regroupe Trust Center, Merchant Center, les outils agentiq
 - **Application des règles au checkout** — les règles du commerçant (montant maximal, pays bloqués, horaires d'ouverture, et plus) s'appliquent à chaque commande, agent ou humain
 - **Évaluateur de secours hors ligne** — applique les mêmes règles universelles localement lorsque l'API distante est injoignable, au lieu d'un simple repli autoriser/bloquer
 - **Auto-enregistrement en libre-service** — enregistrement de la boutique en un clic ; les identifiants peuvent aussi être saisis manuellement
-- **Comportement par défaut fail-closed** — l'application des règles n'autorise jamais silencieusement en cas de mauvaise configuration
+- **Comportement configurable en cas de panne** — lorsque l'API de règles est injoignable et qu'aucun instantané local récent n'existe, le module est livré en mode `balanced` : le checkout passe et cette autorisation par défaut est journalisée. Réglez `TRUSTEED_CEL_FALLBACK_MODE` sur `strict` pour le bloquer à la place.
 
 ## Compatibilité
 
@@ -61,7 +61,7 @@ Trusteed AgenticTools regroupe Trust Center, Merchant Center, les outils agentiq
 ### Téléversement manuel
 
 1. **Téléchargez le `.zip` installable** depuis la dernière Release GitHub :
-   [**⬇ trusteed-agentic-commerce-prestashop-2.1.0.zip**](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases/latest/download/trusteed-agentic-commerce-prestashop-2.1.0.zip)
+   [**⬇ Télécharger la dernière version**](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases/latest)
    — ou parcourez toutes les versions sur la [page des Releases](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases).
 2. Dans votre **Back Office** PrestaShop : **Modules → Gestionnaire de modules → Téléverser un module**.
 3. Sélectionnez le `.zip` téléchargé et cliquez sur **Téléverser ce module**.
@@ -91,7 +91,7 @@ Téléversez ensuite le dossier `trusteed/` obtenu sous forme de `.zip` comme d�
 1. Connectez-vous à votre **Back Office** PrestaShop.
 2. Allez dans **Modules → Trusteed AgenticTools → Configurer**.
 3. Cliquez sur **Auto-enregistrer cette boutique** (enregistrement en un clic qui remplit automatiquement le Merchant ID et le secret), ou saisissez manuellement votre **Merchant ID** et votre **secret S2S** depuis [trusteed.xyz/dashboard/settings](https://trusteed.xyz/dashboard/settings).
-4. Enregistrez — le module teste la connectivité et commence à synchroniser les règles d'application.
+4. Enregistrez — les valeurs sont validées (point de terminaison HTTPS, secret de 64 caractères hexadécimaux) puis stockées. Enregistrer ne contacte **pas** Trusteed ; seul **Auto-enregistrer cette boutique** effectue un appel réel.
 
 ### Clés de configuration
 
@@ -101,21 +101,27 @@ Téléversez ensuite le dossier `trusteed/` obtenu sous forme de `.zip` comme d�
 | `TRUSTEED_CEL_MERCHANT_ID` | _(vide)_ | Merchant ID délivré par Trusteed |
 | `TRUSTEED_EMBED_S2S_SECRET` | _(vide)_ | Secret serveur-à-serveur pour l'API embed/enforcement |
 | `TRUSTEED_BOOTSTRAP_TOKEN` | _(vide)_ | Jeton embed-bootstrap hérité (remplacé par l'auto-enregistrement) |
+| `TRUSTEED_CEL_ENABLED` | `0` | Interrupteur général de l'application des règles au checkout. Tant qu'il vaut `0`, aucune règle n'est évaluée sur aucun checkout |
+| `TRUSTEED_CEL_INSTALLATION_ID` | _(vide)_ | ID d'installation pour l'instantané signé des règles |
+| `TRUSTEED_CEL_HMAC_SECRET` | _(vide)_ | Secret HMAC pour les appels d'instantané et d'évaluation des règles |
+| `TRUSTEED_CEL_FALLBACK_MODE` | `balanced` | Comportement lorsque l'API de règles est injoignable et qu'aucun instantané local n'existe : `balanced` et `permissive` laissent passer le checkout et journalisent l'autorisation par défaut, `strict` le bloque |
+
+L'application des règles reste totalement inerte jusqu'à ce que `TRUSTEED_CEL_ENABLED` vaille `1` **et** que les trois clés `TRUSTEED_CEL_MERCHANT_ID`, `TRUSTEED_CEL_INSTALLATION_ID` et `TRUSTEED_CEL_HMAC_SECRET` soient renseignées — s'il en manque une, le module laisse passer tous les checkouts sans évaluer une seule règle.
 
 ## Pages d'administration
 
-Après l'installation, un menu **Trusteed** apparaît dans la barre latérale du Back Office PrestaShop :
+Après l'installation, un menu **Trusteed** apparaît dans la barre latérale du Back Office PrestaShop. Seul l'anglais dispose de libellés traduits : dans toutes les autres langues, y compris le français, la barre latérale affiche les libellés espagnols reproduits ci-dessous.
 
 | Page | Description |
 |------|-------------|
-| Accueil | Aperçu de la réputation et des ventes récentes |
-| Trust Center | Reçus signés, clés de signature, journal d'audit, score de confiance |
-| Merchant Center | Commandes, moyens de paiement, agents, certifications, NLWeb |
-| Mes Ventes | Liste des commandes et reçus de confiance IA |
-| Règles | Règles d'application au checkout |
-| Agents | Identités des agents connectés |
-| Sécurité | Journal d'audit et alertes d'anomalies |
-| Config | Paramètres du module et auto-enregistrement |
+| Inicio | Aperçu de la réputation et des ventes récentes |
+| ¿Cómo va mi tienda? | Reçus signés, clés de signature, journal d'audit, score de confiance |
+| Centro de comercio | Commandes, moyens de paiement, agents, certifications, NLWeb |
+| Mis ventas | Liste des commandes et reçus de confiance IA |
+| Mis Reglas | Règles d'application au checkout |
+| Seguridad | Journal d'audit et alertes d'anomalies |
+| Agentes | Identités des agents connectés |
+| Configuración | Paramètres du module et auto-enregistrement |
 
 ## FAQ
 
@@ -130,7 +136,7 @@ Après l'installation, un menu **Trusteed** apparaît dans la barre latérale du
 ### 2.1.1
 
 - **Corrigé** — le bundle du panneau d'administration (`views/js/admin-spa.js`) était distribué non minifié : 869 Ko / 25 064 lignes au lieu des 490 Ko / 41 lignes que produit réellement la commande de build documentée (`pnpm run build:ps`). Sa provenance ne pouvait pas être vérifiée. Reconstruit depuis la source.
-- **Corrigé** — la règle R047 (montant minimum de contribution) n'avait pas de champ de formulaire dans le panneau d'administration ; ses paramètres existaient dans le schéma mais ne pouvaient être définis que via l'API. Également : l'affichage du nom d'une catégorie marchande imprimait les délimiteurs anti-injection (`<<<MERCHANT_CONTENT_START>>> … <<<MERCHANT_CONTENT_END>>>`) autour, au lieu de les retirer pour l'affichage.
+- **Corrigé** — la règle R047 (demander confirmation à l'acheteur à partir d'un montant) n'avait pas de champ de formulaire dans le panneau d'administration ; ses paramètres existaient dans le schéma mais ne pouvaient être définis que via l'API.
 
 ### 2.1.0
 

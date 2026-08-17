@@ -29,7 +29,7 @@ Enable new online shoppers, AI agents, to make purchases in your store securely 
 |-----------------------------------------|
 | ![Trust Receipt download](screenshots/08-my-sales-receipt-download.png) |
 
-Every agent transaction produces a cryptographically signed **trust receipt** — a tamper-proof record (compatible with eIDAS / eSIGN) listed under **My Sales → AI Sales**. Click any row to see the full detail (agent ID, tool called, input/output hashes, JWS) and download the receipt as a ZIP file to hand over as backup in case of a dispute.
+Every agent transaction produces a **trust receipt** — a record signed with an Ed25519 JWS, so any later change to its contents is detectable — listed under **My Sales → AI Sales**. Click any row to see the full detail (agent ID, tool called, input/output hashes, JWS) and download the receipt as a ZIP file to keep as your own evidence of what the agent did. Receipts are built on the signature formats eIDAS and eSIGN build on, but they are **not** qualified electronic signatures or seals: there is no QTSP-issued certificate and no qualified timestamp behind them today, so they carry no presumption of legal validity on their own.
 
 ## Features
 
@@ -41,7 +41,7 @@ Trusteed AgenticTools consolidates Trust Center, Merchant Center, MCP agentic to
 - **Checkout enforcement** — merchant rules (max order amount, blocked countries, business hours, and more) apply on every checkout, agent or human
 - **Offline safety-valve evaluator** — enforces the same universal rules locally when the remote rules API is unreachable, instead of a blanket allow/block fallback
 - **Self-serve auto-registration** — one-click store registration with Trusteed; credentials can also be pasted in manually
-- **Fail-closed defaults** — enforcement never silently allows when misconfigured
+- **Configurable outage behaviour** — when the rules API is unreachable and no cached snapshot is available, the module ships in `balanced` mode: checkouts are allowed through and the fail-open is logged. Set `TRUSTEED_CEL_FALLBACK_MODE` to `strict` to block them instead.
 
 ## Compatibility
 
@@ -61,7 +61,7 @@ Trusteed AgenticTools consolidates Trust Center, Merchant Center, MCP agentic to
 ### Manual upload
 
 1. **Download the installable `.zip`** from the latest GitHub Release:
-   [**⬇ trusteed-agentic-commerce-prestashop-2.1.0.zip**](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases/latest/download/trusteed-agentic-commerce-prestashop-2.1.0.zip)
+   [**⬇ Download the latest release**](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases/latest)
    — or browse all versions at the [Releases page](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases).
 2. In your PrestaShop **Back Office**: **Modules → Module Manager → Upload a module**.
 3. Select the downloaded `.zip` and click **Upload this module**.
@@ -91,7 +91,7 @@ Then upload the resulting `trusteed/` folder as a `.zip` as described above. Not
 1. Log in to your PrestaShop **Back Office**.
 2. Go to **Modules → Trusteed AgenticTools → Configure**.
 3. Either click **Auto-register this store** (one-click registration that fills the Merchant ID and secret automatically), or paste your **Merchant ID** and **S2S secret** manually from [trusteed.xyz/dashboard/settings](https://trusteed.xyz/dashboard/settings).
-4. Save — the module tests connectivity and starts syncing enforcement rules.
+4. Save — the values are validated (HTTPS endpoint, 64-hex secret) and stored. Saving does **not** contact Trusteed; only **Auto-register this store** performs a live call.
 
 ### Configuration keys
 
@@ -101,6 +101,12 @@ Then upload the resulting `trusteed/` folder as a `.zip` as described above. Not
 | `TRUSTEED_CEL_MERCHANT_ID` | _(empty)_ | Merchant ID issued by Trusteed |
 | `TRUSTEED_EMBED_S2S_SECRET` | _(empty)_ | Server-to-server secret for the embed/enforcement API |
 | `TRUSTEED_BOOTSTRAP_TOKEN` | _(empty)_ | Legacy embed-bootstrap token (superseded by auto-registration) |
+| `TRUSTEED_CEL_ENABLED` | `0` | Master switch for checkout enforcement. While `0`, no rule is evaluated on any checkout |
+| `TRUSTEED_CEL_INSTALLATION_ID` | _(empty)_ | Installation ID for the signed rule snapshot |
+| `TRUSTEED_CEL_HMAC_SECRET` | _(empty)_ | HMAC secret for snapshot and rules-evaluate calls |
+| `TRUSTEED_CEL_FALLBACK_MODE` | `balanced` | Behaviour when the rules API is unreachable and no cached snapshot exists: `balanced` and `permissive` allow the checkout and log the fail-open, `strict` blocks it |
+
+Enforcement stays fully inert until `TRUSTEED_CEL_ENABLED` is `1` **and** all three of `TRUSTEED_CEL_MERCHANT_ID`, `TRUSTEED_CEL_INSTALLATION_ID` and `TRUSTEED_CEL_HMAC_SECRET` are set — with any of them missing, the module allows every checkout through without evaluating a single rule.
 
 ## Admin Pages
 
@@ -109,13 +115,13 @@ After installation a **Trusteed** menu appears in the PrestaShop Back Office sid
 | Page | Description |
 |------|-------------|
 | Home | Reputation and recent sales overview |
-| Trust Center | Signed receipts, signing keys, audit log, trust score |
+| How is my store doing? | Signed receipts, signing keys, audit log, trust score |
 | Merchant Center | Orders, payment methods, agents, certifications, NLWeb |
-| My Sales | Order list and AI trust receipts |
-| Rules | Checkout enforcement rules |
-| Agents | Connected agent identities |
+| My sales | Order list and AI trust receipts |
+| My Rules | Checkout enforcement rules |
 | Security | Audit log and anomaly alerts |
-| Config | Module settings and auto-registration |
+| Agents | Connected agent identities |
+| Settings | Module settings and auto-registration |
 
 ## FAQ
 
@@ -130,7 +136,7 @@ After installation a **Trusteed** menu appears in the PrestaShop Back Office sid
 ### 2.1.1
 
 - **Fixed** — the admin panel bundle (`views/js/admin-spa.js`) shipped unminified: 869 KB / 25,064 lines instead of the 490 KB / 41 lines the documented build command (`pnpm run build:ps`) actually produces. Provenance could not be verified. Rebuilt from source.
-- **Fixed** — the R047 (minimum contribution amount) rule had no form field in the admin panel; its parameters existed in the schema but could only be set via the API. Also: displaying a merchant category name printed the anti-injection delimiters (`<<<MERCHANT_CONTENT_START>>> … <<<MERCHANT_CONTENT_END>>>`) around it instead of stripping them for display.
+- **Fixed** — the R047 (ask the buyer to confirm above a threshold) rule had no form field in the admin panel; its parameters existed in the schema but could only be set via the API.
 
 ### 2.1.0
 
