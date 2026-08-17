@@ -127,6 +127,11 @@ Après l'installation, un menu **Trusteed** apparaît dans la barre latérale du
 
 ## Historique des versions
 
+### 2.1.1
+
+- **Corrigé** — le bundle du panneau d'administration (`views/js/admin-spa.js`) était distribué non minifié : 869 Ko / 25 064 lignes au lieu des 490 Ko / 41 lignes que produit réellement la commande de build documentée (`pnpm run build:ps`). Sa provenance ne pouvait pas être vérifiée. Reconstruit depuis la source.
+- **Corrigé** — la règle R047 (montant minimum de contribution) n'avait pas de champ de formulaire dans le panneau d'administration ; ses paramètres existaient dans le schéma mais ne pouvaient être définis que via l'API. Également : l'affichage du nom d'une catégorie marchande imprimait les délimiteurs anti-injection (`<<<MERCHANT_CONTENT_START>>> … <<<MERCHANT_CONTENT_END>>>`) autour, au lieu de les retirer pour l'affichage.
+
 ### 2.1.0
 
 - **Correctif de sécurité** — le vérificateur de jetons d'agent traitait `exp`, `iat` et `nonce` comme facultatifs. Toutes les protections qui en dépendent — expiration, plafond de durée de vie de 330s, anti-rejeu — reposaient sur un `isset`, si bien qu'un jeton omettant simplement le claim échappait au contrôle : sans `exp` il était valable indéfiniment, et sans `nonce` rien n'était dédupliqué. Les trois sont désormais obligatoires (`nonce` de 16 à 64 caractères), conformément au schéma canonique du jeton.

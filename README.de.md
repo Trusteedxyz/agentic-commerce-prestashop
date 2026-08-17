@@ -127,6 +127,11 @@ Nach der Installation erscheint ein **Trusteed**-Menü in der Seitenleiste des P
 
 ## Änderungsprotokoll
 
+### 2.1.1
+
+- **Behoben** — das Admin-Panel-Bundle (`views/js/admin-spa.js`) wurde unminifiziert ausgeliefert: 869 KB / 25.064 Zeilen statt der 490 KB / 41 Zeilen, die der dokumentierte Build-Befehl (`pnpm run build:ps`) tatsächlich erzeugt. Die Herkunft ließ sich nicht verifizieren. Neu aus der Quelle gebaut.
+- **Behoben** — die Regel R047 (Mindestbeitrag) hatte kein Formularfeld im Admin-Panel; ihre Parameter existierten im Schema, konnten aber nur über die API gesetzt werden. Ebenfalls: Beim Anzeigen eines Händler-Kategorienamens wurden die Anti-Injection-Trennzeichen (`<<<MERCHANT_CONTENT_START>>> … <<<MERCHANT_CONTENT_END>>>`) mit ausgegeben, statt sie für die Darstellung zu entfernen.
+
 ### 2.1.0
 
 - **Sicherheitsfix** — der Agent-Token-Verifizierer behandelte `exp`, `iat` und `nonce` als optional. Jede darauf aufbauende Schutzmaßnahme — Ablauf, die 330s-Lebensdauergrenze, der Replay-Schutz — hing an einem `isset`, sodass ein Token, das den Claim schlicht wegließ, die Prüfung übersprang: ohne `exp` galt es ewig, ohne `nonce` wurde nichts dedupliziert. Alle drei sind jetzt verpflichtend (`nonce` 16–64 Zeichen), passend zum kanonischen Token-Schema.

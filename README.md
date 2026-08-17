@@ -127,6 +127,11 @@ After installation a **Trusteed** menu appears in the PrestaShop Back Office sid
 
 ## Changelog
 
+### 2.1.1
+
+- **Fixed** — the admin panel bundle (`views/js/admin-spa.js`) shipped unminified: 869 KB / 25,064 lines instead of the 490 KB / 41 lines the documented build command (`pnpm run build:ps`) actually produces. Provenance could not be verified. Rebuilt from source.
+- **Fixed** — the R047 (minimum contribution amount) rule had no form field in the admin panel; its parameters existed in the schema but could only be set via the API. Also: displaying a merchant category name printed the anti-injection delimiters (`<<<MERCHANT_CONTENT_START>>> … <<<MERCHANT_CONTENT_END>>>`) around it instead of stripping them for display.
+
 ### 2.1.0
 
 - **Security fix** — the agent token verifier treated `exp`, `iat` and `nonce` as optional. Every protection below them — expiry, the 330s lifetime cap, anti-replay — hung off an `isset`, so a token that simply omitted the claim skipped the check: without `exp` it was valid forever, and without `nonce` nothing was deduplicated. All three are now mandatory (`nonce` 16–64 chars), matching the canonical token schema.
