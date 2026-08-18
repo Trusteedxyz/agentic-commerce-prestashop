@@ -45,10 +45,15 @@ Trusteed AgenticTools vereint Trust Center, Merchant Center, agentische MCP-Tool
 
 ## Kompatibilität
 
-| Komponente | Unterstützt |
-|-----------|-----------|
-| PrestaShop | 8.0.0 – 9.99.99 |
-| PHP | 8.1+ |
+| Komponente | Deklarierter Bereich | Tatsächlich getestet gegen |
+|-----------|------------------------|-------------------------------|
+| PrestaShop | 8.0.0 – 9.99.99 (`ps_versions_compliancy` in `trusteed.php`) | 8.2.0 (alle Screenshots in diesem README; noch kein automatisiertes E2E für andere Versionen) |
+| PHP | 8.1+ | 8.1, 8.2 |
+
+Der Bereich 8.0.0–9.99.99 ist das, was das Modul dem PrestaShop-Modulmanager *deklariert* —
+er wurde außerhalb von 8.2.0 nicht durchgängig getestet. Es gibt noch keine CI, die PHPUnit
+gegen mehrere PrestaShop-Versionen ausführt; behandeln Sie die Unterstützung von 9.x bis
+dahin als unbestätigt.
 
 ## Voraussetzungen
 

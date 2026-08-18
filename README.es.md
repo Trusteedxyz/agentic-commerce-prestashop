@@ -45,10 +45,15 @@ Trusteed AgenticTools consolida Trust Center, Merchant Center, herramientas agé
 
 ## Compatibilidad
 
-| Componente | Compatible |
-|-----------|-----------|
-| PrestaShop | 8.0.0 – 9.99.99 |
-| PHP | 8.1+ |
+| Componente | Rango declarado | Verificado de verdad contra |
+|-----------|-------------------|-------------------------------|
+| PrestaShop | 8.0.0 – 9.99.99 (`ps_versions_compliancy` en `trusteed.php`) | 8.2.0 (todas las capturas de este README; sin E2E automatizado en otras versiones aún) |
+| PHP | 8.1+ | 8.1, 8.2 |
+
+El rango 8.0.0–9.99.99 es lo que el módulo *declara* al gestor de módulos de PrestaShop —
+no se ha probado de extremo a extremo fuera de 8.2.0. Todavía no hay CI corriendo PHPUnit
+contra varias versiones de PrestaShop; trata el soporte de 9.x como no verificado hasta que
+exista.
 
 ## Requisitos
 
