@@ -194,6 +194,11 @@ esta página existe para cazar.
 
 ## Historial de cambios
 
+### 2.2.1
+
+- **Corregido** — la página «Agent Readiness» enseñaba Inicio. `resolveSection()` valida contra una lista blanca en la que `agent-readiness` nunca se añadió, así que caía en silencio.
+- **Corregido** — dos avisos del panel (falta configuración, faltan los recursos) estaban escritos en castellano duro y se enseñaban a todos los comerciantes fuera cual fuera el idioma de su back office. Uno de ellos le pedía al comerciante ejecutar un comando de compilación desde un monorepo, cosa que ningún comerciante puede hacer. Los dos pasan ahora por el traductor del módulo.
+
 ### 2.2.0
 
 - **Nuevo — panel de preparación agéntica.** *¿Me encuentran los agentes?* llega al panel de administración. Contrasta lo que tu tienda anuncia con lo que responde de verdad, en **16 comprobaciones**, y las enseña las dieciséis, no sólo las que fallan. Una comprobación que no se ha podido hacer dice **por qué** (tienda sin conectar, todavía sin pedidos entregados, nada que comparar esta vez) en vez de dejar un hueco que se lee como avería. Ver «El panel de preparación agéntica» más arriba.

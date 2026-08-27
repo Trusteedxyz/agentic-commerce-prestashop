@@ -194,6 +194,11 @@ que cette page existe pour débusquer.
 
 ## Historique des versions
 
+### 2.2.1
+
+- **Corrigé** — la page « Agent Readiness » affichait l'accueil. `resolveSection()` valide contre une liste blanche où `agent-readiness` n'avait jamais été ajouté, d'où un repli silencieux.
+- **Corrigé** — deux avis d'administration (configuration manquante, ressources manquantes) étaient écrits en dur en espagnol et affichés à tous les marchands quelle que soit la langue de leur back-office. L'un demandait au marchand d'exécuter une commande de build depuis un monorepo, ce qu'aucun marchand ne peut faire. Les deux passent désormais par le traducteur du module.
+
 ### 2.2.0
 
 - **Nouveau — tableau de bord de préparation agentique.** *Les agents me trouvent-ils ?* arrive dans le panneau d'administration. Il confronte ce que votre boutique annonce à ce qu'elle répond réellement, en **16 vérifications**, et les affiche toutes les seize, pas seulement celles qui échouent. Une vérification impossible indique **pourquoi** (boutique non connectée, aucune commande livrée pour l'instant, rien à comparer cette fois) au lieu de laisser un vide qui ressemble à une panne. Voir « Le tableau de bord de préparation agentique » ci-dessus.

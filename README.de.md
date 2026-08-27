@@ -195,6 +195,11 @@ genau die Selbsttäuschung, die diese Seite aufdecken soll.
 
 ## Änderungsprotokoll
 
+### 2.2.1
+
+- **Behoben** — die Seite «Agent Readiness» zeigte stattdessen die Startseite. `resolveSection()` prüft gegen eine Positivliste, in der `agent-readiness` fehlte, und fiel still zurück.
+- **Behoben** — zwei Admin-Hinweise (fehlende Konfiguration, fehlende Assets) waren fest auf Spanisch codiert und wurden allen Händlern unabhängig von ihrer Backend-Sprache angezeigt. Einer forderte den Händler auf, einen Build-Befehl aus einem Monorepo auszuführen — für Händler unmöglich. Beide laufen jetzt über die Modulübersetzung.
+
 ### 2.2.0
 
 - **Neu — Dashboard zur Agenten-Bereitschaft.** *Finden mich Agenten?* ist jetzt im Verwaltungsbereich verfügbar. Es vergleicht, was Ihr Shop ankündigt, mit dem, was er tatsächlich antwortet — in **16 Prüfungen**, und zeigt alle sechzehn, nicht nur die fehlgeschlagenen. Eine Prüfung, die nicht laufen konnte, nennt den **Grund** (Shop nicht verbunden, noch keine ausgelieferten Bestellungen, diesmal nichts zu vergleichen), statt eine Lücke zu lassen, die wie ein Defekt wirkt. Siehe «Das Dashboard zur Agenten-Bereitschaft» oben.

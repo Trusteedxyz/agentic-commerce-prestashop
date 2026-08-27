@@ -193,6 +193,11 @@ exists to catch.
 
 ## Changelog
 
+### 2.2.1
+
+- **Fixed** — the Agent Readiness page rendered Home instead. `resolveSection()` validates against an allowlist that `agent-readiness` had never been added to, so it fell back silently.
+- **Fixed** — two admin notices (missing configuration, missing assets) were hardcoded in Spanish and shown to every merchant regardless of their admin language. One of them told the merchant to run a build command from a monorepo, which no merchant can do. Both now go through the module translator.
+
 ### 2.2.0
 
 - **New — agent readiness dashboard.** *Can agents find me?* now ships in the admin panel. It contrasts what your store advertises against what it actually answers, in **16 checks**, and shows all sixteen — not only the ones that fail. A check that could not run says **why** (store not connected, no delivered orders yet, nothing to compare this time) instead of leaving a gap that reads like a fault. See "The agent readiness dashboard" above.
