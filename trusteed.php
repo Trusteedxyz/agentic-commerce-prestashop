@@ -54,7 +54,7 @@ class Trusteed extends Module
     {
         $this->name             = 'trusteed';
         $this->tab              = 'administration';
-        $this->version          = '2.1.1';
+        $this->version          = '2.2.0';
         $this->author           = 'Trusteed';
         $this->need_instance    = 0;
         $this->ps_versions_compliancy = ['min' => '8.0.0', 'max' => '9.99.99'];
@@ -338,6 +338,8 @@ class Trusteed extends Module
         ['class_name' => 'AdminTrusteedReglas',         'label' => 'Mis Reglas',          'label_en' => 'My Rules'],
         ['class_name' => 'AdminTrusteedSeguridad',      'label' => 'Seguridad',           'label_en' => 'Security'],
         ['class_name' => 'AdminTrusteedAgentes',        'label' => 'Agentes',             'label_en' => 'Agents'],
+        // Spec 065 F1 — Dashboard Agent-Friendly (columna Observada).
+        ['class_name' => 'AdminTrusteedAgentReadiness', 'label' => '¿Pueden comprar los agentes?', 'label_en' => 'Agent Readiness'],
         ['class_name' => 'AdminTrusteedConfig',         'label' => 'Configuración',       'label_en' => 'Settings'],
     ];
 
