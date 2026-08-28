@@ -10,6 +10,7 @@ Permite que los nuevos compradores online, los agentes de IA, realicen compras e
 - **Bloqueo de agentes**: bloquea agentes potencialmente peligrosos o problemáticos.
 - **Divisas digitales**: permite compras en divisas digitales gracias al protocolo X402.
 - **Transacciones entre pares**: permite el comercio directo entre pares (peer-to-peer) entre agentes y comercios.
+- **Panel de preparación para agentes**: comprueba en vivo si los agentes de IA pueden comprar hoy en tu tienda — tres vistas independientes (lo que dicen otros, lo que prometes vs. lo que haces, lo que hemos observado), sin fusionarlas en una sola puntuación inventada.
 
 ## Capturas de pantalla
 
@@ -25,9 +26,9 @@ Permite que los nuevos compradores online, los agentes de IA, realicen compras e
 |---------------------------------------|--------|
 | ![Recibos](screenshots/06-my-sales-ai-receipts.png) | ![Agentes](screenshots/07-agents.png) |
 
-| Detalle del comprobante — descarga en ZIP |
-|--------------------------------------------|
-| ![Descarga de comprobante](screenshots/08-my-sales-receipt-download.png) |
+| Detalle del comprobante — descarga en ZIP | Agent Readiness |
+|--------------------------------------------|------------------|
+| ![Descarga de comprobante](screenshots/08-my-sales-receipt-download.png) | ![Agent Readiness](screenshots/09-agent-readiness.png) |
 
 Cada transacción de un agente genera un **recibo de confianza** — un registro firmado con un JWS Ed25519, de modo que cualquier cambio posterior en su contenido queda detectable — que aparece en **Mis ventas → Ventas IA**. Haz clic en cualquier fila para ver el detalle completo (ID del agente, herramienta invocada, hashes de entrada/salida, JWS) y descargar el comprobante como ZIP para conservarlo como tu propia evidencia de lo que hizo el agente. Los recibos usan los mismos formatos de firma sobre los que se construyen eIDAS y eSIGN, pero **no** son firmas ni sellos electrónicos cualificados: hoy no hay detrás ningún certificado emitido por un QTSP ni sello de tiempo cualificado, así que por sí solos no tienen presunción de validez legal.
 

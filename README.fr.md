@@ -10,6 +10,7 @@ Permettez aux nouveaux acheteurs en ligne, les agents IA, d'effectuer des achats
 - **Blocage d'agents** : bloquez les agents potentiellement dangereux ou problématiques.
 - **Monnaies numériques** : permet les achats en monnaies numériques grâce au protocole X402.
 - **Transactions pair-à-pair** : permet le commerce direct pair-à-pair entre agents et commerçants.
+- **Tableau de bord Agent Readiness** : vérifie en direct si les agents IA peuvent réellement acheter dès aujourd'hui dans votre boutique — trois vues indépendantes (ce que disent les autres, ce que vous promettez vs. ce que vous faites, ce que nous avons observé), sans les fusionner en un score inventé.
 
 ## Captures d'écran
 
@@ -25,9 +26,9 @@ Permettez aux nouveaux acheteurs en ligne, les agents IA, d'effectuer des achats
 |---------------------------------------|--------|
 | ![Reçus](screenshots/06-my-sales-ai-receipts.png) | ![Agents](screenshots/07-agents.png) |
 
-| Détail du reçu — téléchargement en ZIP |
-|------------------------------------------|
-| ![Téléchargement du reçu](screenshots/08-my-sales-receipt-download.png) |
+| Détail du reçu — téléchargement en ZIP | Agent Readiness |
+|------------------------------------------|------------------|
+| ![Téléchargement du reçu](screenshots/08-my-sales-receipt-download.png) | ![Agent Readiness](screenshots/09-agent-readiness.png) |
 
 Chaque transaction d'un agent génère un **reçu de confiance** — un enregistrement signé par un JWS Ed25519, de sorte que toute modification ultérieure de son contenu reste détectable — répertorié sous **Mes Ventes → Ventes IA**. Cliquez sur une ligne pour voir le détail complet (ID de l'agent, outil appelé, hachages d'entrée/sortie, JWS) et télécharger le reçu au format ZIP afin de le conserver comme votre propre preuve de ce que l'agent a fait. Les reçus reposent sur les mêmes formats de signature que ceux sur lesquels s'appuient eIDAS et eSIGN, mais ce ne sont **pas** des signatures ni des cachets électroniques qualifiés : aucun certificat délivré par un QTSP ni horodatage qualifié ne se trouve derrière eux aujourd'hui, ils ne bénéficient donc à eux seuls d'aucune présomption de validité juridique.
 

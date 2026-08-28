@@ -10,6 +10,7 @@ Enable new online shoppers, AI agents, to make purchases in your store securely 
 - **Agent blocking**: block potentially dangerous or problematic agents.
 - **Digital currencies**: enables purchases in digital currencies thanks to the X402 protocol.
 - **Peer-to-peer transactions**: enables direct peer-to-peer commerce between agents and merchants.
+- **Agent readiness dashboard**: a live check of whether AI agents can actually buy in your store today — three independent views (what others say, what you promise vs. what you do, what we've observed), so nothing is scored until it's actually verified.
 
 ## Screenshots
 
@@ -25,9 +26,9 @@ Enable new online shoppers, AI agents, to make purchases in your store securely 
 |---------------------------------------|--------|
 | ![Trust Receipts](screenshots/06-my-sales-ai-receipts.png) | ![Agents](screenshots/07-agents.png) |
 
-| Trust Receipt detail — download as ZIP |
-|-----------------------------------------|
-| ![Trust Receipt download](screenshots/08-my-sales-receipt-download.png) |
+| Trust Receipt detail — download as ZIP | Agent Readiness |
+|-----------------------------------------|------------------|
+| ![Trust Receipt download](screenshots/08-my-sales-receipt-download.png) | ![Agent Readiness](screenshots/09-agent-readiness.png) |
 
 Every agent transaction produces a **trust receipt** — a record signed with an Ed25519 JWS, so any later change to its contents is detectable — listed under **My Sales → AI Sales**. Click any row to see the full detail (agent ID, tool called, input/output hashes, JWS) and download the receipt as a ZIP file to keep as your own evidence of what the agent did. Receipts are built on the signature formats eIDAS and eSIGN build on, but they are **not** qualified electronic signatures or seals: there is no QTSP-issued certificate and no qualified timestamp behind them today, so they carry no presumption of legal validity on their own.
 

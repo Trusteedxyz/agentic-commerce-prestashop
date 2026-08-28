@@ -10,6 +10,7 @@ Ermöglichen Sie neuen Online-Käufern, den KI-Agenten, sichere und zuverlässig
 - **Agenten-Blockierung**: Blockieren Sie potenziell gefährliche oder problematische Agenten.
 - **Digitale Währungen**: Ermöglicht Käufe in digitalen Währungen dank des X402-Protokolls.
 - **Peer-to-Peer-Transaktionen**: Ermöglicht direkten Peer-to-Peer-Handel zwischen Agenten und Händlern.
+- **Agent-Readiness-Dashboard**: prüft live, ob KI-Agenten heute wirklich in Ihrem Shop einkaufen können — drei unabhängige Ansichten (was andere sagen, was Sie versprechen vs. was Sie tun, was wir beobachtet haben), ohne sie zu einem erfundenen Gesamtwert zu verschmelzen.
 
 ## Screenshots
 
@@ -25,9 +26,9 @@ Ermöglichen Sie neuen Online-Käufern, den KI-Agenten, sichere und zuverlässig
 |---------------------------------------|--------|
 | ![Belege](screenshots/06-my-sales-ai-receipts.png) | ![Agenten](screenshots/07-agents.png) |
 
-| Beleg-Detail — Download als ZIP |
-|-----------------------------------|
-| ![Beleg-Download](screenshots/08-my-sales-receipt-download.png) |
+| Beleg-Detail — Download als ZIP | Agent Readiness |
+|-----------------------------------|------------------|
+| ![Beleg-Download](screenshots/08-my-sales-receipt-download.png) | ![Agent Readiness](screenshots/09-agent-readiness.png) |
 
 Jede Agenten-Transaktion erzeugt einen **Trust Receipt** — einen mit einem Ed25519-JWS signierten Datensatz, sodass jede nachträgliche Änderung seines Inhalts erkennbar bleibt — der unter **Meine Verkäufe → KI-Verkäufe** aufgeführt wird. Klicke auf eine Zeile, um alle Details zu sehen (Agenten-ID, aufgerufenes Tool, Input-/Output-Hashes, JWS) und den Beleg als ZIP herunterzuladen, um ihn als eigenen Nachweis darüber zu behalten, was der Agent getan hat. Die Belege nutzen dieselben Signaturformate, auf denen eIDAS und eSIGN aufbauen, sind aber **keine** qualifizierten elektronischen Signaturen oder Siegel: dahinter steht heute weder ein von einem QTSP ausgestelltes Zertifikat noch ein qualifizierter Zeitstempel, sie genießen also für sich allein keine Vermutung der Rechtswirksamkeit.
 
