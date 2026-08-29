@@ -194,6 +194,13 @@ exists to catch.
 
 ## Changelog
 
+### 2.2.2
+
+- Fixed: the agent readiness page shipped without its stylesheet, so the panel rendered unstyled.
+- Fixed: the panel could show its shell in one language and the diagnosis in another. The resolved language now travels with the texts instead of being detected twice.
+- New: every finding carries a link to where it is fixed, and the merchant's own claims — the delivery promise and the rest — appear with the backing each one has.
+- Changed: a store with no run yet reads as "checking" instead of "checked once a day": opening the panel already triggers the first run in the background.
+
 ### 2.2.1
 
 - **Fixed** — the Agent Readiness page rendered Home instead. `resolveSection()` validates against an allowlist that `agent-readiness` had never been added to, so it fell back silently.

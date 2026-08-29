@@ -195,6 +195,13 @@ esta página existe para cazar.
 
 ## Historial de cambios
 
+### 2.2.2
+
+- Corregido: la página de disponibilidad para agentes se publicaba sin su hoja de estilos, así que el panel salía sin formato.
+- Corregido: el panel podía mostrar la carcasa en un idioma y el diagnóstico en otro. El idioma resuelto viaja ahora junto a los textos, en vez de detectarse dos veces por separado.
+- Nuevo: cada hallazgo lleva un enlace a donde se corrige, y las afirmaciones del comercio —el plazo de entrega y las demás— aparecen con el respaldo que tiene cada una.
+- Cambiado: una tienda sin ninguna comprobación todavía se lee como «comprobando» en lugar de «se comprueba una vez al día»: abrir el panel ya lanza la primera comprobación en segundo plano.
+
 ### 2.2.1
 
 - **Corregido** — la página «Agent Readiness» enseñaba Inicio. `resolveSection()` valida contra una lista blanca en la que `agent-readiness` nunca se añadió, así que caía en silencio.

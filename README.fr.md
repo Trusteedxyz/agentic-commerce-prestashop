@@ -195,6 +195,13 @@ que cette page existe pour débusquer.
 
 ## Historique des versions
 
+### 2.2.2
+
+- Corrigé : la page de disponibilité pour les agents était publiée sans sa feuille de style, le panneau s'affichait donc sans mise en forme.
+- Corrigé : le panneau pouvait afficher son interface dans une langue et le diagnostic dans une autre. La langue résolue accompagne désormais les textes au lieu d'être détectée deux fois.
+- Nouveau : chaque constat renvoie vers l'endroit où le corriger, et les affirmations du marchand — le délai de livraison et les autres — apparaissent avec les éléments qui les étayent.
+- Modifié : une boutique sans aucune vérification affiche « vérification en cours » au lieu de « vérifié une fois par jour » : ouvrir le panneau déclenche déjà la première vérification en arrière-plan.
+
 ### 2.2.1
 
 - **Corrigé** — la page « Agent Readiness » affichait l'accueil. `resolveSection()` valide contre une liste blanche où `agent-readiness` n'avait jamais été ajouté, d'où un repli silencieux.
