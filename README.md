@@ -194,6 +194,12 @@ exists to catch.
 
 ## Changelog
 
+### 2.2.3
+
+- New: Settings now lets you choose which tools your store serves to agents. If you never saved a list, the panel tells you that what you serve is the basic set the platform ships with — not a choice of yours.
+- New: a button to re-run the readiness check without waiting for the daily sweep, and the panel remembers what changed since the previous run.
+- Changed: our own outages no longer count as your store's mismatches. The panel keeps them separate, because there is nothing you can do about them.
+
 ### 2.2.2
 
 - Fixed: the agent readiness page shipped without its stylesheet, so the panel rendered unstyled.
