@@ -166,8 +166,16 @@ final class FallbackModeDefaultTest extends TestCase
             $text = (string) file_get_contents(self::MODULE_ROOT . '/' . $readme);
 
             foreach ($required as $key) {
-                self::assertStringContainsString(
-                    '| `' . $key . '` |',
+                // 2026-09-09 — este aserto exigía `| \`KEY\` |` con UN espacio
+                // exacto, y las tablas de los README están ALINEADAS por
+                // columnas (prettier las deja así y las volverá a dejar así).
+                // Resultado: los cuatro README documentaban las cinco claves
+                // correctamente y el gate llevaba rojo por el relleno, no por
+                // el fondo — y con él rojo, nadie miraba el fallo de al lado,
+                // que sí era real (la tabla de páginas omitía una entrada).
+                // Se comprueba la fila, tolerando el relleno.
+                self::assertMatchesRegularExpression(
+                    '/^\|\s*`' . preg_quote($key, '/') . '`\s*\|/mu',
                     $text,
                     $key . ' is missing from the configuration-keys table in ' . $readme
                 );
@@ -184,8 +192,9 @@ final class FallbackModeDefaultTest extends TestCase
         foreach (self::READMES as $readme) {
             $text = (string) file_get_contents(self::MODULE_ROOT . '/' . $readme);
 
+            // Mismo motivo que arriba: las tablas van alineadas por columnas.
             $matched = preg_match(
-                '/^\| `TRUSTEED_CEL_FALLBACK_MODE` \| `([a-z]+)` \|/mu',
+                '/^\|\s*`TRUSTEED_CEL_FALLBACK_MODE`\s*\|\s*`([a-z]+)`\s*\|/mu',
                 $text,
                 $m
             );
@@ -210,12 +219,24 @@ final class FallbackModeDefaultTest extends TestCase
             PREG_SET_ORDER
         );
 
-        self::assertCount(8, $tabs, 'ADMIN_TABS no longer holds 8 entries.');
+        // 2026-09-09 — esto estaba clavado a 8 y ADMIN_TABS tiene 9 desde
+        // spec-065 («¿Pueden comprar los agentes?»), así que el gate llevaba
+        // rojo desde entonces. El número exacto no es lo que hay que fijar
+        // —añadir una página es legítimo—; lo que hay que fijar es que CADA
+        // entrada aparezca en los cuatro README, que es lo que comprueba el
+        // bucle de abajo. Un conteo a mano sólo garantiza que este aserto
+        // caduque en la siguiente página que se añada.
+        self::assertNotSame([], $tabs, 'ADMIN_TABS no se pudo leer de trusteed.php.');
+
+        // El relleno de columna lo pone prettier; comparar con un espacio
+        // exacto sólo mide el formateador. Lo que importa es que la fila exista.
+        $filaConEtiqueta = static fn (string $label): string
+            => '/^\|\s*' . preg_quote($label, '/') . '\s*\|/mu';
 
         $english = (string) file_get_contents(self::MODULE_ROOT . '/README.md');
         foreach ($tabs as $tab) {
-            self::assertStringContainsString(
-                '| ' . $tab[2] . ' |',
+            self::assertMatchesRegularExpression(
+                $filaConEtiqueta($tab[2]),
                 $english,
                 sprintf('README.md omits the real English sidebar label %s.', var_export($tab[2], true))
             );
@@ -226,8 +247,8 @@ final class FallbackModeDefaultTest extends TestCase
         foreach (['README.es.md', 'README.fr.md', 'README.de.md'] as $readme) {
             $text = (string) file_get_contents(self::MODULE_ROOT . '/' . $readme);
             foreach ($tabs as $tab) {
-                self::assertStringContainsString(
-                    '| ' . $tab[1] . ' |',
+                self::assertMatchesRegularExpression(
+                    $filaConEtiqueta($tab[1]),
                     $text,
                     sprintf('%s omits the real sidebar label %s.', $readme, var_export($tab[1], true))
                 );

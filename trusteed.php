@@ -54,7 +54,7 @@ class Trusteed extends Module
     {
         $this->name             = 'trusteed';
         $this->tab              = 'administration';
-        $this->version          = '2.2.4';
+        $this->version          = '2.3.0';
         $this->author           = 'Trusteed';
         $this->need_instance    = 0;
         $this->ps_versions_compliancy = ['min' => '8.0.0', 'max' => '9.99.99'];
@@ -407,31 +407,54 @@ class Trusteed extends Module
     // ─── Hook: badge en el header del back office ──────────────────────────────
 
     /**
-     * Muestra un badge "Trusteed" en la barra superior del back office cuando
-     * el módulo está activo y configurado.
+     * Muestra un badge "Trusteed" en la barra superior del back office, en uno
+     * de tres estados.
+     *
+     * 2026-09-09 (auditoría de onboarding, huecos A4 y A2) — esto arrancaba con
+     * `if ($merchantId === '') return '';`, o sea que el único indicador visual
+     * del módulo aparecía SÓLO una vez configurado. Justo al revés de lo que
+     * hace falta: quien instalaba y no terminaba no recibía ninguna señal, y
+     * como nada le contradecía daba por hecho que había acabado. Y quien sí
+     * terminaba veía el mismo verde tanto si el enforcement evaluaba reglas
+     * como si estaba mudo por falta de credenciales.
+     *
+     * La decisión de qué estado es cuál vive en `Trusteed\Admin\SetupStatus`,
+     * que es lógica pura y sí tiene tests.
      */
     public function hookDisplayBackOfficeTop(array $params): string
     {
-        $merchantId = (string) Configuration::get('TRUSTEED_CEL_MERCHANT_ID');
-        if ($merchantId === '') {
-            return '';
-        }
+        $status = new \Trusteed\Admin\SetupStatus(
+            (string) Configuration::get('TRUSTEED_CEL_MERCHANT_ID'),
+            (string) Configuration::get('TRUSTEED_CEL_INSTALLATION_ID'),
+            (string) Configuration::get('TRUSTEED_CEL_HMAC_SECRET')
+        );
 
         // Spec-048 4.9 — reporta las capacidades de señales cuando cambia la
         // versión del módulo. Se cuelga de aquí porque es el hook de
         // back-office más barato que ya está registrado: la comprobación
         // habitual es una lectura de `Configuration`, y sólo hay petición HTTP
         // el primer arranque tras una actualización.
-        \Trusteed\Enforcement\CapabilitiesReporter::maybeReport((string) $this->version);
+        //
+        // Sigue condicionado a que haya tienda registrada: sin `merchantId` no
+        // hay nada de lo que informar y la llamada no tendría destinatario.
+        if (!$status->needsAttention()
+            || $status->state() === \Trusteed\Admin\SetupStatus::STATE_ENFORCEMENT_INCOMPLETE
+        ) {
+            \Trusteed\Enforcement\CapabilitiesReporter::maybeReport((string) $this->version);
+        }
 
         $adminLink = $this->context->link->getAdminLink('AdminTrusteed');
-        $label     = $this->l('Trusteed');
+        $label     = $this->l($status->labelKey());
+        $tooltip   = $this->l($status->tooltipKey());
 
         return '<a href="' . htmlspecialchars($adminLink, ENT_QUOTES, 'UTF-8') . '"'
+            . ' title="' . htmlspecialchars($tooltip, ENT_QUOTES, 'UTF-8') . '"'
             . ' style="display:inline-flex;align-items:center;gap:6px;'
-            . 'background:#1a7f4f;color:#fff;padding:4px 10px;border-radius:4px;'
+            . 'background:' . htmlspecialchars($status->badgeColor(), ENT_QUOTES, 'UTF-8') . ';'
+            . 'color:#fff;padding:4px 10px;border-radius:4px;'
             . 'font-size:12px;font-weight:600;text-decoration:none;margin-left:8px;">'
-            . '🛡 ' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8')
+            . ($status->needsAttention() ? '⚠ ' : '🛡 ')
+            . htmlspecialchars($label, ENT_QUOTES, 'UTF-8')
             . '</a>';
     }
 
@@ -451,12 +474,10 @@ class Trusteed extends Module
      */
     public function hookModuleRoutes(array $params): array
     {
-        if (!\Trusteed\Discovery\UcpWellknownResolver::isEnabled()) {
-            return [];
-        }
+        $routes = [];
 
-        return [
-            'module-trusteed-ucpwellknown' => [
+        if (\Trusteed\Discovery\UcpWellknownResolver::isEnabled()) {
+            $routes['module-trusteed-ucpwellknown'] = [
                 'controller' => 'ucpwellknown',
                 'rule'       => '.well-known/ucp',
                 'keywords'   => [],
@@ -464,8 +485,29 @@ class Trusteed extends Module
                     'fc'     => 'module',
                     'module' => 'trusteed',
                 ],
+            ];
+        }
+
+        // Reto de propiedad de dominio — auditoría de onboarding 2026-09-09,
+        // hueco A3. NO va detrás del gate de UCP: son cosas distintas y ligarlas
+        // dejaría sin vía de recuperación a quien tenga UCP apagado, que es el
+        // valor por defecto.
+        //
+        // La ruta se registra siempre; el que se autogatea es el controlador,
+        // que responde 404 mientras no haya un reto vigente. Registrarla sólo
+        // cuando lo hay obligaría a limpiar la caché de rutas de PrestaShop en
+        // mitad del alta, justo cuando el comerciante está esperando.
+        $routes['module-trusteed-amcpverify'] = [
+            'controller' => 'amcpverify',
+            'rule'       => '.well-known/amcp-verify.txt',
+            'keywords'   => [],
+            'params'     => [
+                'fc'     => 'module',
+                'module' => 'trusteed',
             ],
         ];
+
+        return $routes;
     }
 
     // ─── CEL Hook dispatchers ──────────────────────────────────────────────────
@@ -693,6 +735,53 @@ class Trusteed extends Module
                 (string) $this->version,
                 $installKey
             );
+        } catch (\Trusteed\Service\DomainVerificationRequired $challenge) {
+            // Hueco A3 (2026-09-09) — la URL ya está registrada con otra
+            // install_key. Antes esto era el final del camino; ahora se publica
+            // el token en `.well-known/amcp-verify.txt`, el backend viene a
+            // leerlo desde fuera y, si lo encuentra, entrega la tienda.
+            //
+            // Se hace en la MISMA petición y sin pedirle nada al comerciante:
+            // el módulo ya puede escribir en su propio dominio, así que
+            // enseñarle un token para que lo suba a mano sería trabajo suyo
+            // para probar algo que el módulo puede probar solo.
+            Configuration::updateValue(
+                \Trusteed\Service\DomainChallengeStore::CONFIG_TOKEN,
+                $challenge->challengeToken()
+            );
+            Configuration::updateValue(
+                \Trusteed\Service\DomainChallengeStore::CONFIG_ISSUED_AT,
+                time()
+            );
+
+            try {
+                $result = $autoRegister->verifyChallenge(
+                    $storeUrl,
+                    $challenge->challengeToken()
+                );
+            } catch (\Throwable $e) {
+                return $this->displayError(
+                    $this->l(
+                        'This store URL is already registered with Trusteed under a '
+                        . 'different install key, and we could not prove that this site '
+                        . 'controls the domain. Check that '
+                    )
+                    . htmlspecialchars($storeUrl . '/.well-known/amcp-verify.txt', ENT_QUOTES, 'UTF-8')
+                    . $this->l(
+                        ' is reachable from the internet (no maintenance mode, no '
+                        . 'password protection, no CDN rule blocking it) and try again. '
+                        . 'Details: '
+                    )
+                    . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8')
+                );
+            } finally {
+                // El token deja de publicarse en cuanto se usa, salga bien o
+                // mal: es de un solo uso y dejarlo expuesto no aporta nada.
+                Configuration::updateValue(
+                    \Trusteed\Service\DomainChallengeStore::CONFIG_TOKEN,
+                    ''
+                );
+            }
         } catch (\Throwable $e) {
             return $this->displayError(
                 $this->l('Auto-registration failed: ') . $e->getMessage()
@@ -707,11 +796,37 @@ class Trusteed extends Module
             Configuration::updateValue('TRUSTEED_INSTALL_KEY', $result['install_key']);
         }
 
-        return $this->displayConfirmation(
+        $confirmation = $this->displayConfirmation(
             $result['is_new']
-                ? $this->l('Store registered with Trusteed. Credentials configured automatically.')
-                : $this->l('Store re-registered with Trusteed. Credentials refreshed.')
+                ? $this->l('Store registered with Trusteed. Merchant ID and S2S secret configured automatically.')
+                : $this->l('Store re-registered with Trusteed. Merchant ID and S2S secret refreshed.')
         );
+
+        // 2026-09-09 (auditoría de onboarding, hueco A2) — el mensaje decía
+        // «Credentials configured automatically» habiendo escrito DOS de las
+        // cinco claves que el módulo usa. `TRUSTEED_CEL_INSTALLATION_ID` y
+        // `TRUSTEED_CEL_HMAC_SECRET` no tienen escritor automático en todo el
+        // módulo, y sin las dos no se evalúa ni una regla en ningún checkout.
+        // El comerciante salía de aquí creyendo lo contrario.
+        $status = new \Trusteed\Admin\SetupStatus(
+            $result['merchant_id'],
+            (string) Configuration::get('TRUSTEED_CEL_INSTALLATION_ID'),
+            (string) Configuration::get('TRUSTEED_CEL_HMAC_SECRET')
+        );
+
+        if (!$status->enforcementActive()) {
+            $confirmation .= $this->displayWarning(
+                $this->l(
+                    'Checkout enforcement is NOT active yet: every checkout is allowed '
+                    . 'through without evaluating a single rule. It needs two more values '
+                    . 'that auto-registration cannot issue — the Installation ID and the '
+                    . 'HMAC secret. Ask Trusteed for them and enter them in the '
+                    . '"Checkout Enforcement" section below.'
+                )
+            );
+        }
+
+        return $confirmation;
     }
 
     /**

@@ -14,20 +14,20 @@ Permettez aux nouveaux acheteurs en ligne, les agents IA, d'effectuer des achats
 
 ## Captures d'écran
 
-| Accueil | Score de confiance | Merchant Center — Commandes |
-|------|------------|--------------------------|
+| Accueil                                       | Score de confiance                                 | Merchant Center — Commandes                             |
+| --------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------- |
 | ![Accueil](screenshots/01-home-dashboard.png) | ![Score](screenshots/02-trust-score-breakdown.png) | ![Commandes](screenshots/03-merchant-center-orders.png) |
 
-| Merchant Center — Moyens de paiement | Merchant Center — Certifications | Mes Ventes |
-|----------------------------|-----------------------------------|----------|
+| Merchant Center — Moyens de paiement                       | Merchant Center — Certifications                                     | Mes Ventes                                        |
+| ---------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------- |
 | ![Paiements](screenshots/03b-merchant-center-payments.png) | ![Certifications](screenshots/04-merchant-center-certifications.png) | ![Mes Ventes](screenshots/05-my-sales-orders.png) |
 
-| Reçus de confiance (Mes Ventes → Ventes IA) | Agents |
-|---------------------------------------|--------|
+| Reçus de confiance (Mes Ventes → Ventes IA)       | Agents                               |
+| ------------------------------------------------- | ------------------------------------ |
 | ![Reçus](screenshots/06-my-sales-ai-receipts.png) | ![Agents](screenshots/07-agents.png) |
 
-| Détail du reçu — téléchargement en ZIP | Agent Readiness |
-|------------------------------------------|------------------|
+| Détail du reçu — téléchargement en ZIP                                  | Agent Readiness                                        |
+| ----------------------------------------------------------------------- | ------------------------------------------------------ |
 | ![Téléchargement du reçu](screenshots/08-my-sales-receipt-download.png) | ![Agent Readiness](screenshots/09-agent-readiness.png) |
 
 Chaque transaction d'un agent génère un **reçu de confiance** — un enregistrement signé par un JWS Ed25519, de sorte que toute modification ultérieure de son contenu reste détectable — répertorié sous **Mes Ventes → Ventes IA**. Cliquez sur une ligne pour voir le détail complet (ID de l'agent, outil appelé, hachages d'entrée/sortie, JWS) et télécharger le reçu au format ZIP afin de le conserver comme votre propre preuve de ce que l'agent a fait. Les reçus reposent sur les mêmes formats de signature que ceux sur lesquels s'appuient eIDAS et eSIGN, mais ce ne sont **pas** des signatures ni des cachets électroniques qualifiés : aucun certificat délivré par un QTSP ni horodatage qualifié ne se trouve derrière eux aujourd'hui, ils ne bénéficient donc à eux seuls d'aucune présomption de validité juridique.
@@ -46,12 +46,12 @@ Trusteed AgenticTools regroupe Trust Center, Merchant Center, les outils agentiq
 
 ## Compatibilité
 
-| Composant | Plage déclarée | Réellement vérifié sur |
-|-----------|------------------|---------------------------|
+| Composant  | Plage déclarée                                                 | Réellement vérifié sur                                                                                       |
+| ---------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | PrestaShop | 8.0.0 – 9.99.99 (`ps_versions_compliancy` dans `trusteed.php`) | 8.2.0 (toutes les captures d'écran de ce README ; pas encore de tests E2E automatisés sur d'autres versions) |
-| PHP | 8.1+ | 8.1, 8.2 |
+| PHP        | 8.1+                                                           | 8.1, 8.2                                                                                                     |
 
-La plage 8.0.0–9.99.99 est ce que le module *déclare* au gestionnaire de modules de
+La plage 8.0.0–9.99.99 est ce que le module _déclare_ au gestionnaire de modules de
 PrestaShop — elle n'a pas été testée de bout en bout au-delà de 8.2.0. Il n'existe pas
 encore de CI exécutant PHPUnit sur plusieurs versions de PrestaShop ; considérez le support
 de la 9.x comme non vérifié jusqu'à ce que ce soit le cas.
@@ -90,6 +90,7 @@ git clone https://github.com/Trusteedxyz/agentic-commerce-prestashop.git trustee
 cd trusteed
 composer install --no-dev --optimize-autoloader
 ```
+
 Téléversez ensuite le dossier `trusteed/` obtenu sous forme de `.zip` comme décrit ci-dessus. Non requis pour la production — voir la note sur l'autoloader de secours ci-dessus.
 
 ## Configuration
@@ -101,16 +102,16 @@ Téléversez ensuite le dossier `trusteed/` obtenu sous forme de `.zip` comme d�
 
 ### Clés de configuration
 
-| Clé | Par défaut | Rôle |
-|-----|---------|-------------|
-| `TRUSTEED_API_BASE` | `https://api.trusteed.xyz` | Point de terminaison du backend Trusteed |
-| `TRUSTEED_CEL_MERCHANT_ID` | _(vide)_ | Merchant ID délivré par Trusteed |
-| `TRUSTEED_EMBED_S2S_SECRET` | _(vide)_ | Secret serveur-à-serveur pour l'API embed/enforcement |
-| `TRUSTEED_BOOTSTRAP_TOKEN` | _(vide)_ | Jeton embed-bootstrap hérité (remplacé par l'auto-enregistrement) |
-| `TRUSTEED_CEL_ENABLED` | `0` | Interrupteur général de l'application des règles au checkout. Tant qu'il vaut `0`, aucune règle n'est évaluée sur aucun checkout |
-| `TRUSTEED_CEL_INSTALLATION_ID` | _(vide)_ | ID d'installation pour l'instantané signé des règles |
-| `TRUSTEED_CEL_HMAC_SECRET` | _(vide)_ | Secret HMAC pour les appels d'instantané et d'évaluation des règles |
-| `TRUSTEED_CEL_FALLBACK_MODE` | `balanced` | Comportement lorsque l'API de règles est injoignable et qu'aucun instantané local n'existe : `balanced` et `permissive` laissent passer le checkout et journalisent l'autorisation par défaut, `strict` le bloque |
+| Clé                            | Par défaut                 | Rôle                                                                                                                                                                                                              |
+| ------------------------------ | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TRUSTEED_API_BASE`            | `https://api.trusteed.xyz` | Point de terminaison du backend Trusteed                                                                                                                                                                          |
+| `TRUSTEED_CEL_MERCHANT_ID`     | _(vide)_                   | Merchant ID délivré par Trusteed                                                                                                                                                                                  |
+| `TRUSTEED_EMBED_S2S_SECRET`    | _(vide)_                   | Secret serveur-à-serveur pour l'API embed/enforcement                                                                                                                                                             |
+| `TRUSTEED_BOOTSTRAP_TOKEN`     | _(vide)_                   | Jeton embed-bootstrap hérité (remplacé par l'auto-enregistrement)                                                                                                                                                 |
+| `TRUSTEED_CEL_ENABLED`         | `0`                        | Interrupteur général de l'application des règles au checkout. Tant qu'il vaut `0`, aucune règle n'est évaluée sur aucun checkout                                                                                  |
+| `TRUSTEED_CEL_INSTALLATION_ID` | _(vide)_                   | ID d'installation pour l'instantané signé des règles                                                                                                                                                              |
+| `TRUSTEED_CEL_HMAC_SECRET`     | _(vide)_                   | Secret HMAC pour les appels d'instantané et d'évaluation des règles                                                                                                                                               |
+| `TRUSTEED_CEL_FALLBACK_MODE`   | `balanced`                 | Comportement lorsque l'API de règles est injoignable et qu'aucun instantané local n'existe : `balanced` et `permissive` laissent passer le checkout et journalisent l'autorisation par défaut, `strict` le bloque |
 
 L'application des règles reste totalement inerte jusqu'à ce que `TRUSTEED_CEL_ENABLED` vaille `1` **et** que les trois clés `TRUSTEED_CEL_MERCHANT_ID`, `TRUSTEED_CEL_INSTALLATION_ID` et `TRUSTEED_CEL_HMAC_SECRET` soient renseignées — s'il en manque une, le module laisse passer tous les checkouts sans évaluer une seule règle.
 
@@ -118,16 +119,17 @@ L'application des règles reste totalement inerte jusqu'à ce que `TRUSTEED_CEL_
 
 Après l'installation, un menu **Trusteed** apparaît dans la barre latérale du Back Office PrestaShop. Seul l'anglais dispose de libellés traduits : dans toutes les autres langues, y compris le français, la barre latérale affiche les libellés espagnols reproduits ci-dessous.
 
-| Page | Description |
-|------|-------------|
-| Inicio | Aperçu de la réputation et des ventes récentes |
-| ¿Cómo va mi tienda? | Reçus signés, clés de signature, journal d'audit, score de confiance |
-| Centro de comercio | Commandes, moyens de paiement, agents, certifications, NLWeb |
-| Mis ventas | Liste des commandes et reçus de confiance IA |
-| Mis Reglas | Règles d'application au checkout |
-| Seguridad | Journal d'audit et alertes d'anomalies |
-| Agentes | Identités des agents connectés |
-| Configuración | Paramètres du module et auto-enregistrement |
+| Page                         | Description                                                          |
+| ---------------------------- | -------------------------------------------------------------------- |
+| Inicio                       | Aperçu de la réputation et des ventes récentes                       |
+| ¿Cómo va mi tienda?          | Reçus signés, clés de signature, journal d'audit, score de confiance |
+| Centro de comercio           | Commandes, moyens de paiement, agents, certifications, NLWeb         |
+| Mis ventas                   | Liste des commandes et reçus de confiance IA                         |
+| Mis Reglas                   | Règles d'application au checkout                                     |
+| Seguridad                    | Journal d'audit et alertes d'anomalies                               |
+| Agentes                      | Identités des agents connectés                                       |
+| ¿Pueden comprar los agentes? | Si les agents peuvent réellement acheter dans cette boutique         |
+| Configuración                | Paramètres du module et auto-enregistrement                          |
 
 ## FAQ
 
@@ -146,11 +148,11 @@ boutique, obtient-il ce que vous croyez qu'il obtient ?
 Aucune note unique n'est affichée. Trois colonnes, jamais moyennées, car elles
 répondent à des questions différentes et peuvent légitimement se contredire :
 
-| Colonne | Ce que c'est |
-| --- | --- |
-| **Ce que dit un tiers** | Le verdict d'un scanner externe, cité tel quel. Jamais réinterprété dans une échelle qui serait la nôtre : dès que l'on convertit la note d'un autre, on corrige sa propre copie |
+| Colonne                                                    | Ce que c'est                                                                                                                                                                                |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Ce que dit un tiers**                                    | Le verdict d'un scanner externe, cité tel quel. Jamais réinterprété dans une échelle qui serait la nôtre : dès que l'on convertit la note d'un autre, on corrige sa propre copie            |
 | **Ce que vous dites correspond-il à ce que vous faites ?** | 16 vérifications qui confrontent ce que votre boutique **annonce** à ce qu'elle **répond réellement**. C'est la partie qu'aucun scanner externe ne peut faire : elle exige vos identifiants |
-| **Ce que nous avons vu passer** | Le trafic agentique réel sur la période choisie : quels agents sont venus, quels outils ils ont utilisés, jusqu'où ils sont allés et où ils ont échoué |
+| **Ce que nous avons vu passer**                            | Le trafic agentique réel sur la période choisie : quels agents sont venus, quels outils ils ont utilisés, jusqu'où ils sont allés et où ils ont échoué                                      |
 
 Une vérification qui n'a pas pu être faite est signalée comme **non vérifiée**,
 avec son motif. Elle n'est jamais écartée en silence ni comptée comme réussie.
@@ -159,24 +161,24 @@ sont deux réponses distinctes, et la page indique laquelle s'applique.
 
 ### Ce que vérifie chaque contrôle
 
-| Contrôle | Ce qu'il détecte |
-| --- | --- |
-| C1 | Vous annoncez des outils que votre boutique ne sert pas |
-| C2 | Vous annoncez un protocole de paiement dont le point de terminaison ne répond pas |
-| C3 | Le prix du catalogue n'est pas le prix facturé |
-| C4 | Annoncé disponible alors que ce n'est pas le cas |
-| C5 | Votre politique de retour dit des choses différentes selon la source |
-| C6 | Vous annoncez comme disponible quelque chose qui est désactivé |
-| C7 | Des règles activées qui ne peuvent pas agir faute de données |
-| C8 | Vos règles observent mais ne bloquent pas |
-| C9 | La méthode d'identification que vous annoncez ne fonctionne pas |
-| C10 | Un agent peut acheter n'importe quel montant sans votre confirmation |
-| C11 | Le point de vente utilise des règles expirées |
-| C12 | Des opérations sans reçu signé |
-| C13 | Des adresses annoncées qui ne fonctionnent pas |
-| C14 | Les agents voient des données périmées de votre boutique |
-| C15 | Des justificatifs d'identité sur le point d'expirer |
-| C16 | Le délai de livraison promis n'est pas celui que vous tenez |
+| Contrôle | Ce qu'il détecte                                                                  |
+| -------- | --------------------------------------------------------------------------------- |
+| C1       | Vous annoncez des outils que votre boutique ne sert pas                           |
+| C2       | Vous annoncez un protocole de paiement dont le point de terminaison ne répond pas |
+| C3       | Le prix du catalogue n'est pas le prix facturé                                    |
+| C4       | Annoncé disponible alors que ce n'est pas le cas                                  |
+| C5       | Votre politique de retour dit des choses différentes selon la source              |
+| C6       | Vous annoncez comme disponible quelque chose qui est désactivé                    |
+| C7       | Des règles activées qui ne peuvent pas agir faute de données                      |
+| C8       | Vos règles observent mais ne bloquent pas                                         |
+| C9       | La méthode d'identification que vous annoncez ne fonctionne pas                   |
+| C10      | Un agent peut acheter n'importe quel montant sans votre confirmation              |
+| C11      | Le point de vente utilise des règles expirées                                     |
+| C12      | Des opérations sans reçu signé                                                    |
+| C13      | Des adresses annoncées qui ne fonctionnent pas                                    |
+| C14      | Les agents voient des données périmées de votre boutique                          |
+| C15      | Des justificatifs d'identité sur le point d'expirer                               |
+| C16      | Le délai de livraison promis n'est pas celui que vous tenez                       |
 
 Certains contrôles ont besoin de plus que vos réglages, et la page le dit au lieu
 de laisser un vide :
@@ -194,6 +196,12 @@ bien » mis en cache et présenté comme actuel serait exactement l'auto-illusio
 que cette page existe pour débusquer.
 
 ## Historique des versions
+
+### 2.3.0
+
+- Nouveau : le badge de la barre supérieure a désormais trois états. Il n'apparaissait qu'**après** la configuration du module : installer sans terminer ne produisait aucun signal. Il alerte maintenant si la configuration est inachevée, et séparément si la boutique est enregistrée mais que l'application au checkout n'est pas active.
+- Corrigé : l'auto-enregistrement annonçait « identifiants configurés automatiquement » après en avoir configuré deux sur les cinq que le module utilise. Il indique maintenant ce qu'il a configuré et signale que l'application nécessite deux valeurs de plus que l'auto-enregistrement ne peut pas émettre.
+- Nouveau : si l'URL de votre boutique était déjà enregistrée sous une autre clé d'installation, le module peut prouver qu'il contrôle le domaine et la récupérer. Ce cas n'avait aucune issue auparavant : il réclamait une clé que vous n'aviez jamais eue.
 
 ### 2.2.4
 
@@ -220,7 +228,7 @@ que cette page existe pour débusquer.
 
 ### 2.2.0
 
-- **Nouveau — tableau de bord de préparation agentique.** *Les agents me trouvent-ils ?* arrive dans le panneau d'administration. Il confronte ce que votre boutique annonce à ce qu'elle répond réellement, en **16 vérifications**, et les affiche toutes les seize, pas seulement celles qui échouent. Une vérification impossible indique **pourquoi** (boutique non connectée, aucune commande livrée pour l'instant, rien à comparer cette fois) au lieu de laisser un vide qui ressemble à une panne. Voir « Le tableau de bord de préparation agentique » ci-dessus.
+- **Nouveau — tableau de bord de préparation agentique.** _Les agents me trouvent-ils ?_ arrive dans le panneau d'administration. Il confronte ce que votre boutique annonce à ce qu'elle répond réellement, en **16 vérifications**, et les affiche toutes les seize, pas seulement celles qui échouent. Une vérification impossible indique **pourquoi** (boutique non connectée, aucune commande livrée pour l'instant, rien à comparer cette fois) au lieu de laisser un vide qui ressemble à une panne. Voir « Le tableau de bord de préparation agentique » ci-dessus.
 - **Corrigé** — le diagnostic était rédigé en espagnol dans l'API et affiché tel quel : un marchand utilisant le panneau en anglais lisait des titres anglais au-dessus de constats espagnols. Les vérifications émettent désormais des codes neutres et le texte est composé au moment de servir, dans votre langue.
 - **Corrigé** — la vérification C1 (« vous annoncez des outils que votre boutique ne sert pas ») considérait tout le catalogue public comme servi en l'absence de liste configurée : elle annonçait 46 sur 48 alors que le serveur en sert 12. L'erreur allait dans le sens flatteur, précisément celui que ce tableau de bord doit débusquer.
 - **Corrigé** — la vérification C6 (« vous annoncez comme disponible quelque chose qui est désactivé ») signalait une capacité comme désactivée dès que son indicateur n'était pas défini, y compris pour ceux activés par défaut. C'était une fausse alerte sur toutes les boutiques.

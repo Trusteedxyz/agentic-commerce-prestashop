@@ -14,20 +14,20 @@ Permite que los nuevos compradores online, los agentes de IA, realicen compras e
 
 ## Capturas de pantalla
 
-| Inicio | Puntuación de confianza | Merchant Center — Pedidos |
-|------|------------|--------------------------|
+| Inicio                                       | Puntuación de confianza                                 | Merchant Center — Pedidos                             |
+| -------------------------------------------- | ------------------------------------------------------- | ----------------------------------------------------- |
 | ![Inicio](screenshots/01-home-dashboard.png) | ![Puntuación](screenshots/02-trust-score-breakdown.png) | ![Pedidos](screenshots/03-merchant-center-orders.png) |
 
-| Merchant Center — Métodos de pago | Merchant Center — Certificaciones | Mis Ventas |
-|----------------------------|-----------------------------------|----------|
+| Merchant Center — Métodos de pago                      | Merchant Center — Certificaciones                                     | Mis Ventas                                        |
+| ------------------------------------------------------ | --------------------------------------------------------------------- | ------------------------------------------------- |
 | ![Pagos](screenshots/03b-merchant-center-payments.png) | ![Certificaciones](screenshots/04-merchant-center-certifications.png) | ![Mis Ventas](screenshots/05-my-sales-orders.png) |
 
-| Recibos de confianza (Mis Ventas → Ventas IA) | Agentes |
-|---------------------------------------|--------|
+| Recibos de confianza (Mis Ventas → Ventas IA)       | Agentes                               |
+| --------------------------------------------------- | ------------------------------------- |
 | ![Recibos](screenshots/06-my-sales-ai-receipts.png) | ![Agentes](screenshots/07-agents.png) |
 
-| Detalle del comprobante — descarga en ZIP | Agent Readiness |
-|--------------------------------------------|------------------|
+| Detalle del comprobante — descarga en ZIP                                | Agent Readiness                                        |
+| ------------------------------------------------------------------------ | ------------------------------------------------------ |
 | ![Descarga de comprobante](screenshots/08-my-sales-receipt-download.png) | ![Agent Readiness](screenshots/09-agent-readiness.png) |
 
 Cada transacción de un agente genera un **recibo de confianza** — un registro firmado con un JWS Ed25519, de modo que cualquier cambio posterior en su contenido queda detectable — que aparece en **Mis ventas → Ventas IA**. Haz clic en cualquier fila para ver el detalle completo (ID del agente, herramienta invocada, hashes de entrada/salida, JWS) y descargar el comprobante como ZIP para conservarlo como tu propia evidencia de lo que hizo el agente. Los recibos usan los mismos formatos de firma sobre los que se construyen eIDAS y eSIGN, pero **no** son firmas ni sellos electrónicos cualificados: hoy no hay detrás ningún certificado emitido por un QTSP ni sello de tiempo cualificado, así que por sí solos no tienen presunción de validez legal.
@@ -46,12 +46,12 @@ Trusteed AgenticTools consolida Trust Center, Merchant Center, herramientas agé
 
 ## Compatibilidad
 
-| Componente | Rango declarado | Verificado de verdad contra |
-|-----------|-------------------|-------------------------------|
+| Componente | Rango declarado                                              | Verificado de verdad contra                                                            |
+| ---------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
 | PrestaShop | 8.0.0 – 9.99.99 (`ps_versions_compliancy` en `trusteed.php`) | 8.2.0 (todas las capturas de este README; sin E2E automatizado en otras versiones aún) |
-| PHP | 8.1+ | 8.1, 8.2 |
+| PHP        | 8.1+                                                         | 8.1, 8.2                                                                               |
 
-El rango 8.0.0–9.99.99 es lo que el módulo *declara* al gestor de módulos de PrestaShop —
+El rango 8.0.0–9.99.99 es lo que el módulo _declara_ al gestor de módulos de PrestaShop —
 no se ha probado de extremo a extremo fuera de 8.2.0. Todavía no hay CI corriendo PHPUnit
 contra varias versiones de PrestaShop; trata el soporte de 9.x como no verificado hasta que
 exista.
@@ -90,6 +90,7 @@ git clone https://github.com/Trusteedxyz/agentic-commerce-prestashop.git trustee
 cd trusteed
 composer install --no-dev --optimize-autoloader
 ```
+
 Después sube la carpeta `trusteed/` resultante como `.zip` según lo descrito arriba. No es necesario para producción — ver la nota del autoloader de respaldo arriba.
 
 ## Configuración
@@ -101,16 +102,16 @@ Después sube la carpeta `trusteed/` resultante como `.zip` según lo descrito a
 
 ### Claves de configuración
 
-| Clave | Por defecto | Propósito |
-|-----|---------|-------------|
-| `TRUSTEED_API_BASE` | `https://api.trusteed.xyz` | Endpoint del backend de Trusteed |
-| `TRUSTEED_CEL_MERCHANT_ID` | _(vacío)_ | Merchant ID emitido por Trusteed |
-| `TRUSTEED_EMBED_S2S_SECRET` | _(vacío)_ | Secreto servidor-a-servidor para la API de embed/enforcement |
-| `TRUSTEED_BOOTSTRAP_TOKEN` | _(vacío)_ | Token embed-bootstrap heredado (reemplazado por el auto-registro) |
-| `TRUSTEED_CEL_ENABLED` | `0` | Interruptor general del enforcement de checkout. Mientras valga `0`, no se evalúa ninguna regla en ningún checkout |
-| `TRUSTEED_CEL_INSTALLATION_ID` | _(vacío)_ | ID de instalación para la copia firmada de reglas |
-| `TRUSTEED_CEL_HMAC_SECRET` | _(vacío)_ | Secreto HMAC para las llamadas de copia de reglas y de evaluación |
-| `TRUSTEED_CEL_FALLBACK_MODE` | `balanced` | Comportamiento cuando la API de reglas no responde y no hay copia local: `balanced` y `permissive` dejan pasar el checkout y registran el permitir-por-defecto, `strict` lo bloquea |
+| Clave                          | Por defecto                | Propósito                                                                                                                                                                           |
+| ------------------------------ | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TRUSTEED_API_BASE`            | `https://api.trusteed.xyz` | Endpoint del backend de Trusteed                                                                                                                                                    |
+| `TRUSTEED_CEL_MERCHANT_ID`     | _(vacío)_                  | Merchant ID emitido por Trusteed                                                                                                                                                    |
+| `TRUSTEED_EMBED_S2S_SECRET`    | _(vacío)_                  | Secreto servidor-a-servidor para la API de embed/enforcement                                                                                                                        |
+| `TRUSTEED_BOOTSTRAP_TOKEN`     | _(vacío)_                  | Token embed-bootstrap heredado (reemplazado por el auto-registro)                                                                                                                   |
+| `TRUSTEED_CEL_ENABLED`         | `0`                        | Interruptor general del enforcement de checkout. Mientras valga `0`, no se evalúa ninguna regla en ningún checkout                                                                  |
+| `TRUSTEED_CEL_INSTALLATION_ID` | _(vacío)_                  | ID de instalación para la copia firmada de reglas                                                                                                                                   |
+| `TRUSTEED_CEL_HMAC_SECRET`     | _(vacío)_                  | Secreto HMAC para las llamadas de copia de reglas y de evaluación                                                                                                                   |
+| `TRUSTEED_CEL_FALLBACK_MODE`   | `balanced`                 | Comportamiento cuando la API de reglas no responde y no hay copia local: `balanced` y `permissive` dejan pasar el checkout y registran el permitir-por-defecto, `strict` lo bloquea |
 
 El enforcement permanece completamente inerte hasta que `TRUSTEED_CEL_ENABLED` valga `1` **y** estén puestas las tres claves `TRUSTEED_CEL_MERCHANT_ID`, `TRUSTEED_CEL_INSTALLATION_ID` y `TRUSTEED_CEL_HMAC_SECRET` — si falta cualquiera de ellas, el módulo deja pasar todos los checkouts sin evaluar una sola regla.
 
@@ -118,16 +119,17 @@ El enforcement permanece completamente inerte hasta que `TRUSTEED_CEL_ENABLED` v
 
 Tras la instalación aparece un menú **Trusteed** en la barra lateral del Back Office de PrestaShop:
 
-| Página | Descripción |
-|------|-------------|
-| Inicio | Resumen de reputación y ventas recientes |
-| ¿Cómo va mi tienda? | Recibos firmados, claves de firma, registro de auditoría, puntuación de confianza |
-| Centro de comercio | Pedidos, métodos de pago, agentes, certificaciones, NLWeb |
-| Mis ventas | Lista de pedidos y recibos de confianza IA |
-| Mis Reglas | Reglas de enforcement de checkout |
-| Seguridad | Registro de auditoría y alertas de anomalías |
-| Agentes | Identidades de agentes conectados |
-| Configuración | Ajustes del módulo y auto-registro |
+| Página                       | Descripción                                                                       |
+| ---------------------------- | --------------------------------------------------------------------------------- |
+| Inicio                       | Resumen de reputación y ventas recientes                                          |
+| ¿Cómo va mi tienda?          | Recibos firmados, claves de firma, registro de auditoría, puntuación de confianza |
+| Centro de comercio           | Pedidos, métodos de pago, agentes, certificaciones, NLWeb                         |
+| Mis ventas                   | Lista de pedidos y recibos de confianza IA                                        |
+| Mis Reglas                   | Reglas de enforcement de checkout                                                 |
+| Seguridad                    | Registro de auditoría y alertas de anomalías                                      |
+| Agentes                      | Identidades de agentes conectados                                                 |
+| ¿Pueden comprar los agentes? | Si los agentes pueden comprar de verdad en esta tienda                            |
+| Configuración                | Ajustes del módulo y auto-registro                                                |
 
 ## Preguntas frecuentes
 
@@ -146,11 +148,11 @@ IA visita tu tienda, ¿se encuentra lo que tú crees que se encuentra?
 Nunca enseña una nota única. Tres columnas, sin promediar, porque responden a
 preguntas distintas y pueden contradecirse con toda legitimidad:
 
-| Columna | Qué es |
-| --- | --- |
-| **Lo que dice un tercero** | El veredicto de un escáner externo, citado tal cual. Nunca reinterpretado a una escala nuestra: en cuanto reescalas la nota de otro, estás corrigiendo tu propio examen |
+| Columna                                      | Qué es                                                                                                                                                                              |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Lo que dice un tercero**                   | El veredicto de un escáner externo, citado tal cual. Nunca reinterpretado a una escala nuestra: en cuanto reescalas la nota de otro, estás corrigiendo tu propio examen             |
 | **¿Coincide lo que dices con lo que haces?** | 16 comprobaciones que contrastan lo que tu tienda **anuncia** con lo que **responde de verdad**. Esta es la parte que ningún escáner externo puede hacer: necesita tus credenciales |
-| **Lo que hemos visto pasar** | Tráfico agéntico real en la ventana elegida: qué agentes llegaron, qué herramientas usaron, hasta dónde llegaron y dónde fallaron |
+| **Lo que hemos visto pasar**                 | Tráfico agéntico real en la ventana elegida: qué agentes llegaron, qué herramientas usaron, hasta dónde llegaron y dónde fallaron                                                   |
 
 Una comprobación que no se ha podido hacer se informa como **sin comprobar**,
 con el motivo. Nunca se descarta en silencio ni se cuenta como aprobado. «No
@@ -159,24 +161,24 @@ página dice cuál de las dos es.
 
 ### Qué mira cada comprobación
 
-| Comprobación | Qué detecta |
-| --- | --- |
-| C1 | Anuncias herramientas que tu tienda no sirve |
-| C2 | Anuncias un protocolo de compra cuyo endpoint no responde |
-| C3 | El precio del catálogo no es el que se cobra |
-| C4 | Se anuncia disponible lo que no lo está |
-| C5 | Tu política de devoluciones dice cosas distintas según dónde se mire |
-| C6 | Anuncias como disponible algo que está apagado |
-| C7 | Reglas activadas que no pueden actuar por falta de datos |
-| C8 | Tus reglas observan pero no bloquean |
-| C9 | La forma de identificarse que anuncias no funciona |
-| C10 | Un agente puede comprar cualquier importe sin tu confirmación |
-| C11 | El punto de venta usa reglas caducadas |
-| C12 | Operaciones sin comprobante firmado |
-| C13 | Direcciones anunciadas que no funcionan |
-| C14 | Los agentes ven datos desfasados de tu tienda |
-| C15 | Credenciales de identidad a punto de caducar |
-| C16 | El plazo de entrega que prometes no es el que cumples |
+| Comprobación | Qué detecta                                                          |
+| ------------ | -------------------------------------------------------------------- |
+| C1           | Anuncias herramientas que tu tienda no sirve                         |
+| C2           | Anuncias un protocolo de compra cuyo endpoint no responde            |
+| C3           | El precio del catálogo no es el que se cobra                         |
+| C4           | Se anuncia disponible lo que no lo está                              |
+| C5           | Tu política de devoluciones dice cosas distintas según dónde se mire |
+| C6           | Anuncias como disponible algo que está apagado                       |
+| C7           | Reglas activadas que no pueden actuar por falta de datos             |
+| C8           | Tus reglas observan pero no bloquean                                 |
+| C9           | La forma de identificarse que anuncias no funciona                   |
+| C10          | Un agente puede comprar cualquier importe sin tu confirmación        |
+| C11          | El punto de venta usa reglas caducadas                               |
+| C12          | Operaciones sin comprobante firmado                                  |
+| C13          | Direcciones anunciadas que no funcionan                              |
+| C14          | Los agentes ven datos desfasados de tu tienda                        |
+| C15          | Credenciales de identidad a punto de caducar                         |
+| C16          | El plazo de entrega que prometes no es el que cumples                |
 
 Algunas comprobaciones necesitan algo más que tu configuración para ejecutarse, y
 la página lo dice en vez de dejar un hueco:
@@ -194,6 +196,12 @@ Un «todo bien» guardado y presentado como actual sería justo el autoengaño q
 esta página existe para cazar.
 
 ## Historial de cambios
+
+### 2.3.0
+
+- Nuevo: el indicador de la barra superior ahora tiene tres estados. Antes sólo aparecía **después** de configurar el módulo, así que instalarlo y no terminar no producía ninguna señal. Ahora avisa si falta configurarlo, y avisa aparte si la tienda está registrada pero el enforcement de checkout no está activo.
+- Corregido: el auto-registro decía «credenciales configuradas automáticamente» habiendo configurado dos de las cinco claves que el módulo usa. Ahora dice cuáles configura, y avisa de que el enforcement necesita dos valores más que el auto-registro no puede emitir.
+- Nuevo: si la URL de tu tienda ya estaba registrada con otra clave de instalación, el módulo puede demostrar que controla el dominio y recuperarla. Antes ese caso no tenía salida: pedía una clave que nunca habías tenido.
 
 ### 2.2.4
 
@@ -220,7 +228,7 @@ esta página existe para cazar.
 
 ### 2.2.0
 
-- **Nuevo — panel de preparación agéntica.** *¿Me encuentran los agentes?* llega al panel de administración. Contrasta lo que tu tienda anuncia con lo que responde de verdad, en **16 comprobaciones**, y las enseña las dieciséis, no sólo las que fallan. Una comprobación que no se ha podido hacer dice **por qué** (tienda sin conectar, todavía sin pedidos entregados, nada que comparar esta vez) en vez de dejar un hueco que se lee como avería. Ver «El panel de preparación agéntica» más arriba.
+- **Nuevo — panel de preparación agéntica.** _¿Me encuentran los agentes?_ llega al panel de administración. Contrasta lo que tu tienda anuncia con lo que responde de verdad, en **16 comprobaciones**, y las enseña las dieciséis, no sólo las que fallan. Una comprobación que no se ha podido hacer dice **por qué** (tienda sin conectar, todavía sin pedidos entregados, nada que comparar esta vez) en vez de dejar un hueco que se lee como avería. Ver «El panel de preparación agéntica» más arriba.
 - **Corregido** — el diagnóstico se escribía en castellano dentro de la API y se mostraba tal cual, así que un comerciante con el panel en inglés leía encabezados en inglés y hallazgos en castellano. Las comprobaciones emiten ahora códigos neutros de idioma y el texto se compone al servirlo, en el idioma que estés usando.
 - **Corregido** — la comprobación C1 («anuncias herramientas que tu tienda no sirve») daba por servido el catálogo público entero cuando no había lista de herramientas configurada: informaba de 46 de 48 respondiendo cuando el servidor sirve 12. Fallaba en la dirección aduladora, que es justo la que este panel existe para cazar.
 - **Corregido** — la comprobación C6 («anuncias como disponible algo que está apagado») daba una capacidad por apagada siempre que su bandera no estuviera puesta, incluso en banderas que están encendidas por defecto. Era una falsa alarma en todas las tiendas.

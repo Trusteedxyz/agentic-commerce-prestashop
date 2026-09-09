@@ -14,20 +14,20 @@ Ermöglichen Sie neuen Online-Käufern, den KI-Agenten, sichere und zuverlässig
 
 ## Screenshots
 
-| Start | Trust Score | Merchant Center — Bestellungen |
-|------|------------|--------------------------|
+| Start                                       | Trust Score                                              | Merchant Center — Bestellungen                             |
+| ------------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------- |
 | ![Start](screenshots/01-home-dashboard.png) | ![Trust Score](screenshots/02-trust-score-breakdown.png) | ![Bestellungen](screenshots/03-merchant-center-orders.png) |
 
-| Merchant Center — Zahlungsmethoden | Merchant Center — Zertifizierungen | Meine Verkäufe |
-|----------------------------|-----------------------------------|----------|
+| Merchant Center — Zahlungsmethoden                         | Merchant Center — Zertifizierungen                                     | Meine Verkäufe                                        |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------- |
 | ![Zahlungen](screenshots/03b-merchant-center-payments.png) | ![Zertifizierungen](screenshots/04-merchant-center-certifications.png) | ![Meine Verkäufe](screenshots/05-my-sales-orders.png) |
 
-| Trust Receipts (Meine Verkäufe → KI-Verkäufe) | Agenten |
-|---------------------------------------|--------|
+| Trust Receipts (Meine Verkäufe → KI-Verkäufe)      | Agenten                               |
+| -------------------------------------------------- | ------------------------------------- |
 | ![Belege](screenshots/06-my-sales-ai-receipts.png) | ![Agenten](screenshots/07-agents.png) |
 
-| Beleg-Detail — Download als ZIP | Agent Readiness |
-|-----------------------------------|------------------|
+| Beleg-Detail — Download als ZIP                                 | Agent Readiness                                        |
+| --------------------------------------------------------------- | ------------------------------------------------------ |
 | ![Beleg-Download](screenshots/08-my-sales-receipt-download.png) | ![Agent Readiness](screenshots/09-agent-readiness.png) |
 
 Jede Agenten-Transaktion erzeugt einen **Trust Receipt** — einen mit einem Ed25519-JWS signierten Datensatz, sodass jede nachträgliche Änderung seines Inhalts erkennbar bleibt — der unter **Meine Verkäufe → KI-Verkäufe** aufgeführt wird. Klicke auf eine Zeile, um alle Details zu sehen (Agenten-ID, aufgerufenes Tool, Input-/Output-Hashes, JWS) und den Beleg als ZIP herunterzuladen, um ihn als eigenen Nachweis darüber zu behalten, was der Agent getan hat. Die Belege nutzen dieselben Signaturformate, auf denen eIDAS und eSIGN aufbauen, sind aber **keine** qualifizierten elektronischen Signaturen oder Siegel: dahinter steht heute weder ein von einem QTSP ausgestelltes Zertifikat noch ein qualifizierter Zeitstempel, sie genießen also für sich allein keine Vermutung der Rechtswirksamkeit.
@@ -46,12 +46,12 @@ Trusteed AgenticTools vereint Trust Center, Merchant Center, agentische MCP-Tool
 
 ## Kompatibilität
 
-| Komponente | Deklarierter Bereich | Tatsächlich getestet gegen |
-|-----------|------------------------|-------------------------------|
+| Komponente | Deklarierter Bereich                                         | Tatsächlich getestet gegen                                                                    |
+| ---------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
 | PrestaShop | 8.0.0 – 9.99.99 (`ps_versions_compliancy` in `trusteed.php`) | 8.2.0 (alle Screenshots in diesem README; noch kein automatisiertes E2E für andere Versionen) |
-| PHP | 8.1+ | 8.1, 8.2 |
+| PHP        | 8.1+                                                         | 8.1, 8.2                                                                                      |
 
-Der Bereich 8.0.0–9.99.99 ist das, was das Modul dem PrestaShop-Modulmanager *deklariert* —
+Der Bereich 8.0.0–9.99.99 ist das, was das Modul dem PrestaShop-Modulmanager _deklariert_ —
 er wurde außerhalb von 8.2.0 nicht durchgängig getestet. Es gibt noch keine CI, die PHPUnit
 gegen mehrere PrestaShop-Versionen ausführt; behandeln Sie die Unterstützung von 9.x bis
 dahin als unbestätigt.
@@ -90,6 +90,7 @@ git clone https://github.com/Trusteedxyz/agentic-commerce-prestashop.git trustee
 cd trusteed
 composer install --no-dev --optimize-autoloader
 ```
+
 Laden Sie anschließend den resultierenden Ordner `trusteed/` wie oben beschrieben als `.zip` hoch. Für die Produktion nicht erforderlich — siehe den Hinweis zum Fallback-Autoloader oben.
 
 ## Konfiguration
@@ -101,16 +102,16 @@ Laden Sie anschließend den resultierenden Ordner `trusteed/` wie oben beschrieb
 
 ### Konfigurationsschlüssel
 
-| Schlüssel | Standard | Zweck |
-|-----|---------|-------------|
-| `TRUSTEED_API_BASE` | `https://api.trusteed.xyz` | Endpunkt des Trusteed-Backends |
-| `TRUSTEED_CEL_MERCHANT_ID` | _(leer)_ | Von Trusteed ausgestellte Merchant ID |
-| `TRUSTEED_EMBED_S2S_SECRET` | _(leer)_ | Server-zu-Server-Secret für die Embed-/Enforcement-API |
-| `TRUSTEED_BOOTSTRAP_TOKEN` | _(leer)_ | Veraltetes Embed-Bootstrap-Token (durch Auto-Registrierung ersetzt) |
-| `TRUSTEED_CEL_ENABLED` | `0` | Hauptschalter für das Checkout-Enforcement. Solange `0`, wird bei keinem Checkout eine Regel ausgewertet |
-| `TRUSTEED_CEL_INSTALLATION_ID` | _(leer)_ | Installations-ID für den signierten Regel-Snapshot |
-| `TRUSTEED_CEL_HMAC_SECRET` | _(leer)_ | HMAC-Secret für Snapshot- und Regelauswertungs-Aufrufe |
-| `TRUSTEED_CEL_FALLBACK_MODE` | `balanced` | Verhalten, wenn die Regel-API nicht erreichbar ist und kein lokaler Snapshot vorliegt: `balanced` und `permissive` lassen den Checkout durch und protokollieren das, `strict` blockiert ihn |
+| Schlüssel                      | Standard                   | Zweck                                                                                                                                                                                       |
+| ------------------------------ | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TRUSTEED_API_BASE`            | `https://api.trusteed.xyz` | Endpunkt des Trusteed-Backends                                                                                                                                                              |
+| `TRUSTEED_CEL_MERCHANT_ID`     | _(leer)_                   | Von Trusteed ausgestellte Merchant ID                                                                                                                                                       |
+| `TRUSTEED_EMBED_S2S_SECRET`    | _(leer)_                   | Server-zu-Server-Secret für die Embed-/Enforcement-API                                                                                                                                      |
+| `TRUSTEED_BOOTSTRAP_TOKEN`     | _(leer)_                   | Veraltetes Embed-Bootstrap-Token (durch Auto-Registrierung ersetzt)                                                                                                                         |
+| `TRUSTEED_CEL_ENABLED`         | `0`                        | Hauptschalter für das Checkout-Enforcement. Solange `0`, wird bei keinem Checkout eine Regel ausgewertet                                                                                    |
+| `TRUSTEED_CEL_INSTALLATION_ID` | _(leer)_                   | Installations-ID für den signierten Regel-Snapshot                                                                                                                                          |
+| `TRUSTEED_CEL_HMAC_SECRET`     | _(leer)_                   | HMAC-Secret für Snapshot- und Regelauswertungs-Aufrufe                                                                                                                                      |
+| `TRUSTEED_CEL_FALLBACK_MODE`   | `balanced`                 | Verhalten, wenn die Regel-API nicht erreichbar ist und kein lokaler Snapshot vorliegt: `balanced` und `permissive` lassen den Checkout durch und protokollieren das, `strict` blockiert ihn |
 
 Das Enforcement bleibt vollständig inaktiv, bis `TRUSTEED_CEL_ENABLED` den Wert `1` hat **und** alle drei Schlüssel `TRUSTEED_CEL_MERCHANT_ID`, `TRUSTEED_CEL_INSTALLATION_ID` und `TRUSTEED_CEL_HMAC_SECRET` gesetzt sind — fehlt einer davon, lässt das Modul jeden Checkout durch, ohne eine einzige Regel auszuwerten.
 
@@ -118,16 +119,17 @@ Das Enforcement bleibt vollständig inaktiv, bis `TRUSTEED_CEL_ENABLED` den Wert
 
 Nach der Installation erscheint ein **Trusteed**-Menü in der Seitenleiste des PrestaShop-Back-Office. Nur für Englisch gibt es übersetzte Bezeichnungen: in allen anderen Sprachen, auch auf Deutsch, zeigt die Seitenleiste die unten aufgeführten spanischen Bezeichnungen.
 
-| Seite | Beschreibung |
-|------|-------------|
-| Inicio | Übersicht über Reputation und aktuelle Verkäufe |
-| ¿Cómo va mi tienda? | Signierte Belege, Signaturschlüssel, Audit-Log, Trust Score |
-| Centro de comercio | Bestellungen, Zahlungsmethoden, Agenten, Zertifizierungen, NLWeb |
-| Mis ventas | Bestellliste und KI-Trust-Receipts |
-| Mis Reglas | Checkout-Enforcement-Regeln |
-| Seguridad | Audit-Log und Anomalie-Warnungen |
-| Agentes | Verbundene Agenten-Identitäten |
-| Configuración | Moduleinstellungen und Auto-Registrierung |
+| Seite                        | Beschreibung                                                     |
+| ---------------------------- | ---------------------------------------------------------------- |
+| Inicio                       | Übersicht über Reputation und aktuelle Verkäufe                  |
+| ¿Cómo va mi tienda?          | Signierte Belege, Signaturschlüssel, Audit-Log, Trust Score      |
+| Centro de comercio           | Bestellungen, Zahlungsmethoden, Agenten, Zertifizierungen, NLWeb |
+| Mis ventas                   | Bestellliste und KI-Trust-Receipts                               |
+| Mis Reglas                   | Checkout-Enforcement-Regeln                                      |
+| Seguridad                    | Audit-Log und Anomalie-Warnungen                                 |
+| Agentes                      | Verbundene Agenten-Identitäten                                   |
+| ¿Pueden comprar los agentes? | Ob Agenten in diesem Shop tatsächlich kaufen können              |
+| Configuración                | Moduleinstellungen und Auto-Registrierung                        |
 
 ## FAQ
 
@@ -147,11 +149,11 @@ Es wird nie eine einzelne Note angezeigt. Drei Spalten, die nicht gemittelt
 werden, weil sie unterschiedliche Fragen beantworten und sich zu Recht
 widersprechen können:
 
-| Spalte | Was sie bedeutet |
-| --- | --- |
-| **Was ein Dritter sagt** | Das Urteil eines externen Scanners, wörtlich zitiert. Nie in eine eigene Skala übersetzt: Sobald man die Note eines anderen umrechnet, korrigiert man seine eigene Prüfung |
+| Spalte                                                   | Was sie bedeutet                                                                                                                                                                     |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Was ein Dritter sagt**                                 | Das Urteil eines externen Scanners, wörtlich zitiert. Nie in eine eigene Skala übersetzt: Sobald man die Note eines anderen umrechnet, korrigiert man seine eigene Prüfung           |
 | **Stimmt überein, was Sie sagen, mit dem, was Sie tun?** | 16 Prüfungen, die das, was Ihr Shop **ankündigt**, mit dem vergleichen, was er **tatsächlich antwortet**. Genau das kann kein externer Scanner leisten: Es braucht Ihre Zugangsdaten |
-| **Was wir gesehen haben** | Echter Agentenverkehr im gewählten Zeitraum: welche Agenten kamen, welche Werkzeuge sie nutzten, wie weit sie kamen und woran sie scheiterten |
+| **Was wir gesehen haben**                                | Echter Agentenverkehr im gewählten Zeitraum: welche Agenten kamen, welche Werkzeuge sie nutzten, wie weit sie kamen und woran sie scheiterten                                        |
 
 Eine Prüfung, die nicht durchgeführt werden konnte, wird als **nicht geprüft**
 ausgewiesen — mit Begründung. Sie wird nie stillschweigend verworfen und nie als
@@ -160,24 +162,24 @@ es war in Ordnung» sind verschiedene Antworten, und die Seite sagt, welche gilt
 
 ### Was jede Prüfung betrachtet
 
-| Prüfung | Was sie erkennt |
-| --- | --- |
-| C1 | Sie kündigen Werkzeuge an, die Ihr Shop nicht bereitstellt |
-| C2 | Sie kündigen ein Checkout-Protokoll an, dessen Endpunkt nicht antwortet |
-| C3 | Der Katalogpreis ist nicht der berechnete Preis |
-| C4 | Als verfügbar angekündigt, obwohl nicht verfügbar |
-| C5 | Ihre Rückgaberichtlinie sagt je nach Quelle etwas anderes |
-| C6 | Sie kündigen etwas als verfügbar an, das abgeschaltet ist |
-| C7 | Aktivierte Regeln, die mangels Daten nicht greifen können |
-| C8 | Ihre Regeln beobachten, blockieren aber nicht |
-| C9 | Die angekündigte Authentifizierungsmethode funktioniert nicht |
-| C10 | Ein Agent kann jeden Betrag ohne Ihre Bestätigung kaufen |
-| C11 | Die Verkaufsstelle verwendet abgelaufene Regeln |
-| C12 | Vorgänge ohne signierten Beleg |
-| C13 | Angekündigte Adressen, die nicht funktionieren |
-| C14 | Agenten sehen veraltete Daten Ihres Shops |
-| C15 | Identitätsnachweise kurz vor Ablauf |
-| C16 | Die zugesagte Lieferzeit ist nicht die eingehaltene |
+| Prüfung | Was sie erkennt                                                         |
+| ------- | ----------------------------------------------------------------------- |
+| C1      | Sie kündigen Werkzeuge an, die Ihr Shop nicht bereitstellt              |
+| C2      | Sie kündigen ein Checkout-Protokoll an, dessen Endpunkt nicht antwortet |
+| C3      | Der Katalogpreis ist nicht der berechnete Preis                         |
+| C4      | Als verfügbar angekündigt, obwohl nicht verfügbar                       |
+| C5      | Ihre Rückgaberichtlinie sagt je nach Quelle etwas anderes               |
+| C6      | Sie kündigen etwas als verfügbar an, das abgeschaltet ist               |
+| C7      | Aktivierte Regeln, die mangels Daten nicht greifen können               |
+| C8      | Ihre Regeln beobachten, blockieren aber nicht                           |
+| C9      | Die angekündigte Authentifizierungsmethode funktioniert nicht           |
+| C10     | Ein Agent kann jeden Betrag ohne Ihre Bestätigung kaufen                |
+| C11     | Die Verkaufsstelle verwendet abgelaufene Regeln                         |
+| C12     | Vorgänge ohne signierten Beleg                                          |
+| C13     | Angekündigte Adressen, die nicht funktionieren                          |
+| C14     | Agenten sehen veraltete Daten Ihres Shops                               |
+| C15     | Identitätsnachweise kurz vor Ablauf                                     |
+| C16     | Die zugesagte Lieferzeit ist nicht die eingehaltene                     |
 
 Einige Prüfungen brauchen mehr als Ihre Einstellungen, und die Seite sagt es,
 statt eine Lücke zu lassen:
@@ -195,6 +197,12 @@ Ein gespeichertes «alles in Ordnung», das als aktuell dargestellt wird, wäre
 genau die Selbsttäuschung, die diese Seite aufdecken soll.
 
 ## Änderungsprotokoll
+
+### 2.3.0
+
+- Neu: Das Badge in der oberen Leiste hat jetzt drei Zustände. Es erschien bisher erst **nach** der Konfiguration — wer installierte und nicht fertig wurde, bekam gar kein Signal. Es warnt nun bei unfertiger Einrichtung und separat, wenn der Shop registriert ist, das Checkout-Enforcement aber nicht aktiv.
+- Behoben: Die Auto-Registrierung meldete «Zugangsdaten automatisch konfiguriert», nachdem sie zwei von fünf Schlüsseln gesetzt hatte. Sie benennt jetzt, was sie gesetzt hat, und weist darauf hin, dass das Enforcement zwei weitere Werte braucht, die die Auto-Registrierung nicht ausstellen kann.
+- Neu: War die Shop-URL bereits unter einem anderen Install-Key registriert, kann das Modul die Domain-Kontrolle nachweisen und den Shop zurückholen. Dieser Fall hatte bisher keinen Ausweg: er verlangte einen Schlüssel, den man nie besessen hatte.
 
 ### 2.2.4
 
@@ -221,7 +229,7 @@ genau die Selbsttäuschung, die diese Seite aufdecken soll.
 
 ### 2.2.0
 
-- **Neu — Dashboard zur Agenten-Bereitschaft.** *Finden mich Agenten?* ist jetzt im Verwaltungsbereich verfügbar. Es vergleicht, was Ihr Shop ankündigt, mit dem, was er tatsächlich antwortet — in **16 Prüfungen**, und zeigt alle sechzehn, nicht nur die fehlgeschlagenen. Eine Prüfung, die nicht laufen konnte, nennt den **Grund** (Shop nicht verbunden, noch keine ausgelieferten Bestellungen, diesmal nichts zu vergleichen), statt eine Lücke zu lassen, die wie ein Defekt wirkt. Siehe «Das Dashboard zur Agenten-Bereitschaft» oben.
+- **Neu — Dashboard zur Agenten-Bereitschaft.** _Finden mich Agenten?_ ist jetzt im Verwaltungsbereich verfügbar. Es vergleicht, was Ihr Shop ankündigt, mit dem, was er tatsächlich antwortet — in **16 Prüfungen**, und zeigt alle sechzehn, nicht nur die fehlgeschlagenen. Eine Prüfung, die nicht laufen konnte, nennt den **Grund** (Shop nicht verbunden, noch keine ausgelieferten Bestellungen, diesmal nichts zu vergleichen), statt eine Lücke zu lassen, die wie ein Defekt wirkt. Siehe «Das Dashboard zur Agenten-Bereitschaft» oben.
 - **Behoben** — die Diagnose wurde innerhalb der API auf Spanisch verfasst und unverändert angezeigt: Wer den Bereich auf Englisch nutzte, las englische Überschriften über spanischen Befunden. Die Prüfungen liefern jetzt sprachneutrale Codes, und der Text wird beim Ausliefern in Ihrer Sprache erzeugt.
 - **Behoben** — Prüfung C1 («Sie kündigen Werkzeuge an, die Ihr Shop nicht bereitstellt») wertete den gesamten öffentlichen Katalog als bereitgestellt, wenn keine Werkzeugliste konfiguriert war: gemeldet wurden 46 von 48, tatsächlich liefert der Server 12. Der Fehler ging in die schmeichelhafte Richtung — genau die, die dieses Dashboard aufdecken soll.
 - **Behoben** — Prüfung C6 («Sie kündigen etwas als verfügbar an, das abgeschaltet ist») meldete eine Funktion als abgeschaltet, sobald ihr Schalter nicht gesetzt war — auch bei Schaltern, die standardmäßig aktiv sind. Das war ein Fehlalarm in jedem Shop.
