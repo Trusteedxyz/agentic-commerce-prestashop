@@ -109,11 +109,32 @@ class TokenVerifier
             return null;
         }
 
-        // Verify Ed25519 signature
+        // Verify Ed25519 signature.
+        //
+        // GHSA-2j2x-5q52-g48m issue 1: sodium_crypto_sign_verify_detached()
+        // requires $sig to be exactly SODIUM_CRYPTO_SIGN_BYTES (64) bytes and
+        // THROWS SodiumException for any other length instead of returning
+        // false. $sig decodes from an unauthenticated request parameter, so a
+        // malformed length must be rejected as an ordinary invalid token
+        // (null), the same way every other malformed-input branch in this
+        // method already behaves — never let it escape as an exception, which
+        // callers upstream treat as an unexpected infrastructure failure
+        // rather than "this token is bad".
         $signingInput = $headerB64 . '.' . $payloadB64;
         $sig          = SnapshotClient::base64UrlDecode($sigB64);
 
-        if (!sodium_crypto_sign_verify_detached($sig, $signingInput, $pubkeyRaw)) {
+        if (strlen($sig) !== SODIUM_CRYPTO_SIGN_BYTES) {
+            return null;
+        }
+
+        try {
+            if (!sodium_crypto_sign_verify_detached($sig, $signingInput, $pubkeyRaw)) {
+                return null;
+            }
+        } catch (\SodiumException $e) {
+            // Defense in depth — the length check above should make this
+            // unreachable, but sodium's contract is "throws on malformed
+            // input" broadly, not just on length. Never a system failure.
             return null;
         }
 

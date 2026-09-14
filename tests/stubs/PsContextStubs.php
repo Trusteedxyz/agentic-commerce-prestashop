@@ -61,6 +61,17 @@ namespace {
         {
             public ?object $shop = null;
 
+            /**
+             * GHSA-2j2x-5q52-g48m issue 2 (D1) — ValidateOrderHook::
+             * resolveAgentToken() reads the cookie fallback from
+             * `\Context::getContext()->cookie`, mirroring real PS's
+             * `Context::$cookie` (a `Cookie` object). Declared here (not set
+             * dynamically by a test) because PHP 8.2+ deprecates creating an
+             * undeclared property, which `failOnWarning="true"` in
+             * phpunit.xml turns into a test failure.
+             */
+            public ?object $cookie = null;
+
             private static ?Context $instance = null;
 
             public static function getContext(): Context

@@ -67,7 +67,26 @@ class ValidateOrderHook
             return;
         }
 
-        $this->evaluateCart($cart);
+        // GHSA-2j2x-5q52-g48m, D3: `PaymentModule::validateOrder()` stays
+        // the single AUTHORITATIVE blocking point in every PS version this
+        // module supports — this hook is belt-and-suspenders, never the only
+        // defense (no PS9 core here to confirm whether Hook::exec() still
+        // swallows an exception thrown from a hook). Logging immediately
+        // before the re-throw means a blocked attempt on this path leaves a
+        // searchable trail even if PS9 core discards what follows.
+        try {
+            $this->evaluateCart($cart);
+        } catch (\PrestaShopException $e) {
+            \PrestaShopLogger::addLog(
+                '[trusteed.cel.ps9_hook_block_attempt] ' . $e->getMessage(),
+                \PrestaShopLogger::LOG_SEVERITY_ERROR,
+                null,
+                'Cart',
+                (int) $cart->id,
+                true
+            );
+            throw $e;
+        }
     }
 
     /**
@@ -439,6 +458,15 @@ class ValidateOrderHook
 
     /**
      * Resolve agent token from cart attributes or cookie.
+     *
+     * GHSA-2j2x-5q52-g48m issue 2 (D1): `\Cart` (and its parent
+     * `\ObjectModel`) does not define `getContext()` — that was always a
+     * fatal `\Error`, thrown before the signed rule snapshot was even
+     * requested, for every checkout that reached this method without
+     * `_trusteed_agent_token` already in the POST body. That is every
+     * organic human checkout, plus any agent relying on the cookie fallback
+     * instead of the request parameter. The correct PrestaShop API for the
+     * current request's cookie jar is `\Context::getContext()->cookie`.
      */
     private function resolveAgentToken(\Cart $cart): string
     {
@@ -449,7 +477,7 @@ class ValidateOrderHook
         }
 
         // Check cookie fallback
-        $cookie = (string) ($cart->getContext()->cookie->trusteed_agent_token ?? '');
+        $cookie = (string) (\Context::getContext()->cookie->trusteed_agent_token ?? '');
 
         return $cookie;
     }
