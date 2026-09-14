@@ -197,6 +197,12 @@ que cette page existe pour débusquer.
 
 ## Historique des versions
 
+### 2.3.1 — Correctif de sécurité
+
+- Corrigé : une requête avec une signature de jeton d'agent malformée pouvait faire que le module ignore toutes les règles du checkout au lieu de rejeter la requête. Signalé de manière responsable par Salúa Es-sair. Voir [GHSA-2j2x-5q52-g48m](https://github.com/Trusteedxyz/agentic-commerce-prestashop/security/advisories/GHSA-2j2x-5q52-g48m).
+- Corrigé : la même faille pouvait être déclenchée par n'importe quel checkout humain, pas seulement par des agents — un appel incorrect à l'API PrestaShop faisait qu'aucune règle du commerçant n'était jamais évaluée sur une commande normale de la boutique.
+- Nouveau : cliquer sur « Mettre à jour » actualise désormais réellement l'override principal du module sur le disque. Auparavant, seule une nouvelle installation le faisait.
+
 ### 2.3.0
 
 - Nouveau : le badge de la barre supérieure a désormais trois états. Il n'apparaissait qu'**après** la configuration du module : installer sans terminer ne produisait aucun signal. Il alerte maintenant si la configuration est inachevée, et séparément si la boutique est enregistrée mais que l'application au checkout n'est pas active.

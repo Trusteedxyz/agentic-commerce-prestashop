@@ -198,6 +198,12 @@ genau die Selbsttäuschung, die diese Seite aufdecken soll.
 
 ## Änderungsprotokoll
 
+### 2.3.1 — Sicherheitskorrektur
+
+- Behoben: Eine Anfrage mit fehlerhaft langer Agent-Token-Signatur konnte dazu führen, dass das Modul alle Checkout-Regeln übersprang, statt die Anfrage abzulehnen. Verantwortungsvoll gemeldet von Salúa Es-sair. Siehe [GHSA-2j2x-5q52-g48m](https://github.com/Trusteedxyz/agentic-commerce-prestashop/security/advisories/GHSA-2j2x-5q52-g48m).
+- Behoben: Derselbe Fehler ließ sich auch durch jeden menschlichen Checkout auslösen, nicht nur durch Agenten — ein falscher PrestaShop-API-Aufruf sorgte dafür, dass bei einer normalen Storefront-Bestellung nie eine Händlerregel ausgewertet wurde.
+- Neu: Ein Klick auf „Aktualisieren" aktualisiert jetzt tatsächlich den Core-Override des Moduls auf der Festplatte. Bisher tat das nur eine Neuinstallation.
+
 ### 2.3.0
 
 - Neu: Das Badge in der oberen Leiste hat jetzt drei Zustände. Es erschien bisher erst **nach** der Konfiguration — wer installierte und nicht fertig wurde, bekam gar kein Signal. Es warnt nun bei unfertiger Einrichtung und separat, wenn der Shop registriert ist, das Checkout-Enforcement aber nicht aktiv.

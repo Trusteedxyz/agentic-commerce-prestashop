@@ -197,6 +197,12 @@ esta página existe para cazar.
 
 ## Historial de cambios
 
+### 2.3.1 — Corrección de seguridad
+
+- Corregido: una petición con una firma de token de agente malformada podía hacer que el módulo se saltara todas las reglas del checkout en vez de rechazar la petición. Reportado de forma responsable por Salúa Es-sair. Ver [GHSA-2j2x-5q52-g48m](https://github.com/Trusteedxyz/agentic-commerce-prestashop/security/advisories/GHSA-2j2x-5q52-g48m).
+- Corregido: el mismo fallo lo podía disparar cualquier compra humana, no solo agentes — una llamada incorrecta a la API de PrestaShop hacía que ninguna regla del comercio se evaluara nunca en un pedido normal del escaparate.
+- Nuevo: pulsar «Actualizar» ahora sí refresca el override del núcleo del módulo en disco. Antes sólo lo hacía una instalación nueva.
+
 ### 2.3.0
 
 - Nuevo: el indicador de la barra superior ahora tiene tres estados. Antes sólo aparecía **después** de configurar el módulo, así que instalarlo y no terminar no producía ninguna señal. Ahora avisa si falta configurarlo, y avisa aparte si la tienda está registrada pero el enforcement de checkout no está activo.

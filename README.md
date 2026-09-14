@@ -196,6 +196,12 @@ exists to catch.
 
 ## Changelog
 
+### 2.3.1 — Security fix
+
+- Fixed: a request with a malformed agent-token signature could make the module skip every checkout rule instead of rejecting the request. Reported responsibly by Salúa Es-sair. See [GHSA-2j2x-5q52-g48m](https://github.com/Trusteedxyz/agentic-commerce-prestashop/security/advisories/GHSA-2j2x-5q52-g48m).
+- Fixed: the same failure could be triggered by any human checkout, not only agents — a wrong PrestaShop API call meant no merchant rule ever ran on a normal storefront order.
+- New: clicking "Upgrade" now actually refreshes the module's core override on disk. Previously only a fresh install did.
+
 ### 2.3.0
 
 - New: the top-bar badge now has three states. It used to appear only **after** the module was configured, so installing it and not finishing produced no signal at all. It now warns when setup is unfinished, and warns separately when the store is registered but checkout enforcement is not active.
