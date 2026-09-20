@@ -14,11 +14,11 @@ KI-Agenten sind eine neue Art von Online-Käufern. Mit Trusteed, dem Netzwerk, d
 
 ## Screenshots
 
-| Start                                       | Trust Score                                              | Merchant Center — Bestellungen                             |
+| Start                                       | Trust Score                                              | Merchant Center: Bestellungen                             |
 | ------------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------- |
 | ![Start](screenshots/01-home-dashboard.png) | ![Trust Score](screenshots/02-trust-score-breakdown.png) | ![Bestellungen](screenshots/03-merchant-center-orders.png) |
 
-| Merchant Center — Zahlungsmethoden                         | Merchant Center — Zertifizierungen                                     | Meine Verkäufe                                        |
+| Merchant Center: Zahlungsmethoden                         | Merchant Center: Zertifizierungen                                     | Meine Verkäufe                                        |
 | ---------------------------------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------- |
 | ![Zahlungen](screenshots/03b-merchant-center-payments.png) | ![Zertifizierungen](screenshots/04-merchant-center-certifications.png) | ![Meine Verkäufe](screenshots/05-my-sales-orders.png) |
 
@@ -26,7 +26,7 @@ KI-Agenten sind eine neue Art von Online-Käufern. Mit Trusteed, dem Netzwerk, d
 | -------------------------------------------------- | ------------------------------------- |
 | ![Belege](screenshots/06-my-sales-ai-receipts.png) | ![Agenten](screenshots/07-agents.png) |
 
-| Beleg-Detail — Download als ZIP                                 | Agent Readiness                                        |
+| Beleg-Detail: Download als ZIP                                 | Agent Readiness                                        |
 | --------------------------------------------------------------- | ------------------------------------------------------ |
 | ![Beleg-Download](screenshots/08-my-sales-receipt-download.png) | ![Agent Readiness](screenshots/09-agent-readiness.png) |
 
@@ -51,8 +51,8 @@ Trusteed AgenticTools vereint Trust Center, Merchant Center, agentische MCP-Tool
 | PrestaShop | 8.0.0 – 9.99.99 (`ps_versions_compliancy` in `trusteed.php`) | 8.2.0 (alle Screenshots in diesem README; noch kein automatisiertes E2E für andere Versionen) |
 | PHP        | 8.1+                                                         | 8.1, 8.2                                                                                      |
 
-Der Bereich 8.0.0–9.99.99 ist das, was das Modul dem PrestaShop-Modulmanager _deklariert_ —
-er wurde außerhalb von 8.2.0 nicht durchgängig getestet. Es gibt noch keine CI, die PHPUnit
+Der Bereich 8.0.0–9.99.99 ist das, was das Modul dem PrestaShop-Modulmanager _deklariert_.
+Er wurde außerhalb von 8.2.0 nicht durchgängig getestet. Es gibt noch keine CI, die PHPUnit
 gegen mehrere PrestaShop-Versionen ausführt; behandeln Sie die Unterstützung von 9.x bis
 dahin als unbestätigt.
 
@@ -113,7 +113,7 @@ Laden Sie anschließend den entstandenen Ordner `trusteed/` wie oben beschrieben
 | `TRUSTEED_CEL_HMAC_SECRET`     | _(leer)_                   | HMAC-Secret für Snapshot- und Regelauswertungs-Aufrufe                                                                                                                                      |
 | `TRUSTEED_CEL_FALLBACK_MODE`   | `balanced`                 | Verhalten, wenn die Regel-API nicht erreichbar ist und kein lokaler Snapshot vorliegt: `balanced` und `permissive` lassen den Checkout durch und protokollieren das, `strict` blockiert ihn |
 
-Das Enforcement bleibt vollständig inaktiv, bis `TRUSTEED_CEL_ENABLED` den Wert `1` hat **und** alle drei Schlüssel `TRUSTEED_CEL_MERCHANT_ID`, `TRUSTEED_CEL_INSTALLATION_ID` und `TRUSTEED_CEL_HMAC_SECRET` gesetzt sind — fehlt einer davon, lässt das Modul jeden Checkout durch, ohne eine einzige Regel auszuwerten.
+Das Enforcement bleibt vollständig inaktiv, bis `TRUSTEED_CEL_ENABLED` den Wert `1` hat **und** alle drei Schlüssel `TRUSTEED_CEL_MERCHANT_ID`, `TRUSTEED_CEL_INSTALLATION_ID` und `TRUSTEED_CEL_HMAC_SECRET` gesetzt sind. Fehlt einer davon, lässt das Modul jeden Checkout durch, ohne eine einzige Regel auszuwerten.
 
 ## Admin-Seiten
 
@@ -198,7 +198,7 @@ genau die Selbsttäuschung, die diese Seite aufdecken soll.
 
 ## Änderungsprotokoll
 
-### 2.3.1 — Sicherheitskorrektur
+### 2.3.1: Sicherheitskorrektur
 
 - Behoben: Eine Anfrage mit fehlerhafter Agent-Token-Signatur konnte dazu führen, dass das Modul alle Checkout-Regeln übersprang, statt die Anfrage abzulehnen. Verantwortungsvoll gemeldet von Salúa Es-sair. Siehe [GHSA-2j2x-5q52-g48m](https://github.com/Trusteedxyz/agentic-commerce-prestashop/security/advisories/GHSA-2j2x-5q52-g48m).
 - Behoben: Derselbe Fehler ließ sich auch durch jeden menschlichen Checkout auslösen, nicht nur durch Agenten: ein falscher PrestaShop-API-Aufruf sorgte dafür, dass bei einer normalen Storefront-Bestellung nie eine Händlerregel ausgewertet wurde.

@@ -14,11 +14,11 @@ Les agents IA sont un nouveau type d'acheteur en ligne. Avec Trusteed, le résea
 
 ## Captures d'écran
 
-| Accueil                                       | Score de confiance                                 | Merchant Center — Commandes                             |
+| Accueil                                       | Score de confiance                                 | Merchant Center: Commandes                             |
 | --------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------- |
 | ![Accueil](screenshots/01-home-dashboard.png) | ![Score](screenshots/02-trust-score-breakdown.png) | ![Commandes](screenshots/03-merchant-center-orders.png) |
 
-| Merchant Center — Moyens de paiement                       | Merchant Center — Certifications                                     | Mes Ventes                                        |
+| Merchant Center: Moyens de paiement                       | Merchant Center: Certifications                                     | Mes Ventes                                        |
 | ---------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------- |
 | ![Paiements](screenshots/03b-merchant-center-payments.png) | ![Certifications](screenshots/04-merchant-center-certifications.png) | ![Mes Ventes](screenshots/05-my-sales-orders.png) |
 
@@ -26,7 +26,7 @@ Les agents IA sont un nouveau type d'acheteur en ligne. Avec Trusteed, le résea
 | ------------------------------------------------- | ------------------------------------ |
 | ![Reçus](screenshots/06-my-sales-ai-receipts.png) | ![Agents](screenshots/07-agents.png) |
 
-| Détail du reçu — téléchargement en ZIP                                  | Agent Readiness                                        |
+| Détail du reçu: téléchargement en ZIP                                  | Agent Readiness                                        |
 | ----------------------------------------------------------------------- | ------------------------------------------------------ |
 | ![Téléchargement du reçu](screenshots/08-my-sales-receipt-download.png) | ![Agent Readiness](screenshots/09-agent-readiness.png) |
 
@@ -52,7 +52,7 @@ Trusteed AgenticTools réunit Trust Center, Merchant Center, les outils agentiqu
 | PHP        | 8.1+                                                           | 8.1, 8.2                                                                                                     |
 
 La plage 8.0.0–9.99.99 est ce que le module _déclare_ au gestionnaire de modules de
-PrestaShop — elle n'a pas été testée de bout en bout au-delà de 8.2.0. Il n'existe pas
+PrestaShop. Elle n'a pas été testée de bout en bout au-delà de 8.2.0. Il n'existe pas
 encore de CI exécutant PHPUnit sur plusieurs versions de PrestaShop ; considérez le support
 de la 9.x comme non vérifié jusqu'à ce que ce soit le cas.
 
@@ -113,7 +113,7 @@ Téléversez ensuite le dossier `trusteed/` obtenu sous forme de `.zip`, comme d
 | `TRUSTEED_CEL_HMAC_SECRET`     | _(vide)_                   | Secret HMAC pour les appels d'instantané et d'évaluation des règles                                                                                                                                               |
 | `TRUSTEED_CEL_FALLBACK_MODE`   | `balanced`                 | Comportement lorsque l'API de règles est injoignable et qu'aucun instantané local n'existe : `balanced` et `permissive` laissent passer le checkout et journalisent l'autorisation par défaut, `strict` le bloque |
 
-L'application des règles reste totalement inerte jusqu'à ce que `TRUSTEED_CEL_ENABLED` vaille `1` **et** que les trois clés `TRUSTEED_CEL_MERCHANT_ID`, `TRUSTEED_CEL_INSTALLATION_ID` et `TRUSTEED_CEL_HMAC_SECRET` soient renseignées — s'il en manque une, le module laisse passer tous les checkouts sans évaluer une seule règle.
+L'application des règles reste totalement inerte jusqu'à ce que `TRUSTEED_CEL_ENABLED` vaille `1` **et** que les trois clés `TRUSTEED_CEL_MERCHANT_ID`, `TRUSTEED_CEL_INSTALLATION_ID` et `TRUSTEED_CEL_HMAC_SECRET` soient renseignées. S'il en manque une, le module laisse passer tous les checkouts sans évaluer une seule règle.
 
 ## Pages d'administration
 
@@ -197,7 +197,7 @@ que cette page existe pour débusquer.
 
 ## Historique des versions
 
-### 2.3.1 — Correctif de sécurité
+### 2.3.1 : Correctif de sécurité
 
 - Corrigé : une requête avec une signature de jeton d'agent malformée pouvait faire que le module ignore toutes les règles du checkout au lieu de rejeter la requête. Signalé de manière responsable par Salúa Es-sair. Voir [GHSA-2j2x-5q52-g48m](https://github.com/Trusteedxyz/agentic-commerce-prestashop/security/advisories/GHSA-2j2x-5q52-g48m).
 - Corrigé : la même faille pouvait être déclenchée par n'importe quel checkout humain, pas seulement par des agents : un appel incorrect à l'API PrestaShop faisait qu'aucune règle du commerçant n'était jamais évaluée sur une commande normale de la boutique.
