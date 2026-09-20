@@ -2,14 +2,14 @@
 
 # Trusteed AgenticTools für PrestaShop
 
-Ermöglichen Sie neuen Online-Käufern, den KI-Agenten, sichere und zuverlässige Einkäufe in Ihrem Shop dank Trusteed: dem Netzwerk, das Vertrauen zwischen Unternehmen und Agenten schafft.
+KI-Agenten sind eine neue Art von Online-Käufern. Mit Trusteed, dem Netzwerk, das Unternehmen und Agenten verbindet, können sie zu Ihren Bedingungen in Ihrem Shop einkaufen.
 
-- **Legen Sie Ihre Geschäftsregeln fest**: wem Sie den Kauf erlauben, bis zu welchem Betrag, welche Kategorien Sie Agenten nicht anbieten möchten, Preisgrenzen, Bestandsniveaus zum Schutz vor potenziell betrügerischen Agenten, und mehr.
-- **Manipulationssichere Belege**: Wir erstellen elektronisch signierte und kryptografisch manipulationssichere Belege, die als Nachweis der tatsächlichen Transaktion im Streitfall dienen. Kompatibel mit eIDAS (EU, UK) und eSIGN (USA).
-- **Agenten-Analytics**: Sehen Sie Statistiken zu Agentenkäufen — wie viel sie ausgeben, welche Produkte sie kaufen und wie oft.
-- **Agenten-Blockierung**: Blockieren Sie potenziell gefährliche oder problematische Agenten.
-- **Digitale Währungen**: Ermöglicht Käufe in digitalen Währungen dank des X402-Protokolls.
-- **Peer-to-Peer-Transaktionen**: Ermöglicht direkten Peer-to-Peer-Handel zwischen Agenten und Händlern.
+- Legen Sie Ihre Geschäftsregeln fest: wer kaufen darf, bis zu welchem Betrag, welche Kategorien Sie Agenten nicht anbieten, Preisgrenzen, Lagerbestände, die Sie vor betrügerischen Agenten schützen, und mehr.
+- Erhalten Sie signierte Belege. Jede Transaktion erzeugt einen kryptografisch signierten Beleg, an dem sich jede Manipulation erkennen lässt und den Sie im Streitfall als Nachweis des Kaufs verwenden können. An eIDAS (EU) und eSIGN (USA) ausgerichtet.
+- Sehen Sie, was Agenten tun: wie viel sie ausgeben, was sie kaufen und wie oft.
+- Sperren Sie Agenten, die gefährlich wirken oder Probleme verursachen.
+- Nehmen Sie Käufe in digitalen Währungen über das X402-Protokoll an.
+- Lassen Sie Agenten und Händler direkt miteinander handeln, Peer-to-Peer.
 
 ## Screenshots
 
@@ -29,19 +29,19 @@ Ermöglichen Sie neuen Online-Käufern, den KI-Agenten, sichere und zuverlässig
 |-----------------------------------|
 | ![Beleg-Download](screenshots/08-my-sales-receipt-download.png) |
 
-Jede Agenten-Transaktion erzeugt einen kryptografisch signierten **Trust Receipt** — einen manipulationssicheren Nachweis (eIDAS-/eSIGN-kompatibel), der unter **Meine Verkäufe → KI-Verkäufe** aufgeführt wird. Klicke auf eine Zeile, um alle Details zu sehen (Agenten-ID, aufgerufenes Tool, Input-/Output-Hashes, JWS) und den Beleg als ZIP herunterzuladen, um ihn im Streitfall als Nachweis vorzulegen.
+Jede Agententransaktion erzeugt einen signierten Vertrauensbeleg (Trust Receipt), einen Datensatz, an dem sich jede Manipulation erkennen lässt (an eIDAS und eSIGN ausgerichtet), der unter **Meine Verkäufe → KI-Verkäufe** aufgeführt wird. Mit einem Klick auf eine Zeile sehen Sie die Details: Agenten-ID, aufgerufenes Tool, Input- und Output-Hashes, JWS. Den Beleg können Sie außerdem als ZIP-Datei herunterladen und für den Streitfall aufbewahren.
 
 ## Funktionen
 
-Trusteed AgenticTools vereint Trust Center, Merchant Center, agentische MCP-Tools und Checkout-Enforcement in einem einzigen PrestaShop-Modul.
+Trusteed AgenticTools vereint Trust Center, Merchant Center, agentische MCP-Tools und Checkout-Durchsetzung in einem einzigen PrestaShop-Modul.
 
-- **Trust Center** — signierte Trust Receipts, Signaturschlüssel, Audit-Log, Trust-Score-Aufschlüsselung
-- **Merchant Center** — Bestellungen, Zahlungsmethoden, Agenten, Checkout-Regeln, Zertifizierungs- & NLWeb-Status
-- **5 native MCP-Tools** für das PrestaShop-MCP-Server-Add-on (Marketplace-ID 96617): `trusteed_sign_trust_receipt`, `trusteed_verify_agent_signature`, `trusteed_dispatch_payment_acp`, `trusteed_dispatch_payment_ap2`, `trusteed_dispatch_payment_x402` — Agenten (Claude Desktop usw.) können Belege signieren und Zahlungen direkt aus PrestaShop heraus auslösen
-- **Checkout-Enforcement** — Händlerregeln (maximaler Bestellbetrag, gesperrte Länder, Geschäftszeiten und mehr) gelten bei jedem Checkout, ob mit oder ohne Agent
-- **Offline-Sicherheitsventil-Evaluator** — wendet dieselben universellen Regeln lokal an, wenn die Remote-Regel-API nicht erreichbar ist, statt eines pauschalen Erlauben/Blockieren
-- **Selbstbedienungs-Auto-Registrierung** — Ein-Klick-Registrierung des Shops; Zugangsdaten können auch manuell eingefügt werden
-- **Fail-closed als Standard** — Enforcement erlaubt bei Fehlkonfiguration niemals stillschweigend
+- Trust Center: signierte Trust Receipts, Signaturschlüssel, Audit-Log, Aufschlüsselung des Trust Scores.
+- Merchant Center: Bestellungen, Zahlungsmethoden, Agenten, Checkout-Regeln, Zertifizierungs- und NLWeb-Status.
+- 5 native MCP-Tools für das PrestaShop-MCP-Server-Add-on (Marketplace-ID 96617): `trusteed_sign_trust_receipt`, `trusteed_verify_agent_signature`, `trusteed_dispatch_payment_acp`, `trusteed_dispatch_payment_ap2`, `trusteed_dispatch_payment_x402`. Agenten (Claude Desktop und andere) können Belege signieren und Zahlungen direkt aus PrestaShop auslösen.
+- Checkout-Durchsetzung: Händlerregeln (Höchstbetrag, gesperrte Länder, Geschäftszeiten und mehr) gelten bei jedem Checkout, ob mit Agent oder von einem Menschen.
+- Offline-Sicherheitsventil-Evaluator: setzt dieselben universellen Regeln lokal durch, wenn die entfernte Regel-API nicht erreichbar ist, statt pauschal zu erlauben oder zu blockieren.
+- Selbstbedienungs-Auto-Registrierung: Registrierung des Shops bei Trusteed mit einem Klick. Sie können Ihre Zugangsdaten auch manuell einfügen.
+- Fail-Closed-Standardeinstellungen: Die Durchsetzung erlaubt bei Fehlkonfiguration nie stillschweigend.
 
 ## Kompatibilität
 
@@ -54,7 +54,7 @@ Trusteed AgenticTools vereint Trust Center, Merchant Center, agentische MCP-Tool
 
 - PrestaShop 8.0.0 oder neuer
 - PHP 8.1 oder neuer
-- Ein Trusteed-Konto — [kostenlos registrieren auf trusteed.xyz](https://trusteed.xyz)
+- Ein Trusteed-Konto ([kostenlos registrieren auf trusteed.xyz](https://trusteed.xyz))
 
 ## Installation
 
@@ -62,7 +62,7 @@ Trusteed AgenticTools vereint Trust Center, Merchant Center, agentische MCP-Tool
 
 1. **Laden Sie die installierbare `.zip`** aus dem neuesten GitHub-Release herunter:
    [**⬇ trusteed-agentic-commerce-prestashop-2.0.1.zip**](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases/latest/download/trusteed-agentic-commerce-prestashop-2.0.1.zip)
-   — oder durchsuchen Sie alle Versionen auf der [Releases-Seite](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases).
+   oder durchsuchen Sie alle Versionen auf der [Releases-Seite](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases).
 2. In Ihrem PrestaShop-**Back Office**: **Module → Modul-Manager → Modul hochladen**.
 3. Wählen Sie die heruntergeladene `.zip` aus und klicken Sie auf **Dieses Modul hochladen**.
 4. Klicken Sie auf **Konfigurieren**.
@@ -75,7 +75,7 @@ cd agentic-commerce-prestashop
 bash bin/build-zip.sh   # erzeugt dist/trusteed-agentic-commerce-prestashop-<version>.zip
 ```
 
-Das Modul enthält einen PSR-4-Fallback-Autoloader für den Namespace `Trusteed\` und funktioniert daher auch ohne `vendor/`-Verzeichnis korrekt (das Build-Skript enthält keins — `composer install` ist optional, nicht erforderlich).
+Das Modul enthält einen PSR-4-Fallback-Autoloader für den Namespace `Trusteed\` und läuft deshalb auch ohne `vendor/`-Verzeichnis. Das Build-Skript packt keins ein, und `composer install` ist optional.
 
 ### Über Composer (optional, für IDE-Tooling / lokale Entwicklung)
 
@@ -84,14 +84,14 @@ git clone https://github.com/Trusteedxyz/agentic-commerce-prestashop.git trustee
 cd trusteed
 composer install --no-dev --optimize-autoloader
 ```
-Laden Sie anschließend den resultierenden Ordner `trusteed/` wie oben beschrieben als `.zip` hoch. Für die Produktion nicht erforderlich — siehe den Hinweis zum Fallback-Autoloader oben.
+Laden Sie anschließend den entstandenen Ordner `trusteed/` wie oben beschrieben als `.zip` hoch. Für Produktivinstallationen können Sie das überspringen, siehe den Hinweis zum Fallback-Autoloader oben.
 
 ## Konfiguration
 
 1. Melden Sie sich in Ihrem PrestaShop-**Back Office** an.
 2. Gehen Sie zu **Module → Trusteed AgenticTools → Konfigurieren**.
-3. Klicken Sie entweder auf **Diesen Shop automatisch registrieren** (Ein-Klick-Registrierung, die Merchant ID und Secret automatisch ausfüllt), oder fügen Sie Ihre **Merchant ID** und Ihr **S2S-Secret** manuell von [app.trusteed.xyz/settings](https://app.trusteed.xyz/settings) ein.
-4. Speichern — das Modul testet die Konnektivität und beginnt mit der Synchronisierung der Enforcement-Regeln.
+3. Klicken Sie entweder auf **Diesen Shop automatisch registrieren** (Registrierung mit einem Klick, die Merchant ID und Secret automatisch einträgt), oder fügen Sie Ihre **Merchant ID** und Ihr **S2S-Secret** manuell von [app.trusteed.xyz/settings](https://app.trusteed.xyz/settings) ein.
+4. Speichern Sie. Das Modul testet die Verbindung und beginnt, die Durchsetzungsregeln zu synchronisieren.
 
 ### Konfigurationsschlüssel
 
@@ -104,41 +104,41 @@ Laden Sie anschließend den resultierenden Ordner `trusteed/` wie oben beschrieb
 
 ## Admin-Seiten
 
-Nach der Installation erscheint ein **Trusteed**-Menü in der Seitenleiste des PrestaShop-Back-Office:
+Nach der Installation erscheint in der Seitenleiste des PrestaShop-Back-Office ein **Trusteed**-Menü:
 
 | Seite | Beschreibung |
 |------|-------------|
 | Start | Übersicht über Reputation und aktuelle Verkäufe |
-| Trust Center | Signierte Belege, Signaturschlüssel, Audit-Log, Trust Score |
+| Wie läuft mein Shop? (Trust Center) | Signierte Belege, Signaturschlüssel, Audit-Log, Trust Score |
 | Merchant Center | Bestellungen, Zahlungsmethoden, Agenten, Zertifizierungen, NLWeb |
 | Meine Verkäufe | Bestellliste und KI-Trust-Receipts |
-| Regeln | Checkout-Enforcement-Regeln |
-| Agenten | Verbundene Agenten-Identitäten |
+| Meine Regeln | Regeln zur Checkout-Durchsetzung |
 | Sicherheit | Audit-Log und Anomalie-Warnungen |
-| Config | Moduleinstellungen und Auto-Registrierung |
+| Agenten | Verbundene Agenten-Identitäten |
+| Einstellungen | Moduleinstellungen und Auto-Registrierung |
 
 ## FAQ
 
-**Welche Daten werden gesendet?** Nur das, was Enforcement-Regeln und Trust Receipts erfordern (Bestellsummen, Land, Agenten-Identität). Keine Kartenzahlungsdaten laufen jemals über Trusteed. Die gesamte Kommunikation erfolgt über HTTPS.
+**Welche Daten werden übermittelt?** Nur das, was Durchsetzungsregeln und Trust Receipts brauchen: Bestellsummen, Land und Agenten-Identität. Kartenzahlungsdaten laufen nie über Trusteed. Die gesamte Kommunikation läuft über HTTPS.
 
-**Welche Agenten werden unterstützt?** Jeder über das PrestaShop-MCP-Server-Add-on (Marketplace-ID 96617) verbundene Agent, einschließlich Claude Desktop und anderer MCP-kompatibler Clients.
+**Welche Agenten werden unterstützt?** Jeder Agent, der über das PrestaShop-MCP-Server-Add-on (Marketplace-ID 96617) verbunden ist, darunter Claude Desktop und andere MCP-kompatible Clients.
 
-**Verlangsamt es meinen Shop?** Nein. Checkout-Enforcement läuft synchron nur bei der Bestellvalidierung, mit einem lokalen Offline-Fallback, wenn die Remote-API nicht erreichbar ist.
+**Verlangsamt es meinen Shop?** Nein. Die Checkout-Durchsetzung läuft nur bei der Bestellvalidierung synchron, mit einem lokalen Offline-Fallback, wenn die entfernte API nicht erreichbar ist.
 
 ## Änderungsprotokoll
 
 ### 2.0.1
 
-- **Fix** — Admin-SPA-Bundle neu gebaut (Streitfall-Nachweis Phase A: die echte Belegliste wird jetzt unter Meine Verkäufe eingebunden, genau wie bei Magento/WooCommerce).
-- **Hinzugefügt** — Paketier-Skript `bin/build-zip.sh`; die installierbare `.zip` wird jetzt als GitHub-Release-Asset veröffentlicht, statt vom Händler selbst gebaut werden zu müssen.
+- Fix: Admin-SPA-Bundle neu gebaut (Streitfall-Nachweis Phase A: Die echte Belegliste ist jetzt unter Meine Verkäufe eingebunden, wie bei Magento und WooCommerce).
+- Neu: Paketier-Skript `bin/build-zip.sh`. Die installierbare `.zip` wird jetzt als GitHub-Release-Asset veröffentlicht, sodass Händler sie nicht mehr selbst bauen müssen.
 
 ### 2.0.0
 
-**Wichtig:** Dieses Release ersetzt den fälschlicherweise unter `v1.0.0` in diesem Repository veröffentlichten Inhalt — es war ein anderes, eigenständiges Modul ("Trusteed Trust Center") anstelle dieses Checkout-Enforcement- + AgenticTools-Moduls veröffentlicht worden. Dies ist das erste korrekte Release.
+**Wichtig:** Dieses Release ersetzt Inhalt, der in diesem Repository fälschlich unter `v1.0.0` veröffentlicht wurde. Statt dieses Moduls für Checkout-Durchsetzung und AgenticTools wurde ein anderes, eigenständiges Modul („Trusteed Trust Center“) ausgeliefert. Dies ist das erste korrekte Release.
 
-- **Fix** — Checkout-Enforcement wurde bei organischen (agentenlosen) Checkouts vollständig übersprungen: Händlerregeln wie maximaler Bestellbetrag, gesperrte Länder und Geschäftszeiten griffen nur, wenn ein Agenten-Token vorhanden war. Diese Regeln gelten jetzt bei jedem Checkout, unabhängig von der Anwesenheit eines Agenten.
-- **Hinzugefügt** — ein Offline-Sicherheitsventil-Evaluator, der dieselben universellen Händlerregeln lokal anwendet, wenn die Remote-Regel-API nicht erreichbar ist.
-- **Hinzugefügt** — Selbstbedienungs-Auto-Registrierung (Ein-Klick-Registrierung des Shops, zusätzlich zum bestehenden manuellen Ablauf zum Einfügen der Zugangsdaten).
+- Fix: Die Checkout-Durchsetzung wurde bei organischen Checkouts (ohne Agent) komplett übersprungen. Händlerregeln wie Höchstbetrag, gesperrte Länder und Geschäftszeiten liefen nur, wenn ein Agenten-Token vorhanden war. Diese Regeln gelten jetzt bei jedem Checkout, unabhängig davon, ob ein Agent beteiligt ist.
+- Neu: ein Offline-Sicherheitsventil-Evaluator, der dieselben universellen Händlerregeln lokal durchsetzt, wenn die entfernte API zur Regelauswertung nicht erreichbar ist.
+- Neu: Selbstbedienungs-Auto-Registrierung (Registrierung des Shops mit einem Klick, zusätzlich zum bestehenden manuellen Einfügen der Zugangsdaten).
 - Vollständiges technisches Rebranding von `mcpwebstore`/`Mcpwebstore` zu `trusteed`/`Trusteed`: PSR-4-Namespace, technischer Modulname, Konfigurationskonstanten und die Namen der 5 MCP-Tools, die Agenten aufrufen.
 
 ## Support
@@ -148,4 +148,4 @@ Nach der Installation erscheint ein **Trusteed**-Menü in der Seitenleiste des P
 
 ## Lizenz
 
-MIT. Vollständigen Text siehe [LICENSE](LICENSE).
+MIT. Den vollständigen Text finden Sie in [LICENSE](LICENSE).
