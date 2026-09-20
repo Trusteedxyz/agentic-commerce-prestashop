@@ -26,20 +26,16 @@
     {* Aviso de bundle no compilado — sólo visible durante desarrollo *}
     <div class="alert alert-warning" style="margin: 20px;">
       <strong>Trusteed:</strong>
-      El bundle de la SPA no está compilado. Ejecuta
-      <code>pnpm --filter trusteed build:spa</code>
-      desde la raíz del monorepo y recarga esta página.
+      {l s='This installation is incomplete: the panel assets are missing. Please reinstall the module from the official package.' mod='trusteed'}
     </div>
   {elseif !$configured}
     {* Aviso de configuración incompleta *}
     <div class="alert alert-info" style="margin: 20px;">
       <strong>Trusteed:</strong>
-      Configura el <em>Merchant ID</em> y el <em>Embed S2S Secret</em>
-      en la sección
+      {l s='Set your Merchant ID and Embed S2S Secret to activate the panel.' mod='trusteed'}
       <a href="{$link->getAdminLink('AdminModules')|escape:'html'}&configure=trusteed">
-        Configuración del módulo
+        {l s='Module settings' mod='trusteed'}
       </a>
-      para activar el panel.
     </div>
   {else}
     {*

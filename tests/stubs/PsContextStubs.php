@@ -21,10 +21,20 @@ namespace {
             public static string $merchantId = '';
             public static int $shopId = 1;
 
+            /**
+             * Arbitrary Configuration key → value overrides, consulted after the
+             * TRUSTEED_CEL_MERCHANT_ID special case so existing tests are
+             * unaffected while the map is empty.
+             *
+             * @var array<string,string>
+             */
+            public static array $config = [];
+
             public static function reset(): void
             {
                 self::$merchantId = '';
                 self::$shopId = 1;
+                self::$config = [];
             }
         }
     }
@@ -38,6 +48,9 @@ namespace {
                 if ($key === 'TRUSTEED_CEL_MERCHANT_ID') {
                     return TestPsState::$merchantId;
                 }
+                if (array_key_exists($key, TestPsState::$config)) {
+                    return TestPsState::$config[$key];
+                }
                 return $default;
             }
         }
@@ -47,6 +60,17 @@ namespace {
         final class Context
         {
             public ?object $shop = null;
+
+            /**
+             * GHSA-2j2x-5q52-g48m issue 2 (D1) — ValidateOrderHook::
+             * resolveAgentToken() reads the cookie fallback from
+             * `\Context::getContext()->cookie`, mirroring real PS's
+             * `Context::$cookie` (a `Cookie` object). Declared here (not set
+             * dynamically by a test) because PHP 8.2+ deprecates creating an
+             * undeclared property, which `failOnWarning="true"` in
+             * phpunit.xml turns into a test failure.
+             */
+            public ?object $cookie = null;
 
             private static ?Context $instance = null;
 

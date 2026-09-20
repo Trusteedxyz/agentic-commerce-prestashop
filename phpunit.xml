@@ -13,10 +13,20 @@
         <testsuite name="discovery">
             <directory>tests/discovery</directory>
         </testsuite>
+        <!--
+          Estado del alta (badge del back office + honestidad del mensaje de
+          auto-registro). Lógica pura sobre tres cadenas: no declara stubs
+          globales de PS, así que el directorio entero se puede registrar sin
+          las colisiones que obligan a listar `enforcement` fichero a fichero.
+        -->
+        <testsuite name="admin">
+            <directory>tests/admin</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>
             <directory suffix=".php">src/AgenticTools</directory>
+            <directory suffix=".php">src/Admin</directory>
         </include>
     </source>
 </phpunit>

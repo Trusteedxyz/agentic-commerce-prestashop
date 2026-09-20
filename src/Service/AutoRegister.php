@@ -61,6 +61,12 @@ final class AutoRegister
             'ps_version'     => $psVersion,
             'module_version' => $moduleVersion,
             'install_key'    => $installKey,
+            // Hueco A3 (2026-09-09): declara que este módulo sabe publicar
+            // `.well-known/amcp-verify.txt` y canjear el reto. Sin esta bandera
+            // el backend sigue devolviendo el 409 sin salida de siempre, que es
+            // lo correcto para un módulo antiguo: un 202 caería en su rama
+            // «API rejected request (HTTP 202)» y sería peor.
+            'supports_domain_verification' => true,
         ], JSON_UNESCAPED_SLASHES);
 
         if ($payload === false) {
@@ -106,10 +112,24 @@ final class AutoRegister
             $decoded = $decoded['data'];
         }
 
+        // Hueco A3 (2026-09-09) — el backend nos ofrece probar propiedad del
+        // dominio en vez de dejarnos sin salida. Se lanza una excepción tipada
+        // para que quien llama pueda publicar el token y reintentar; el mensaje
+        // sigue siendo legible por si nadie la captura.
+        if ($status === 202 && ($decoded['error'] ?? '') === 'DOMAIN_VERIFICATION_REQUIRED') {
+            $challenge = is_array($decoded['challenge'] ?? null) ? $decoded['challenge'] : [];
+
+            throw new DomainVerificationRequired(
+                (string) ($challenge['token'] ?? ''),
+                (string) ($decoded['message'] ?? 'Domain verification required.')
+            );
+        }
+
         if ($status === 409) {
             throw new \RuntimeException(
-                'auto-register: store already registered. ' .
-                'Provide the install key to re-register.'
+                'auto-register: this store URL is already registered with a different ' .
+                'install key. If this is your store, update the module so it can prove ' .
+                'domain ownership, or contact Trusteed support.'
             );
         }
 
@@ -129,6 +149,89 @@ final class AutoRegister
             'bootstrap_secret' => (string) $decoded['bootstrapSecret'],
             'install_key'      => (string) ($decoded['installKey'] ?? ''),
             'is_new'           => (bool) ($decoded['isNew'] ?? true),
+        ];
+    }
+
+    /**
+     * Canjea un reto de dominio ya publicado — hueco A3 (2026-09-09).
+     *
+     * Se llama DESPUÉS de haber escrito el token en
+     * `.well-known/amcp-verify.txt`: el backend viene a leerlo desde fuera, así
+     * que si se llama antes el fichero todavía no está y el canje falla.
+     *
+     * Devuelve las mismas credenciales que `register()`, con una `install_key`
+     * NUEVA: si no se rotara, quien tuviera la anterior podría volver a echar
+     * al dueño en la siguiente llamada.
+     *
+     * @return array{merchant_id:string, bootstrap_secret:string, install_key:string, is_new:bool}
+     * @throws \RuntimeException on network error or API rejection
+     */
+    public function verifyChallenge(string $storeUrl, string $challengeToken): array
+    {
+        $payload = json_encode([
+            'store_url'       => $storeUrl,
+            'challenge_token' => $challengeToken,
+        ], JSON_UNESCAPED_SLASHES);
+
+        if ($payload === false) {
+            throw new \RuntimeException('verify-challenge: failed to encode payload');
+        }
+
+        $ch = curl_init($this->apiBase . '/v1/embed/ps/verify-challenge');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'Accept: application/json',
+                'User-Agent: Trusteed-PS/1.0',
+            ],
+            CURLOPT_POSTFIELDS     => $payload,
+            CURLOPT_TIMEOUT        => 20,
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+        ]);
+
+        $body   = curl_exec($ch);
+        $errno  = curl_errno($ch);
+        $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($body === false) {
+            throw new \RuntimeException(
+                'verify-challenge: network error (curl errno=' . $errno . ')'
+            );
+        }
+
+        $decoded = json_decode((string) $body, true);
+        if (!is_array($decoded)) {
+            throw new \RuntimeException('verify-challenge: invalid JSON response');
+        }
+
+        if (isset($decoded['data']) && is_array($decoded['data'])) {
+            $decoded = $decoded['data'];
+        }
+
+        if ($status !== 200) {
+            // El motivo describe el estado del RETO (fichero ilegible, token
+            // caducado, contenido que no coincide…), que es justo lo que el
+            // comerciante necesita para corregirlo.
+            $reason = $decoded['reason'] ?? $decoded['error'] ?? 'unknown';
+            throw new \RuntimeException(
+                "verify-challenge: domain verification failed ({$reason})."
+            );
+        }
+
+        if (empty($decoded['merchantId']) || empty($decoded['bootstrapSecret'])) {
+            throw new \RuntimeException('verify-challenge: response missing required fields');
+        }
+
+        return [
+            'merchant_id'      => (string) $decoded['merchantId'],
+            'bootstrap_secret' => (string) $decoded['bootstrapSecret'],
+            'install_key'      => (string) ($decoded['installKey'] ?? ''),
+            'is_new'           => false,
         ];
     }
 

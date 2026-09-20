@@ -109,11 +109,32 @@ class TokenVerifier
             return null;
         }
 
-        // Verify Ed25519 signature
+        // Verify Ed25519 signature.
+        //
+        // GHSA-2j2x-5q52-g48m issue 1: sodium_crypto_sign_verify_detached()
+        // requires $sig to be exactly SODIUM_CRYPTO_SIGN_BYTES (64) bytes and
+        // THROWS SodiumException for any other length instead of returning
+        // false. $sig decodes from an unauthenticated request parameter, so a
+        // malformed length must be rejected as an ordinary invalid token
+        // (null), the same way every other malformed-input branch in this
+        // method already behaves — never let it escape as an exception, which
+        // callers upstream treat as an unexpected infrastructure failure
+        // rather than "this token is bad".
         $signingInput = $headerB64 . '.' . $payloadB64;
         $sig          = SnapshotClient::base64UrlDecode($sigB64);
 
-        if (!sodium_crypto_sign_verify_detached($sig, $signingInput, $pubkeyRaw)) {
+        if (strlen($sig) !== SODIUM_CRYPTO_SIGN_BYTES) {
+            return null;
+        }
+
+        try {
+            if (!sodium_crypto_sign_verify_detached($sig, $signingInput, $pubkeyRaw)) {
+                return null;
+            }
+        } catch (\SodiumException $e) {
+            // Defense in depth — the length check above should make this
+            // unreachable, but sodium's contract is "throws on malformed
+            // input" broadly, not just on length. Never a system failure.
             return null;
         }
 
@@ -140,17 +161,42 @@ class TokenVerifier
             return null;
         }
 
+        // H4 (verificación 2026-07-28) — `exp`, `iat` y `nonce` son
+        // OBLIGATORIOS. El schema canónico los exige
+        // (`AgentTokenPayloadSchema` en packages/shared/src/enforcement/types.ts:
+        // `iat`/`exp` enteros positivos y `nonce` de 16..64 caracteres), y el
+        // verificador de WooCommerce ya los exigía. Aquí cada protección de
+        // abajo (caducidad, tope de vida de 330s, anti-replay) colgaba de un
+        // `isset`, así que un token que simplemente OMITÍA el claim se saltaba
+        // la comprobación: sin `exp` era válido para siempre, y sin `nonce` no
+        // se deduplicaba nada. Rechazo fail-closed.
+        if (!isset($payload['exp']) || !is_numeric($payload['exp'])) {
+            return null;
+        }
+        if (!isset($payload['iat']) || !is_numeric($payload['iat'])) {
+            return null;
+        }
+        $nonceClaim = isset($payload['nonce']) ? (string) $payload['nonce'] : '';
+        $nonceLen = strlen($nonceClaim);
+        if ($nonceLen < 16 || $nonceLen > 64) {
+            return null;
+        }
+
         // Validate expiry — allow 30s clock skew grace
         $now = time();
-        if (isset($payload['exp']) && ((int) $payload['exp'] + 30) < $now) {
+        if (((int) $payload['exp'] + 30) < $now) {
+            return null;
+        }
+
+        // `iat` futuro: combinado con el tope de 330s daría una ventana
+        // deslizante (iat=+1h ⇒ el token vive 1h+330s de reloj de pared aunque
+        // exp-iat ≤ 330s). Mismo guard que el verificador de WooCommerce.
+        if (((int) $payload['iat'] - 30) > $now) {
             return null;
         }
 
         // Validate token lifetime — max 5min (300s) + 30s grace = 330s
-        if (
-            isset($payload['exp'], $payload['iat'])
-            && ((int) $payload['exp'] - (int) $payload['iat']) > 330
-        ) {
+        if (((int) $payload['exp'] - (int) $payload['iat']) > 330) {
             return null;
         }
 
@@ -159,9 +205,9 @@ class TokenVerifier
             return null;
         }
 
-        // Best-effort nonce deduplication
-        $nonce = (string) ($payload['nonce'] ?? '');
-        if ($nonce !== '' && !$this->isNonceNew($nonce, $agentDid)) {
+        // Nonce deduplication (offline, best-effort). El claim ya se validó
+        // como obligatorio arriba, así que aquí sólo queda comprobar unicidad.
+        if (!$this->isNonceNew($nonceClaim, $agentDid)) {
             return null;
         }
 

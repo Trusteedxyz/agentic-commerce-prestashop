@@ -192,16 +192,21 @@ final class CartSignals
      * Returns the first offending line (deterministic, matches catalog
      * `evaluateR036` `lineItems.find` semantics). Missing param → PASS.
      *
+     * Verificación M7 (2026-07-28) — misma corrección que en el módulo de
+     * Magento: la clave era `maxCents` (copiada de R035) y la canónica de R036
+     * es `maxCentsPerLine`, que es la única que acepta el schema `.strict()`
+     * del panel. Con la clave equivocada la regla no podía dispararse nunca.
+     *
      * @param \Cart $cart
-     * @param array<string,mixed> $params expects ['maxCents' => int]
+     * @param array<string,mixed> $params expects ['maxCentsPerLine' => int]
      * @return array{hit:bool,reason?:string}
      */
     public function evaluateR036(\Cart $cart, array $params): array
     {
-        if (!array_key_exists('maxCents', $params) || $params['maxCents'] === null) {
+        if (!array_key_exists('maxCentsPerLine', $params) || $params['maxCentsPerLine'] === null) {
             return ['hit' => false];
         }
-        $cap = (int) $params['maxCents'];
+        $cap = (int) $params['maxCentsPerLine'];
         foreach ($cart->getProducts() as $product) {
             $lineCents = (int) round(((float) ($product['total_wt'] ?? 0)) * 100);
             if ($lineCents > $cap) {

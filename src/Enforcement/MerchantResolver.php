@@ -49,14 +49,21 @@ class MerchantResolver
     /**
      * Get the Trusteed fallback mode (strict|balanced|permissive).
      *
-     * Sprint C T13: default flipped from 'balanced' to **'strict'**. When the
-     * Layer-2 rules-evaluate endpoint is unavailable AND no fresh local
-     * snapshot cache is present, the module must fail-closed for ENFORCE-mode
-     * rules instead of silently fail-open (mass fail-open documented in
-     * `docs/analysis/rules_claude.md` §4.1 / §6.2).
+     * The **shipped default is 'balanced'** (fail-open): `install()` seeds
+     * `TRUSTEED_CEL_FALLBACK_MODE = 'balanced'`, matching the backend snapshot
+     * builder, which also defaults to BALANCED. Only 'strict' fails closed —
+     * when the Layer-2 rules-evaluate endpoint is unavailable AND no fresh
+     * local snapshot cache is present, 'strict' blocks checkouts carrying
+     * ENFORCE-mode rules (see ValidateOrderHook), while 'balanced' and
+     * 'permissive' allow them through and warn-log the fail-open.
      *
-     * Merchant overrides remain honored: explicit 'balanced' / 'permissive'
-     * stays as configured (warn-logged at evaluation time).
+     * The 'strict' return below is a **corruption guard**, not the default: it
+     * only fires when the stored value is absent or not one of the three valid
+     * modes. A merchant who wants fail-closed behaviour must set
+     * `TRUSTEED_CEL_FALLBACK_MODE = 'strict'` explicitly.
+     *
+     * Context on the fail-open risk this leaves open:
+     * `docs/analysis/rules_claude.md` §4.1 / §6.2.
      */
     public static function getFallbackMode(int $shopId = 0): string
     {

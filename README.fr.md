@@ -10,26 +10,27 @@ Les agents IA sont un nouveau type d'acheteur en ligne. Avec Trusteed, le résea
 - Bloquez les agents qui semblent dangereux ou qui posent problème.
 - Acceptez des achats en monnaies numériques grâce au protocole X402.
 - Laissez agents et marchands échanger directement, de pair à pair.
+- Vérifiez si les agents peuvent réellement acheter aujourd'hui dans votre boutique : le tableau de bord Agent Readiness affiche trois vues indépendantes (ce que disent les autres, ce que vous promettez par rapport à ce que vous faites, et ce que nous avons observé) et ne les fusionne jamais en un seul score.
 
 ## Captures d'écran
 
-| Accueil | Score de confiance | Merchant Center — Commandes |
-|------|------------|--------------------------|
+| Accueil                                       | Score de confiance                                 | Merchant Center — Commandes                             |
+| --------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------- |
 | ![Accueil](screenshots/01-home-dashboard.png) | ![Score](screenshots/02-trust-score-breakdown.png) | ![Commandes](screenshots/03-merchant-center-orders.png) |
 
-| Merchant Center — Moyens de paiement | Merchant Center — Certifications | Mes Ventes |
-|----------------------------|-----------------------------------|----------|
+| Merchant Center — Moyens de paiement                       | Merchant Center — Certifications                                     | Mes Ventes                                        |
+| ---------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------- |
 | ![Paiements](screenshots/03b-merchant-center-payments.png) | ![Certifications](screenshots/04-merchant-center-certifications.png) | ![Mes Ventes](screenshots/05-my-sales-orders.png) |
 
-| Reçus de confiance (Mes Ventes → Ventes IA) | Agents |
-|---------------------------------------|--------|
+| Reçus de confiance (Mes Ventes → Ventes IA)       | Agents                               |
+| ------------------------------------------------- | ------------------------------------ |
 | ![Reçus](screenshots/06-my-sales-ai-receipts.png) | ![Agents](screenshots/07-agents.png) |
 
-| Détail du reçu — téléchargement en ZIP |
-|------------------------------------------|
-| ![Téléchargement du reçu](screenshots/08-my-sales-receipt-download.png) |
+| Détail du reçu — téléchargement en ZIP                                  | Agent Readiness                                        |
+| ----------------------------------------------------------------------- | ------------------------------------------------------ |
+| ![Téléchargement du reçu](screenshots/08-my-sales-receipt-download.png) | ![Agent Readiness](screenshots/09-agent-readiness.png) |
 
-Chaque transaction d'un agent génère un reçu de confiance signé, un enregistrement dont toute altération est détectable (aligné sur eIDAS et eSIGN) répertorié sous **Mes Ventes → Ventes IA**. Cliquez sur une ligne pour voir le détail : ID de l'agent, outil appelé, hachages d'entrée et de sortie, JWS. Vous pouvez aussi télécharger le reçu au format ZIP et le conserver en cas de litige.
+Chaque transaction d'un agent génère un reçu de confiance signé, un enregistrement dont toute altération est détectable (aligné sur eIDAS et eSIGN) répertorié sous **Mes Ventes → Ventes IA**. Cliquez sur une ligne pour voir le détail : ID de l'agent, outil appelé, hachages d'entrée et de sortie, JWS. Vous pouvez aussi télécharger le reçu au format ZIP et le conserver comme votre propre preuve de ce que l'agent a fait. Le reçu est signé par un JWS Ed25519, de sorte que toute modification ultérieure de son contenu reste détectable. Ce n'est pas une signature ni un cachet électronique qualifié : aucun certificat délivré par un QTSP ni horodatage qualifié ne se trouve derrière lui aujourd'hui, il ne bénéficie donc à lui seul d'aucune présomption de validité juridique.
 
 ## Fonctionnalités
 
@@ -41,14 +42,19 @@ Trusteed AgenticTools réunit Trust Center, Merchant Center, les outils agentiqu
 - Application des règles au checkout : les règles du marchand (montant maximal, pays bloqués, horaires d'ouverture et plus) s'appliquent à chaque checkout, qu'il vienne d'un agent ou d'un humain.
 - Évaluateur de soupape de sécurité hors ligne : applique localement les mêmes règles universelles lorsque l'API distante des règles est inaccessible, au lieu d'un repli général qui autorise ou bloque tout.
 - Auto-enregistrement en libre-service : enregistrement de la boutique auprès de Trusteed en un clic. Vous pouvez aussi saisir vos identifiants manuellement.
-- Comportements par défaut fail-closed : l'application des règles n'autorise jamais en silence en cas de mauvaise configuration.
+- Comportement configurable en cas de panne : lorsque l'API de règles est injoignable et qu'aucun instantané local récent n'existe, le module est livré en mode `balanced`. Il laisse passer le checkout et journalise cette décision. Réglez `TRUSTEED_CEL_FALLBACK_MODE` sur `strict` pour le bloquer à la place.
 
 ## Compatibilité
 
-| Composant | Compatible |
-|-----------|-----------|
-| PrestaShop | 8.0.0 – 9.99.99 |
-| PHP | 8.1+ |
+| Composant  | Plage déclarée                                                 | Réellement vérifié sur                                                                                       |
+| ---------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| PrestaShop | 8.0.0 – 9.99.99 (`ps_versions_compliancy` dans `trusteed.php`) | 8.2.0 (toutes les captures d'écran de ce README ; pas encore de tests E2E automatisés sur d'autres versions) |
+| PHP        | 8.1+                                                           | 8.1, 8.2                                                                                                     |
+
+La plage 8.0.0–9.99.99 est ce que le module _déclare_ au gestionnaire de modules de
+PrestaShop — elle n'a pas été testée de bout en bout au-delà de 8.2.0. Il n'existe pas
+encore de CI exécutant PHPUnit sur plusieurs versions de PrestaShop ; considérez le support
+de la 9.x comme non vérifié jusqu'à ce que ce soit le cas.
 
 ## Prérequis
 
@@ -61,7 +67,7 @@ Trusteed AgenticTools réunit Trust Center, Merchant Center, les outils agentiqu
 ### Téléversement manuel
 
 1. **Téléchargez le `.zip` installable** depuis la dernière Release GitHub :
-   [**⬇ trusteed-agentic-commerce-prestashop-2.0.1.zip**](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases/latest/download/trusteed-agentic-commerce-prestashop-2.0.1.zip)
+   [**⬇ Télécharger la dernière version**](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases/latest)
    ou parcourez toutes les versions sur la [page des Releases](https://github.com/Trusteedxyz/agentic-commerce-prestashop/releases).
 2. Dans votre **Back Office** PrestaShop : **Modules → Gestionnaire de modules → Téléverser un module**.
 3. Sélectionnez le `.zip` téléchargé et cliquez sur **Téléverser ce module**.
@@ -84,38 +90,46 @@ git clone https://github.com/Trusteedxyz/agentic-commerce-prestashop.git trustee
 cd trusteed
 composer install --no-dev --optimize-autoloader
 ```
+
 Téléversez ensuite le dossier `trusteed/` obtenu sous forme de `.zip`, comme décrit plus haut. Vous pouvez l'ignorer pour une installation de production, voir la note sur l'autoloader de secours ci-dessus.
 
 ## Configuration
 
 1. Connectez-vous à votre **Back Office** PrestaShop.
 2. Allez dans **Modules → Trusteed AgenticTools → Configurer**.
-3. Cliquez sur **Auto-enregistrer cette boutique** (enregistrement en un clic qui remplit automatiquement le Merchant ID et le secret), ou saisissez manuellement votre **Merchant ID** et votre **secret S2S** depuis [app.trusteed.xyz/settings](https://app.trusteed.xyz/settings).
-4. Enregistrez. Le module teste la connexion et commence à synchroniser les règles d'application.
+3. Cliquez sur **Auto-enregistrer cette boutique** (enregistrement en un clic qui remplit automatiquement le Merchant ID et le secret), ou saisissez manuellement votre **Merchant ID** et votre **secret S2S** depuis [trusteed.xyz/dashboard/settings](https://trusteed.xyz/dashboard/settings).
+4. Enregistrez. Les valeurs sont validées (point de terminaison HTTPS, secret de 64 caractères hexadécimaux) puis stockées. Enregistrer ne contacte **pas** Trusteed ; seul **Auto-enregistrer cette boutique** effectue un appel réel.
 
 ### Clés de configuration
 
-| Clé | Par défaut | Rôle |
-|-----|---------|-------------|
-| `TRUSTEED_API_BASE` | `https://api.trusteed.xyz` | Point de terminaison du backend Trusteed |
-| `TRUSTEED_CEL_MERCHANT_ID` | _(vide)_ | Merchant ID délivré par Trusteed |
-| `TRUSTEED_EMBED_S2S_SECRET` | _(vide)_ | Secret serveur-à-serveur pour l'API embed/enforcement |
-| `TRUSTEED_BOOTSTRAP_TOKEN` | _(vide)_ | Jeton embed-bootstrap hérité (remplacé par l'auto-enregistrement) |
+| Clé                            | Par défaut                 | Rôle                                                                                                                                                                                                              |
+| ------------------------------ | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TRUSTEED_API_BASE`            | `https://api.trusteed.xyz` | Point de terminaison du backend Trusteed                                                                                                                                                                          |
+| `TRUSTEED_CEL_MERCHANT_ID`     | _(vide)_                   | Merchant ID délivré par Trusteed                                                                                                                                                                                  |
+| `TRUSTEED_EMBED_S2S_SECRET`    | _(vide)_                   | Secret serveur-à-serveur pour l'API embed/enforcement                                                                                                                                                             |
+| `TRUSTEED_BOOTSTRAP_TOKEN`     | _(vide)_                   | Jeton embed-bootstrap hérité (remplacé par l'auto-enregistrement)                                                                                                                                                 |
+| `TRUSTEED_CEL_ENABLED`         | `0`                        | Interrupteur général de l'application des règles au checkout. Tant qu'il vaut `0`, aucune règle n'est évaluée sur aucun checkout                                                                                  |
+| `TRUSTEED_CEL_INSTALLATION_ID` | _(vide)_                   | ID d'installation pour l'instantané signé des règles                                                                                                                                                              |
+| `TRUSTEED_CEL_HMAC_SECRET`     | _(vide)_                   | Secret HMAC pour les appels d'instantané et d'évaluation des règles                                                                                                                                               |
+| `TRUSTEED_CEL_FALLBACK_MODE`   | `balanced`                 | Comportement lorsque l'API de règles est injoignable et qu'aucun instantané local n'existe : `balanced` et `permissive` laissent passer le checkout et journalisent l'autorisation par défaut, `strict` le bloque |
+
+L'application des règles reste totalement inerte jusqu'à ce que `TRUSTEED_CEL_ENABLED` vaille `1` **et** que les trois clés `TRUSTEED_CEL_MERCHANT_ID`, `TRUSTEED_CEL_INSTALLATION_ID` et `TRUSTEED_CEL_HMAC_SECRET` soient renseignées — s'il en manque une, le module laisse passer tous les checkouts sans évaluer une seule règle.
 
 ## Pages d'administration
 
-Après l'installation, un menu **Trusteed** apparaît dans la barre latérale du Back Office PrestaShop :
+Après l'installation, un menu **Trusteed** apparaît dans la barre latérale du Back Office PrestaShop. Seul l'anglais dispose de libellés traduits : dans toutes les autres langues, y compris le français, la barre latérale affiche les libellés espagnols reproduits ci-dessous.
 
-| Page | Description |
-|------|-------------|
-| Accueil | Aperçu de la réputation et des ventes récentes |
-| Comment va ma boutique ? (Trust Center) | Reçus signés, clés de signature, journal d'audit, score de confiance |
-| Merchant Center | Commandes, moyens de paiement, agents, certifications, NLWeb |
-| Mes ventes | Liste des commandes et reçus de confiance IA |
-| Mes Règles | Règles d'application au checkout |
-| Sécurité | Journal d'audit et alertes d'anomalies |
-| Agents | Identités des agents connectés |
-| Paramètres | Paramètres du module et auto-enregistrement |
+| Page                         | Description                                                          |
+| ---------------------------- | -------------------------------------------------------------------- |
+| Inicio                       | Aperçu de la réputation et des ventes récentes                       |
+| ¿Cómo va mi tienda?          | Reçus signés, clés de signature, journal d'audit, score de confiance |
+| Centro de comercio           | Commandes, moyens de paiement, agents, certifications, NLWeb         |
+| Mis ventas                   | Liste des commandes et reçus de confiance IA                         |
+| Mis Reglas                   | Règles d'application au checkout                                     |
+| Seguridad                    | Journal d'audit et alertes d'anomalies                               |
+| Agentes                      | Identités des agents connectés                                       |
+| ¿Pueden comprar los agentes? | Si les agents peuvent réellement acheter dans cette boutique         |
+| Configuración                | Paramètres du module et auto-enregistrement                          |
 
 ## FAQ
 
@@ -125,7 +139,118 @@ Après l'installation, un menu **Trusteed** apparaît dans la barre latérale du
 
 **Cela ralentit-il ma boutique ?** Non. L'application des règles au checkout ne s'exécute de façon synchrone qu'à la validation de la commande, avec un repli local hors ligne lorsque l'API distante est inaccessible.
 
+## Le tableau de bord de préparation agentique
+
+**Les agents me trouvent-ils ?** est une page de votre panneau
+d'administration. Elle répond à une seule question : lorsqu'un agent d'achat IA
+visite votre boutique, trouve-t-il ce que vous croyez qu'il trouve ?
+
+La page n'affiche jamais de note unique. Elle a trois colonnes et ne les moyenne
+pas, car elles répondent à des questions différentes et peuvent se contredire :
+
+| Colonne                                                    | Ce que c'est                                                                                                                                                                                |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Ce que dit un tiers**                                    | Le verdict d'un scanner externe, cité tel quel. Nous ne le convertissons jamais dans une échelle à nous, car convertir la note d'un autre reviendrait à corriger notre propre copie            |
+| **Ce que vous dites correspond-il à ce que vous faites ?** | 16 vérifications qui confrontent ce que votre boutique **annonce** à ce qu'elle **répond réellement**. Aucun scanner externe ne peut faire cette partie, car elle exige vos identifiants |
+| **Ce que nous avons vu passer**                            | Le trafic agentique réel sur la période choisie : quels agents sont venus, quels outils ils ont utilisés, jusqu'où ils sont allés et où ils ont échoué                                      |
+
+Si une vérification n'a pas pu être faite, la page la signale comme **non
+vérifiée** et en donne le motif. Elle n'est jamais écartée ni comptée comme
+réussie. « Nous n'avons pas pu regarder » et « nous avons regardé et tout allait
+bien » sont deux réponses distinctes, et la page vous dit laquelle vous lisez.
+
+### Ce que vérifie chaque contrôle
+
+| Contrôle | Ce qu'il détecte                                                                  |
+| -------- | --------------------------------------------------------------------------------- |
+| C1       | Vous annoncez des outils que votre boutique ne sert pas                           |
+| C2       | Vous annoncez un protocole de paiement dont le point de terminaison ne répond pas |
+| C3       | Le prix du catalogue n'est pas le prix facturé                                    |
+| C4       | Annoncé disponible alors que ce n'est pas le cas                                  |
+| C5       | Votre politique de retour dit des choses différentes selon la source              |
+| C6       | Vous annoncez comme disponible quelque chose qui est désactivé                    |
+| C7       | Des règles activées qui ne peuvent pas agir faute de données                      |
+| C8       | Vos règles observent mais ne bloquent pas                                         |
+| C9       | La méthode d'identification que vous annoncez ne fonctionne pas                   |
+| C10      | Un agent peut acheter n'importe quel montant sans votre confirmation              |
+| C11      | Le point de vente utilise des règles expirées                                     |
+| C12      | Des opérations sans reçu signé                                                    |
+| C13      | Des adresses annoncées qui ne fonctionnent pas                                    |
+| C14      | Les agents voient des données périmées de votre boutique                          |
+| C15      | Des justificatifs d'identité sur le point d'expirer                               |
+| C16      | Le délai de livraison promis n'est pas celui que vous tenez                       |
+
+Certains contrôles ont besoin de plus que vos réglages, et la page le dit au lieu
+de laisser un vide :
+
+- Nécessite une boutique connectée (C3, C4, C5, C14). Ces contrôles comparent
+  avec votre catalogue réel, et sans identifiants il n'y a rien à comparer.
+- Nécessite des commandes livrées (C16). Il compare ce que vous promettez à ce
+  que vous avez tenu, ce qui exige un historique.
+- Rien à comparer cette fois. C12, par exemple, n'a rien à vérifier tant qu'un
+  agent n'a pas finalisé un achat. Ce n'est pas un échec.
+
+Les contrôles s'exécutent une fois par jour et la page affiche chaque résultat
+avec sa date, pour qu'un verdict d'hier ressemble à un verdict d'hier. Un « tout va
+bien » mis en cache et présenté comme actuel serait exactement l'auto-illusion
+que cette page existe pour débusquer.
+
 ## Historique des versions
+
+### 2.3.1 — Correctif de sécurité
+
+- Corrigé : une requête avec une signature de jeton d'agent malformée pouvait faire que le module ignore toutes les règles du checkout au lieu de rejeter la requête. Signalé de manière responsable par Salúa Es-sair. Voir [GHSA-2j2x-5q52-g48m](https://github.com/Trusteedxyz/agentic-commerce-prestashop/security/advisories/GHSA-2j2x-5q52-g48m).
+- Corrigé : la même faille pouvait être déclenchée par n'importe quel checkout humain, pas seulement par des agents : un appel incorrect à l'API PrestaShop faisait qu'aucune règle du commerçant n'était jamais évaluée sur une commande normale de la boutique.
+- Nouveau : cliquer sur « Mettre à jour » actualise désormais réellement l'override principal du module sur le disque. Auparavant, seule une nouvelle installation le faisait.
+
+### 2.3.0
+
+- Nouveau : le badge de la barre supérieure a désormais trois états. Il n'apparaissait qu'**après** la configuration du module : installer sans terminer ne produisait aucun signal. Il alerte maintenant si la configuration est inachevée, et séparément si la boutique est enregistrée mais que l'application au checkout n'est pas active.
+- Corrigé : l'auto-enregistrement annonçait « identifiants configurés automatiquement » après en avoir configuré deux sur les cinq que le module utilise. Il indique maintenant ce qu'il a configuré et signale que l'application nécessite deux valeurs de plus que l'auto-enregistrement ne peut pas émettre.
+- Nouveau : si l'URL de votre boutique était déjà enregistrée sous une autre clé d'installation, le module peut prouver qu'il contrôle le domaine et la récupérer. Ce cas n'avait aucune issue auparavant : il réclamait une clé que vous n'aviez jamais eue.
+
+### 2.2.4
+
+- Nouveau : lorsqu'une vérification n'a pas pu s'exécuter, le panneau explique désormais ce qui la débloquerait (rien à faire, configuration nécessaire, en attente de données, ou l'une de nos propres vérifications a échoué) au lieu d'une liste plate de gris inexpliqués.
+- Nouveau : le panneau indique désormais quel serveur a répondu à votre requête, une étiquette courte et opaque. Utile pour comparer ce que vous voyez ici avec ce que voit le support ; elle ne révèle jamais un nom d'hôte ou de service.
+
+### 2.2.3
+
+- Nouveau : les Réglages vous permettent désormais de choisir les outils que votre boutique propose aux agents. Si vous n'avez jamais enregistré de liste, le panneau vous indique que ce qui est proposé est l'ensemble de base fourni par la plateforme, et non votre choix.
+- Nouveau : un bouton pour relancer la vérification sans attendre le balayage quotidien, et le panneau retient ce qui a changé depuis la vérification précédente.
+- Modifié : nos propres pannes ne comptent plus comme des incohérences de votre boutique. Le panneau les sépare, car vous n'y pouvez rien.
+
+### 2.2.2
+
+- Corrigé : la page de disponibilité pour les agents était publiée sans sa feuille de style, le panneau s'affichait donc sans mise en forme.
+- Corrigé : le panneau pouvait afficher son interface dans une langue et le diagnostic dans une autre. La langue résolue accompagne désormais les textes au lieu d'être détectée deux fois.
+- Nouveau : chaque constat renvoie vers l'endroit où le corriger, et les affirmations du marchand (le délai de livraison et les autres) apparaissent avec les éléments qui les étayent.
+- Modifié : une boutique sans aucune vérification affiche « vérification en cours » au lieu de « vérifié une fois par jour » : ouvrir le panneau déclenche déjà la première vérification en arrière-plan.
+
+### 2.2.1
+
+- Corrigé : la page « Agent Readiness » affichait l'accueil. `resolveSection()` valide contre une liste blanche où `agent-readiness` n'avait jamais été ajouté, d'où un repli silencieux.
+- Corrigé : deux avis d'administration (configuration manquante, ressources manquantes) étaient écrits en dur en espagnol et affichés à tous les marchands quelle que soit la langue de leur back-office. L'un demandait au marchand d'exécuter une commande de build depuis un monorepo, ce qu'aucun marchand ne peut faire. Les deux passent désormais par le traducteur du module.
+
+### 2.2.0
+
+- Nouveau : tableau de bord de préparation agentique. _Les agents me trouvent-ils ?_ arrive dans le panneau d'administration. Il confronte ce que votre boutique annonce à ce qu'elle répond réellement, en 16 vérifications, et les affiche toutes les seize, pas seulement celles qui échouent. Une vérification impossible indique pourquoi (boutique non connectée, aucune commande livrée pour l'instant, rien à comparer cette fois) au lieu de laisser un vide qui ressemble à une panne. Voir « Le tableau de bord de préparation agentique » ci-dessus.
+- Corrigé : le diagnostic était rédigé en espagnol dans l'API et affiché tel quel : un marchand utilisant le panneau en anglais lisait des titres anglais au-dessus de constats espagnols. Les vérifications émettent désormais des codes neutres et le texte est composé au moment de servir, dans votre langue.
+- Corrigé : la vérification C1 (« vous annoncez des outils que votre boutique ne sert pas ») considérait tout le catalogue public comme servi en l'absence de liste configurée : elle annonçait 46 sur 48 alors que le serveur en sert 12. L'erreur allait dans le sens flatteur, précisément celui que ce tableau de bord doit débusquer.
+- Corrigé : la vérification C6 (« vous annoncez comme disponible quelque chose qui est désactivé ») signalait une capacité comme désactivée dès que son indicateur n'était pas défini, y compris pour ceux activés par défaut. C'était une fausse alerte sur toutes les boutiques.
+
+### 2.1.1
+
+- Corrigé : le bundle du panneau d'administration (`views/js/admin-spa.js`) était distribué non minifié : 869 Ko / 25 064 lignes au lieu des 490 Ko / 41 lignes que produit réellement la commande de build documentée (`pnpm run build:ps`). Sa provenance ne pouvait pas être vérifiée. Reconstruit depuis la source.
+- Corrigé : la règle R047 (demander confirmation à l'acheteur à partir d'un montant) n'avait pas de champ de formulaire dans le panneau d'administration ; ses paramètres existaient dans le schéma mais ne pouvaient être définis que via l'API.
+
+### 2.1.0
+
+- Correctif de sécurité : le vérificateur de jetons d'agent traitait `exp`, `iat` et `nonce` comme facultatifs. Toutes les protections qui en dépendent (expiration, plafond de durée de vie de 330s, anti-rejeu) reposaient sur un `isset`, si bien qu'un jeton omettant simplement le claim échappait au contrôle : sans `exp` il était valable indéfiniment, et sans `nonce` rien n'était dédupliqué. Les trois sont désormais obligatoires (`nonce` de 16 à 64 caractères), conformément au schéma canonique du jeton.
+- Correctif de sécurité : un `iat` dans le futur est désormais rejeté. Combiné au plafond de 330s, il donnait une fenêtre glissante : un `iat` avancé d'une heure achetait une heure de validité en temps réel alors même que `exp - iat` restait dans le plafond.
+- Correctif : la règle R036 (valeur maximale par ligne) lisait son plafond dans un paramètre nommé `maxCents`, copié de R035. Le nom canonique est `maxCentsPerLine`, seul accepté par le schéma strict du panneau marchand : la règle ne pouvait jamais se déclencher.
+- Supprimé : la branche R007 de l'évaluateur hors ligne. Elle bloquait sur `trustScore < 0.3` sous un commentaire annonçant un « contrôle de pays à risque » : elle ne faisait donc ni ce que disait le commentaire, ni ce que signifie le nom canonique de la règle. Le vrai signal de R007 est l'état d'abus inter-marchands, qui vit dans la base de données du backend et reste hors de portée du chemin hors ligne. Renvoyer ALLOW ici n'est pas un fail-open sur un signal disponible, puisque ce signal n'existe pas dans ce contexte. Le verdict faisant autorité pour R007 vient du serveur. Si vous vouliez le seuil de confiance, la règle est R006 ; si vous vouliez le pays, R014/R019.
+- Nouveauté : le module déclare désormais quels signaux de panier cette installation sait projeter (`POST /api/v1/enforcement/capabilities`, signé en HMAC, envoyé une fois par version du module depuis un hook back-office déjà enregistré). Sans cela, une règle dont le signal n'arrive jamais renvoie `NO_SIGNAL` à chaque paiement : elle passe en silence, et le marchand voit une règle en ENFORCE qui ne bloque rien.
 
 ### 2.0.1
 

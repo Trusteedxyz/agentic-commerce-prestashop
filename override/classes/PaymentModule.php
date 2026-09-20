@@ -70,15 +70,13 @@ class PaymentModule extends PaymentModuleCore
                 // Re-throw — CEL explicitly blocked this order
                 throw $e;
             } catch (\Throwable $e) {
-                // Unexpected error — fail-open (log + continue)
-                \PrestaShopLogger::addLog(
-                    'CEL override unexpected error: ' . $e->getMessage(),
-                    \PrestaShopLogger::LOG_SEVERITY_ERROR,
-                    null,
-                    'Cart',
-                    (int) $id_cart,
-                    true
-                );
+                // GHSA-2j2x-5q52-g48m issue 2: an exception raised while
+                // evaluating CEL rules is not the same thing as an
+                // infrastructure failure, and must never be an implicit
+                // permission to skip enforcement. Consult the merchant's own
+                // configured fallback mode instead of unconditionally
+                // proceeding.
+                $this->onUnexpectedCelError($e, (int) $id_cart);
             }
         }
 
@@ -133,6 +131,63 @@ class PaymentModule extends PaymentModuleCore
     }
 
     /**
+     * Handle an unexpected exception raised during CEL evaluation.
+     *
+     * GHSA-2j2x-5q52-g48m issue 2: the previous behaviour was "log and let
+     * the order proceed" for ANY `\Throwable` — an unauthenticated,
+     * request-controlled `SodiumException` (malformed token signature length)
+     * or a missing PS-core method were both, silently, a pass. That treats
+     * "our evaluator broke" as "the merchant wants this order through", which
+     * is never true. Defers to `SnapshotUnavailablePolicy::decide()` — the
+     * same class that already encodes "the signed mode wins when it exists,
+     * an absent/corrupt local mode is fail-closed, never `balanced`" for the
+     * sibling snapshot-unavailable case — passed `$failClosedEnabled = true`
+     * unconditionally: this is not the API-down scenario that class's own
+     * feature flag gates (today pass-all, tomorrow pass-none is a merchant
+     * decision), it is the evaluator itself failing, and `strict` already
+     * blocked unconditionally on the equivalent branch (Layer-2
+     * unavailable + no cache) before this class existed.
+     *
+     * The exception's own message is logged internally — never surfaced in
+     * the `\PrestaShopException` message, which PrestaShop can render to the
+     * buyer.
+     *
+     * @throws \PrestaShopException when the merchant's fallback mode blocks.
+     */
+    private function onUnexpectedCelError(\Throwable $e, int $cartId): void
+    {
+        $shopId = \Trusteed\Enforcement\MerchantResolver::currentShopId();
+        $mode   = \Trusteed\Enforcement\MerchantResolver::getFallbackMode($shopId);
+        $decision = \Trusteed\Enforcement\SnapshotUnavailablePolicy::decide(null, $mode, true);
+
+        // A logging failure (e.g. json_encode choking on invalid UTF-8 in the
+        // exception message) must never change the enforcement decision —
+        // hence its own try/catch, separate from the decision above.
+        try {
+            $detail = json_encode(
+                ['error' => $e->getMessage(), 'fallbackMode' => $mode, 'decision' => $decision],
+                JSON_INVALID_UTF8_SUBSTITUTE
+            );
+            \PrestaShopLogger::addLog(
+                '[trusteed.cel.evaluator_error] ' . ($detail !== false ? $detail : $e->getMessage()),
+                \PrestaShopLogger::LOG_SEVERITY_ERROR,
+                null,
+                'Cart',
+                $cartId,
+                true
+            );
+        } catch (\Throwable $logError) {
+            // Swallowed on purpose — see docblock.
+        }
+
+        if ($decision === \Trusteed\Enforcement\SnapshotUnavailablePolicy::DECISION_BLOCK) {
+            throw new \PrestaShopException(
+                'Trusteed CEL: unable to complete order validation. Please try again or contact support.'
+            );
+        }
+    }
+
+    /**
      * Load CEL enforcement classes via require_once as fallback
      * when composer autoloader is not active in the override context.
      *
@@ -154,6 +209,8 @@ class PaymentModule extends PaymentModuleCore
             'Trusteed\\Enforcement\\PriceSnapVerifier' => 'Enforcement/PriceSnapVerifier.php',
             'Trusteed\\Enforcement\\R043HitlGate'      => 'Enforcement/R043HitlGate.php',
             'Trusteed\\Enforcement\\ValidateOrderHook' => 'Enforcement/ValidateOrderHook.php',
+            // GHSA-2j2x-5q52-g48m issue 2 — needed by onUnexpectedCelError().
+            'Trusteed\\Enforcement\\SnapshotUnavailablePolicy' => 'Enforcement/SnapshotUnavailablePolicy.php',
         ];
 
         foreach ($classes as $fqn => $relPath) {

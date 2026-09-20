@@ -41,6 +41,9 @@ class AdminTrusteedController extends ModuleAdminController
         'mis-reglas',
         'seguridad',
         'agentes',
+        // Spec 065 F1 — sin esta entrada `resolveSection()` caía a 'inicio' en
+        // silencio: el comerciante entraba por «Agent Readiness» y veía Home.
+        'agent-readiness',
     ];
 
     /** Hostnames permitidos para el API base en producción (S042-004 SSRF allowlist). */

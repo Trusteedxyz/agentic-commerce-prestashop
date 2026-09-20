@@ -67,7 +67,26 @@ class ValidateOrderHook
             return;
         }
 
-        $this->evaluateCart($cart);
+        // GHSA-2j2x-5q52-g48m, D3: `PaymentModule::validateOrder()` stays
+        // the single AUTHORITATIVE blocking point in every PS version this
+        // module supports — this hook is belt-and-suspenders, never the only
+        // defense (no PS9 core here to confirm whether Hook::exec() still
+        // swallows an exception thrown from a hook). Logging immediately
+        // before the re-throw means a blocked attempt on this path leaves a
+        // searchable trail even if PS9 core discards what follows.
+        try {
+            $this->evaluateCart($cart);
+        } catch (\PrestaShopException $e) {
+            \PrestaShopLogger::addLog(
+                '[trusteed.cel.ps9_hook_block_attempt] ' . $e->getMessage(),
+                \PrestaShopLogger::LOG_SEVERITY_ERROR,
+                null,
+                'Cart',
+                (int) $cart->id,
+                true
+            );
+            throw $e;
+        }
     }
 
     /**
@@ -439,6 +458,15 @@ class ValidateOrderHook
 
     /**
      * Resolve agent token from cart attributes or cookie.
+     *
+     * GHSA-2j2x-5q52-g48m issue 2 (D1): `\Cart` (and its parent
+     * `\ObjectModel`) does not define `getContext()` — that was always a
+     * fatal `\Error`, thrown before the signed rule snapshot was even
+     * requested, for every checkout that reached this method without
+     * `_trusteed_agent_token` already in the POST body. That is every
+     * organic human checkout, plus any agent relying on the cookie fallback
+     * instead of the request parameter. The correct PrestaShop API for the
+     * current request's cookie jar is `\Context::getContext()->cookie`.
      */
     private function resolveAgentToken(\Cart $cart): string
     {
@@ -449,7 +477,7 @@ class ValidateOrderHook
         }
 
         // Check cookie fallback
-        $cookie = (string) ($cart->getContext()->cookie->trusteed_agent_token ?? '');
+        $cookie = (string) (\Context::getContext()->cookie->trusteed_agent_token ?? '');
 
         return $cookie;
     }
@@ -552,13 +580,25 @@ class ValidateOrderHook
                 // Agent identity must be verified
                 return isset($claims['agentId']) && $claims['agentId'] !== '' ? 'ALLOW' : 'BLOCK';
 
+            // R007.cross-merchant-abuse-signal — NO SOPORTADA aquí
+            // (decisión 2026-07-30).
+            //
+            // Lo que había: un `trustScore < 0.3` con un comentario encima que
+            // decía "High-risk country check" — o sea que ni hacía lo que el
+            // comentario afirmaba ni lo que el nombre canónico de la regla dice.
+            // Era la TERCERA lectura distinta del mismo código: el catálogo
+            // mira la señal de abuso cross-merchant, la Shopify Function hacía
+            // un control de países (semántica legacy) y esto miraba confianza.
+            //
+            // La señal canónica es estado cross-merchant que vive en la base de
+            // datos del backend; este evaluador es el camino OFFLINE, sin acceso
+            // a ella. Devolver ALLOW aquí no es fail-open sobre una señal
+            // disponible: es que la señal no existe en este contexto. El
+            // veredicto autoritativo de R007 lo da la capa 2 (REST).
+            //
+            // Si lo que se quería era el umbral de confianza, la regla es R006
+            // (`provider-confidence-tier`); si era el país, R014/R019.
             case 'R007':
-                // High-risk country check — requires trust score
-                $trustScore = $claims['trustScore'] ?? null;
-                if ($trustScore !== null && (float) $trustScore < 0.3) {
-                    return 'BLOCK';
-                }
-
                 return 'ALLOW';
 
             default:
@@ -568,8 +608,46 @@ class ValidateOrderHook
     }
 
     /**
+     * Spec-048 4.9 — señales de carrito que ESTA instalación sabe proyectar.
+     *
+     * Es la mitad "qué aporto" del contrato cuya otra mitad es
+     * `RULE_SIGNALS_READ` ("qué lee cada regla") en el servidor. Cruzarlas
+     * convierte el silencio de `NO_SIGNAL` —una regla activada en ENFORCE que
+     * nunca dispara porque su señal no llega— en un aviso que el comerciante
+     * ve al activarla.
+     *
+     * La lista NO se mantiene a ojo: el gate
+     * `signals-provided-plugin-declarations.test.ts` (en `packages/shared`)
+     * lee el cuerpo de `buildCartContext()` y exige que coincida exactamente
+     * con las claves que escribe.
+     *
+     * @return string[]
+     */
+    public static function signalsProvided(): array
+    {
+        return [
+            '_agent_key_age_hours',
+            '_autorenew',
+            '_b2b_order',
+            '_lowest_stock',
+            '_price_delta_bps',
+            '_product_categories',
+            '_product_platform',
+            '_purchase_order_hash',
+            '_requested_scopes',
+            '_return_policy_mismatch',
+            '_shipping_po_box',
+            '_subscription',
+        ];
+    }
+
+    /**
      * Build enriched cart context from PrestaShop Cart for Layer-2 evaluation.
      * All fields are best-effort; missing data is omitted (fail-open for context).
+     *
+     * SIGNALS_PROVIDED_BUILDER_START — ancla del gate de 4.9: todo lo que este
+     * cuerpo escriba en `$cartAttributes` tiene que estar en
+     * `signalsProvided()`.
      */
     private function buildCartContext(\Cart $cart, array $agentResult = [], array $snapshot = []): array
     {
