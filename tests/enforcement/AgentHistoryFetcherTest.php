@@ -10,7 +10,7 @@ use PHPUnit\Framework\TestCase;
 require_once __DIR__ . '/../../src/Service/AgentHistoryFetcher.php';
 
 /**
- * Spec-048 Sprint E (T-E40) â€” PrestaShop AgentHistoryFetcher R042 stub.
+ * €” PrestaShop AgentHistoryFetcher R042 stub.
  *
  * Tests the public contract:
  *   - returns null for empty agent hash or non-positive window

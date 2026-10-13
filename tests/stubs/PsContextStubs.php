@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * PsContextStubs.php — minimal, test-configurable PrestaShop globals so the REAL
+ * PsContextStubs.php: minimal, test-configurable PrestaShop globals so the REAL
  * payment tools (which call MerchantContextGuard::enforce → \Context + \Configuration)
  * can be unit-tested without a live PrestaShop install.
  *
@@ -45,7 +45,10 @@ namespace {
             /** @return mixed */
             public static function get(string $key, $idLang = null, $idShopGroup = null, $idShop = null, $default = false)
             {
-                if ($key === 'TRUSTEED_CEL_MERCHANT_ID') {
+                // The special case only applies when a test has set `$merchantId`.
+                // Returning an empty string unconditionally would hide an id
+                // set through `$config` (as the UcpWellknownResolver tests do).
+                if ($key === 'TRUSTEED_CEL_MERCHANT_ID' && TestPsState::$merchantId !== '') {
                     return TestPsState::$merchantId;
                 }
                 if (array_key_exists($key, TestPsState::$config)) {
@@ -62,8 +65,7 @@ namespace {
             public ?object $shop = null;
 
             /**
-             * GHSA-2j2x-5q52-g48m issue 2 (D1) — ValidateOrderHook::
-             * resolveAgentToken() reads the cookie fallback from
+             * ValidateOrderHook::resolveAgentToken() reads the cookie fallback from
              * `\Context::getContext()->cookie`, mirroring real PS's
              * `Context::$cookie` (a `Cookie` object). Declared here (not set
              * dynamically by a test) because PHP 8.2+ deprecates creating an
@@ -71,6 +73,15 @@ namespace {
              * phpunit.xml turns into a test failure.
              */
             public ?object $cookie = null;
+
+            /**
+             * `OrderEventsEmitter::resolvePreviousStateId()` reads
+             * `Context::getContext()->language->id`, as real PS does
+             * (`Context::$language`, a `Language`). Without the declaration the
+             * `tests/hooks` tests raise "Undefined property", which fails them
+             * under `failOnWarning="true"`.
+             */
+            public ?object $language = null;
 
             private static ?Context $instance = null;
 
@@ -80,6 +91,7 @@ namespace {
                     self::$instance = new self();
                 }
                 self::$instance->shop = (object) ['id' => TestPsState::$shopId];
+                self::$instance->language ??= (object) ['id' => 1];
                 return self::$instance;
             }
         }

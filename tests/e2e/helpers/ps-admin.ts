@@ -19,7 +19,7 @@ export async function loginToAdmin(page: Page): Promise<string> {
 
   await page.waitForURL(/controller=Admin/, { timeout: 20_000 });
 
-  // Extraer token del employee
+  // Extract the employee token
   const url = page.url();
   const tokenMatch = url.match(/token=([a-f0-9]+)/);
   return tokenMatch?.[1] ?? "";
@@ -42,7 +42,7 @@ export async function navigateToTrusteed(
     const m = href.match(/token=([a-f0-9]{32})/);
     token = m?.[1] ?? "";
   } catch {
-    // Badge not found on current page — navigate to AdminDashboard to get it
+    // Badge not found on current page, navigate to AdminDashboard to get it
     await page.goto(
       `${PS_BASE}${PS_ADMIN_PATH}/index.php?controller=AdminDashboard`
     );
@@ -69,7 +69,7 @@ export async function waitForSpaMount(
       () => {
         const root = document.getElementById("amcp-root");
         if (!root) return false;
-        // SPA montada cuando hay algo más que el placeholder "Cargando…"
+        // SPA is mounted once there is more than the "Cargando…" placeholder
         return (
           !root.innerHTML.includes("Cargando Trusteed") ||
           root.children.length > 1

@@ -9,7 +9,7 @@ if (!defined('_PS_VERSION_')) {
 }
 
 /**
- * Spec-048 P0b â€” PrestaShop checkout-failure emitter.
+ * €” PrestaShop checkout-failure emitter.
  *
  * PrestaShop does not expose a single canonical payment_failed hook. We
  * hook two complementary signals:
@@ -136,7 +136,7 @@ class PaymentFailureEmitter
         if ($agentDid !== null) {
             $body['agentDid'] = $agentDid;
         }
-        // Spec-048 T14 â€” idempotency key. PS can fire actionPaymentCCAdd
+        //  â€” idempotency key. PS can fire actionPaymentCCAdd
         // multiple times on retried captures; emit `external_ref=order.id`
         // so the backend partial unique index drops duplicates.
         $orderId = (int) ($order->id ?? 0);
@@ -163,7 +163,7 @@ class PaymentFailureEmitter
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Content-Type: application/json',
             'Accept: application/json',
-            'User-Agent: Trusteed-PS/1.0 spec-048-p0b',
+            'User-Agent: Trusteed-PS/1.0',
         ]);
         curl_setopt($ch, CURLOPT_TIMEOUT_MS, 1500);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT_MS, 800);
@@ -229,7 +229,7 @@ class PaymentFailureEmitter
     private static function safeLog(string $message): void
     {
         if (class_exists('PrestaShopLogger')) {
-            \PrestaShopLogger::addLog('[spec-048 P0b] ' . $message, 1);
+            \PrestaShopLogger::addLog('[trusteed] ' . $message, 1);
         }
     }
 }

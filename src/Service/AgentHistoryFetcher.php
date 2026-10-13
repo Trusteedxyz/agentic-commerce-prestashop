@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Trusteed\Service;
 
 /**
- * Spec-048 Sprint E (T-E40, ADR-054) â€” Agent history projection for PrestaShop.
+ * €” Agent history projection for PrestaShop.
  *
  * R042 velocity-cap counter: completed orders for `agent_id_hash` within a
  * sliding time window. PS does not ship with a native agent-link column on
  * `ps_orders`; this implementation looks up the optional join table
- * `ps_amcp_agent_order_links` (created by spec-048 wave A install) when
+ * `ps_amcp_agent_order_links` (created by A install) when
  * present, and degrades gracefully otherwise.
  *
  * Fail-soft contract:

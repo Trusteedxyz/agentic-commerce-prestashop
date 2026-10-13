@@ -3,14 +3,14 @@
 declare(strict_types=1);
 
 /**
- * tests/bootstrap.php — PHPUnit bootstrap for the PrestaShop module.
+ * tests/bootstrap.php: PHPUnit bootstrap for the PrestaShop module.
  *
- * Goals (spec-046 H1 de-tautologization):
+ * Goals:
  *   1. Register the production PSR-4 autoloader (`Trusteed\` → src/) so tests
  *      exercise the REAL classes, not inline mock re-implementations.
  *   2. Stub the php-mcp/server attribute classes (`PhpMcp\Server\Attributes\McpTool`
- *      and `Schema`) when the SDK is absent, so the REAL tool classes — which
- *      declare `#[McpTool]` / `#[Schema]` attributes — load and can be
+ *      and `Schema`) when the SDK is absent, so the REAL tool classes (which
+ *      declare `#[McpTool]` / `#[Schema]` attributes) load and can be
  *      reflected without the marketplace add-on installed.
  *   3. Define a minimal `_PS_VERSION_` so files guarded by it can be required.
  *

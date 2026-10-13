@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * MerchantContextGuard — prevents cross-shop IDOR (spec-046 H8).
+ * MerchantContextGuard — prevents cross-shop IDOR.
  *
  * The payment tools receive `merchantId` in the agent-supplied payload. Without
  * a cross-check, an agent operating in shop A could pass shop B's merchantId and

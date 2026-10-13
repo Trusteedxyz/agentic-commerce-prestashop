@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 /**
- * DispatchPaymentAp2ToolTest — tests the REAL DispatchPaymentAp2Tool
- * (spec-046 H1 + OLA-1 honesty contract).
+ * DispatchPaymentAp2ToolTest: tests the REAL DispatchPaymentAp2Tool
+ * (honesty contract).
  *
  * AP2 v0.2 is catalog backendStatus:"planned" (dormant, gated behind
  * SD_JWT_ENABLED, no dispatch route). The real tool returns a structured

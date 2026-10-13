@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * McpToolExceptionTest — spec-046 FR-014 structured error codes.
+ * McpToolExceptionTest: structured error codes.
  */
 
 namespace Trusteed\Tests\AgenticTools;

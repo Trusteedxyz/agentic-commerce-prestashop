@@ -84,13 +84,13 @@ final class SignTrustReceiptTool
 
         // OLA-1 honesty contract: no standalone receipt-sign WRITE endpoint exists
         // (catalog backendStatus:"planned"). Receipts are emitted by the checkout
-        // pipeline (spec-040) and read via GET /v1/embed/trust/receipts. Return a
+        // pipeline and read via GET /v1/embed/trust/receipts. Return a
         // structured capability_disabled error rather than POSTing to a route that
         // does not exist.
         throw new McpToolException(
             McpToolException::CODE_CAPABILITY_DISABLED,
             'sign_trust_receipt has no deployable backend yet: Trust Receipts are '
-            . 'produced by the checkout pipeline (spec-040) and read via '
+            . 'produced by the checkout pipeline and read via '
             . 'GET /v1/embed/trust/receipts. Standalone receipt signing is planned.'
         );
     }

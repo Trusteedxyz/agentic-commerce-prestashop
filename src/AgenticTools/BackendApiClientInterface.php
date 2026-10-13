@@ -5,7 +5,7 @@ declare(strict_types=1);
 /**
  * BackendApiClientInterface — seam for the Trusteed backend HTTP client.
  *
- * Introduced (spec-046 H1) so the AgenticTools can be unit-tested against the
+ * Introduced so the AgenticTools can be unit-tested against the
  * REAL tool classes while injecting a deterministic fake transport, instead of
  * the previous tautological tests that exercised inline mock tool re-implementations.
  *

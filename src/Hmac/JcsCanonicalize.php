@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Spec 042 R1 (codex remediation P1#1) â€” RFC 8785 JCS canonicalizer.
+ * €” RFC 8785 JCS canonicalizer.
  *
  * Produces byte-identical output to:
  *   - Node `canonicalizeJSON` from `@agenticmcpstores/shared/a2a/agent-card-signer.ts`

@@ -119,17 +119,18 @@ Das Enforcement bleibt vollständig inaktiv, bis `TRUSTEED_CEL_ENABLED` den Wert
 
 Nach der Installation erscheint ein **Trusteed**-Menü in der Seitenleiste des PrestaShop-Back-Office. Nur für Englisch gibt es übersetzte Bezeichnungen: in allen anderen Sprachen, auch auf Deutsch, zeigt die Seitenleiste die unten aufgeführten spanischen Bezeichnungen.
 
-| Seite                        | Beschreibung                                                     |
-| ---------------------------- | ---------------------------------------------------------------- |
-| Inicio                       | Übersicht über Reputation und aktuelle Verkäufe                  |
-| ¿Cómo va mi tienda?          | Signierte Belege, Signaturschlüssel, Audit-Log, Trust Score      |
-| Centro de comercio           | Bestellungen, Zahlungsmethoden, Agenten, Zertifizierungen, NLWeb |
-| Mis ventas                   | Bestellliste und KI-Trust-Receipts                               |
-| Mis Reglas                   | Checkout-Enforcement-Regeln                                      |
-| Seguridad                    | Audit-Log und Anomalie-Warnungen                                 |
-| Agentes                      | Verbundene Agenten-Identitäten                                   |
-| ¿Pueden comprar los agentes? | Ob Agenten in diesem Shop tatsächlich kaufen können              |
-| Configuración                | Moduleinstellungen und Auto-Registrierung                        |
+| Seite                        | Beschreibung                                                                    |
+| ---------------------------- | ------------------------------------------------------------------------------- |
+| Inicio                       | Übersicht über Reputation und aktuelle Verkäufe                                 |
+| Mis ventas                   | Bestellliste und KI-Trust-Receipts                                              |
+| Agentes                      | Verbundene Agenten-Identitäten                                                  |
+| Mis reglas                   | Checkout-Enforcement-Regeln                                                     |
+| Métodos de pago              | Zahlungsmethoden, die Agenten beim Checkout nutzen können                       |
+| Confianza                    | Trust Score, signierte Belege, Signaturschlüssel, Audit-Log                     |
+| Ajustes                      | Moduleinstellungen und Auto-Registrierung                                       |
+| Centro de comercio           | Nicht im Menü: Bestellungen, Zahlungsmethoden, Agenten, Zertifizierungen, NLWeb |
+| Seguridad                    | Nicht im Menü: Audit-Log und Anomalie-Warnungen                                 |
+| ¿Pueden comprar los agentes? | Nicht im Menü: ob Agenten in diesem Shop tatsächlich kaufen können              |
 
 ## FAQ
 
@@ -197,6 +198,16 @@ Ein gespeichertes «alles in Ordnung», das als aktuell dargestellt wird, wäre
 genau die Selbsttäuschung, die diese Seite aufdecken soll.
 
 ## Änderungsprotokoll
+
+### 2.3.2 bis 2.3.4
+
+- Neu: ein optionaler, schreibgeschützter Webservice-Schlüssel. Ein Einwilligungsblock auf der Konfigurationsseite erlaubt Trusteed Lesezugriff auf den Katalog; er listet genau auf, was angelegt wird, ohne Klick wird nichts erstellt, und Sie können den Schlüssel auf derselben Seite widerrufen.
+- Neu: das Back-Office-Menü entspricht jetzt dem der anderen Plattformen, mit einem eigenen Eintrag „Zahlungsmethoden".
+- Geändert: ein menschlicher Checkout wird nie durch einen Fehler auf unserer Seite blockiert (Netzwerkfehler, Timeout, unlesbare Antwort oder fehlender Snapshot), auch nicht im strikten Modus. Der Fallback-Modus entscheidet nur über Agenten-Checkouts. Ein unerwarteter interner Fehler wird genauso behandelt.
+- Geändert: strengere Prüfung des Regel-Snapshots und der Signaturschlüssel (JWKS): begrenzte Antwortgrößen, Wiederholungslimit beim Schlüssel-Refresh, ein sichereres Cache-Format und strengere Token-Prüfungen (maximales Alter, kritische Header).
+- Geändert: das Modul meldet seine Fähigkeiten jetzt wieder alle 7 Tage und nicht nur bei einem Versionswechsel, damit ein ruhiger Shop nicht als inaktiv gilt.
+- Behoben: Warenkorbpositionen mit alternativen Feldnamen werden jetzt erkannt, und Regelcodes werden vor dem Vergleich normalisiert.
+- Behoben: beim Update wird ein fehlender Index für die Tabelle der Agenten-Warenkörbe angelegt, sodass das Aufräumen abgelaufener Warenkörbe nicht mehr die ganze Tabelle durchsucht.
 
 ### 2.3.1: Sicherheitskorrektur
 

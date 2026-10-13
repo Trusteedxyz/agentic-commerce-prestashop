@@ -3,16 +3,13 @@
 declare(strict_types=1);
 
 /**
- * SnapshotFallbackTest — Sprint C T13 (spec-048).
+ * Covers the fail-open mitigation for the PrestaShop module:
  *
- * Covers the fail-open mitigation documented in
- * `docs/analysis/rules_claude.md` §4.1 + §6.2 for the PrestaShop module:
+ *   1. FallbackMode default = Strict (no silent fail-open).
+ *   2. Local 24h snapshot cache reused when the Layer-2 evaluate call fails.
+ *   3. Structured `[trusteed.snapshot.cache_fallback]` log line.
  *
- *   Action 1 — FallbackMode default = Strict (no more silent fail-open).
- *   Action 2 — Local 24h snapshot cache reused when Layer-2 evaluate fails.
- *   Action 3 — Structured `[trusteed.snapshot.cache_fallback]` log line.
- *
- * Tests (mirror the audit specification):
+ * Tests:
  *   1. Network OK + fresh snapshot → no cache fallback path executed.
  *   2. Layer-2 5xx + cache TTL valid → eval local with cache, log emitted.
  *   3. Layer-2 timeout + cache stale (>24h) + FallbackMode=Strict → checkout
@@ -23,10 +20,9 @@ declare(strict_types=1);
  *   6. (Bonus) OBSERVE-mode rules never block, even on Strict + Layer-2 down
  *      + no cache.
  *
- * Run from repo root:
+ * Run from the module root:
  *   docker run --rm -v "$PWD":/app -w /app php:8.2-cli \
- *     packages/magento-module-agenticmcpstores/vendor/bin/phpunit \
- *     packages/prestashop-module-agenticmcpstores/tests/enforcement/SnapshotFallbackTest.php
+ *     php vendor/bin/phpunit tests/enforcement/SnapshotFallbackTest.php
  */
 
 namespace Trusteed\Tests\Enforcement;
@@ -38,7 +34,7 @@ require_once __DIR__ . '/PsEnforcementStubs.php';
 require_once __DIR__ . '/../../src/Enforcement/SnapshotClient.php';
 
 /**
- * Test-double exposing httpPost() stubbing — mirrors PsSnapshotClientTest.
+ * Test-double exposing httpPost() stubbing; mirrors PsSnapshotClientTest.
  */
 class FallbackTestableSnapshotClient extends SnapshotClient
 {
@@ -66,11 +62,11 @@ class FallbackTestableSnapshotClient extends SnapshotClient
  * without the PrestaShop kernel.
  *
  * Decisions returned:
- *   - 'allow'             — Layer-2 ALLOW or Layer-2 fail + valid local cache.
- *   - 'allow_cached'      — Layer-2 fail + valid local cache (logs cache_fallback).
- *   - 'allow_fail_open'   — Layer-2 fail + no/stale cache + FallbackMode != strict.
- *   - 'block_fail_strict' — Layer-2 fail + no/stale cache + Strict + ≥1 ENFORCE rule.
- *   - 'block_layer2'      — Layer-2 returned BLOCK explicitly.
+ *   - 'allow': Layer-2 ALLOW or Layer-2 fail + valid local cache.
+ *   - 'allow_cached': Layer-2 fail + valid local cache (logs cache_fallback).
+ *   - 'allow_fail_open': Layer-2 fail + no/stale cache + FallbackMode != strict.
+ *   - 'block_fail_strict': Layer-2 fail + no/stale cache + Strict + ≥1 ENFORCE rule.
+ *   - 'block_layer2': Layer-2 returned BLOCK explicitly.
  */
 final class CacheFallbackOrchestrator
 {
@@ -105,7 +101,7 @@ final class CacheFallbackOrchestrator
             return ['decision' => 'allow'];
         }
 
-        // Layer-2 unavailable — try the 24h local snapshot cache.
+        // Layer-2 unavailable: try the 24h local snapshot cache.
         $cached = $this->client->getLocalSnapshotCache();
         if ($cached !== null) {
             $this->log[] = sprintf(
@@ -116,7 +112,7 @@ final class CacheFallbackOrchestrator
             return ['decision' => 'allow_cached'];
         }
 
-        // Cache stale or absent — apply FallbackMode.
+        // Cache stale or absent: apply FallbackMode.
         $hasEnforce = false;
         foreach ($this->tier2Rules as $rule) {
             if (!($rule['enabled'] ?? false)) {
@@ -197,8 +193,9 @@ class SnapshotFallbackTest extends TestCase
     public function testLayer2_5xxWithFreshCacheUsesCacheAndLogs(): void
     {
         // Seed a fresh (1h old) local snapshot cache.
+        // With a readable, current `validUntil`: a snapshot signed by the server always has one.
         $oneHourAgo = time() - 3600;
-        $this->client->seedLocalSnapshotCache('fake.jws.snapshot', $oneHourAgo);
+        $this->client->seedLocalSnapshotCache($this->makeSnapshotJws(time() + 3600), $oneHourAgo);
 
         // Layer-2 returns 5xx → callRulesEvaluate() returns null.
         $this->client->queueHttpPostResponse(503, '{"error":"unavailable"}');
@@ -372,24 +369,37 @@ class SnapshotFallbackTest extends TestCase
 
     public function testGetLocalSnapshotCacheReturnsFreshEntry(): void
     {
+        $jws = $this->makeSnapshotJws(time() + 3600);
         $this->client->seedLocalSnapshotCache(
-            'fake.jws.snapshot',
+            $jws,
             time() - 600 // 10 min old
         );
 
         $cached = $this->client->getLocalSnapshotCache();
 
         $this->assertNotNull($cached);
-        $this->assertSame('fake.jws.snapshot', $cached['jws']);
+        $this->assertSame($jws, $cached['jws']);
         $this->assertGreaterThanOrEqual(600, $cached['ageSeconds']);
         $this->assertLessThan(700, $cached['ageSeconds']);
     }
 
-    // ── P2: internally-expired snapshot (validUntil past) within 24h window ───
+    /**
+     * A JWS that cannot be read (here, garbage) has no readable `validUntil`:
+     * even inside the 24 h window it is not reused offline. It used to be served
+     * as long as it "had not expired", and without a date it never expired.
+     */
+    public function testGetLocalSnapshotCacheReturnsNullWhenTheJwsHasNoReadableValidUntil(): void
+    {
+        $this->client->seedLocalSnapshotCache('fake.jws.snapshot', time() - 600);
+
+        $this->assertNull($this->client->getLocalSnapshotCache());
+    }
+
+    // ── internally-expired snapshot (validUntil past) within 24h window ───
 
     /**
      * Build a JWS-shaped string carrying a payload with the given validUntil.
-     * Signature segment is a dummy — getLocalSnapshotCache()'s staleness check
+     * Signature segment is a dummy; getLocalSnapshotCache()'s staleness check
      * reads validUntil from the (already-verified-at-write-time) payload and
      * does not re-verify the signature.
      */
@@ -411,7 +421,7 @@ class SnapshotFallbackTest extends TestCase
     }
 
     /**
-     * stale-fail-closed (spec-048 P2): a snapshot captured recently (fresh
+     * stale-fail-closed: a snapshot captured recently (fresh
      * file-age, < 24h) but whose OWN validUntil is already in the past must be
      * treated as a cache miss. Otherwise an expired kill-switch / tier-1
      * ruleset would be honoured offline for up to 24h.
@@ -432,7 +442,7 @@ class SnapshotFallbackTest extends TestCase
     /**
      * End-to-end: Layer-2 down + cache fresh by file-age but internally expired
      * + Strict + tier-1/ENFORCE rule → checkout rejected (fail-closed). Without
-     * the P2 fix this would have returned 'allow_cached'.
+     * the fix this would have returned 'allow_cached'.
      */
     public function testExpiredCachedSnapshotStrictBlocks(): void
     {
@@ -459,7 +469,7 @@ class SnapshotFallbackTest extends TestCase
 
     /**
      * Control: a cached snapshot whose validUntil is still in the future is
-     * unchanged — it is reused offline as 'allow_cached'. Guards the P2 fix
+     * unchanged; it is reused offline as 'allow_cached'. Guards the fix
      * against over-reaching into the still-valid path.
      */
     public function testValidCachedSnapshotStillUsedOffline(): void

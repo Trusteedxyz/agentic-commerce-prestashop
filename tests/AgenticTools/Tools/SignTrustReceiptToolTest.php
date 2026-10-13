@@ -3,10 +3,10 @@
 declare(strict_types=1);
 
 /**
- * SignTrustReceiptToolTest — tests the REAL SignTrustReceiptTool
- * (spec-046 H1 + OLA-1 honesty contract).
+ * SignTrustReceiptToolTest: tests the REAL SignTrustReceiptTool
+ * (honesty contract).
  *
- * sign-trust-receipt is catalog backendStatus:"planned" — there is NO standalone
+ * sign-trust-receipt is catalog backendStatus:"planned", so there is NO standalone
  * receipt-sign write endpoint. The real tool returns a structured
  * capability_disabled error and never POSTs to a non-existent route.
  */

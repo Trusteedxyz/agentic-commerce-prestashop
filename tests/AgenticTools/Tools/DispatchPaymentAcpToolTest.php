@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 /**
- * DispatchPaymentAcpToolTest — tests the REAL DispatchPaymentAcpTool
- * (spec-046 H1 + OLA-1 honesty contract).
+ * DispatchPaymentAcpToolTest: tests the REAL DispatchPaymentAcpTool
+ * (honesty contract).
  *
  * ACP is catalog backendStatus:"implemented" globally, but NOT module-fulfillable
  * from PrestaShop (process_agent_payment needs a store-slug MCP gateway call the

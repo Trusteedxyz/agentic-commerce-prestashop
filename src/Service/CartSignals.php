@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Trusteed\Service;
 
 /**
- * Spec-048 Sprint E (T-E39, ADR-054) â€” Agentic Starter Kit signals for PrestaShop.
+ * €” Agentic Starter Kit signals for PrestaShop.
  *
  * Mirror of WooCommerce `AgenticMCP_Cart_Signals` and Magento
  * `Trusteed\AgenticMcpStores\Service\CartSignals` Sprint E helpers.

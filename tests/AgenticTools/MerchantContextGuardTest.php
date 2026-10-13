@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * MerchantContextGuardTest — spec-046 H8 (cross-shop IDOR prevention).
+ * MerchantContextGuardTest: cross-shop IDOR prevention.
  *
  * Tests the PURE assertMatches() against the REAL guard class.
  */
@@ -50,7 +50,7 @@ final class MerchantContextGuardTest extends TestCase
 
     public function testComparisonIsCaseSensitiveExactMatch(): void
     {
-        // hash_equals is exact — a near-miss must be rejected.
+        // hash_equals is exact, so a near-miss must be rejected.
         $this->expectException(McpToolException::class);
         MerchantContextGuard::assertMatches('M-123', 'm-123');
     }

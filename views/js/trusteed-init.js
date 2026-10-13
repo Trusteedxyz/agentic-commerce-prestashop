@@ -1,26 +1,22 @@
 /**
- * trusteed-init.js — Token relay + SPA mount para el back office PrestaShop.
+ * trusteed-init.js: token relay and SPA mount for the PrestaShop back office.
  *
- * Lee la configuración desde los atributos data-amcp-* del elemento #amcp-root,
- * evitando inline scripts para compatibilidad con Content-Security-Policy estricta.
+ * Reads its configuration from the data-amcp-* attributes of the #amcp-root
+ * element, which avoids inline scripts and works with a strict
+ * Content-Security-Policy.
  *
- * Cargado con defer después del bundle SPA (trusteed admin-spa.js), por lo que
- * TrusteedEmbed puede no estar disponible aún cuando este script se ejecuta.
- * mountWhenReady() sondea hasta que el bundle esté listo.
+ * Loaded with defer after the SPA bundle (trusteed admin-spa.js), so
+ * TrusteedEmbed may not be available yet when this script runs.
+ * mountWhenReady() polls until the bundle is ready.
  *
- * CSP requirement: 'self' en script-src — sin 'unsafe-inline' necesario.
+ * CSP requirement: 'self' in script-src. No 'unsafe-inline' needed.
  */
 (function () {
   "use strict";
 
-  var EXPIRY_BUFFER_MS = 30000; // 30 s de margen antes de que expire el token
-
-  var tokenCache = null;
-  var tokenExpiresAt = 0;
-
   /**
-   * Lee la configuración del elemento #amcp-root via data-amcp-* attributes.
-   * Devuelve null si el elemento no existe o faltan atributos obligatorios.
+   * Reads the configuration from the #amcp-root element's data-amcp-* attributes.
+   * Returns null if the element is missing or a required attribute is absent.
    *
    * @returns {{ ajaxUrl: string, adminToken: string, apiBase: string,
    *             merchantId: string, shopId: number, shopDomain: string,
@@ -52,19 +48,19 @@
   }
 
   /**
-   * Obtiene un access token Ed25519 vía relay AJAX S2S.
+   * Requests an access token from the S2S AJAX relay (PHP calls
+   * /v1/embed/ps/issue-token with X-Embed-Ps-Secret; the secret never reaches
+   * the browser).
    *
-   * PHP hace el relay S2S a /v1/embed/ps/issue-token con X-Embed-Ps-Secret.
-   * El secreto nunca sale al navegador (constraint C-003).
+   * It only requests: caching is done by `TrusteedEmbed.createTokenSource`. The
+   * cache that used to live here read `expires_at` (epoch seconds) as
+   * milliseconds (`new Date(1790000000)` is January 1970), so it never hit and
+   * every SPA call asked for a new token against a limit of 10 per minute per
+   * merchant. With two tabs open, that meant 429 responses.
    *
-   * @returns {Promise<string>}
+   * @returns {Promise<{ token: string, expires_at: unknown }>}
    */
-  async function psGetToken() {
-    var now = Date.now();
-    if (tokenCache !== null && now < tokenExpiresAt - EXPIRY_BUFFER_MS) {
-      return tokenCache;
-    }
-
+  async function psFetchToken() {
     var cfg = readConfig();
     if (!cfg) {
       throw new Error("[Trusteed] configuración no disponible en #amcp-root");
@@ -88,17 +84,12 @@
     if (!data.token) {
       throw new Error("[Trusteed] No token in PS response");
     }
-
-    tokenCache = data.token;
-    tokenExpiresAt = data.expires_at
-      ? new Date(data.expires_at).getTime()
-      : Date.now() + 300 * 1000;
-    return tokenCache;
+    return { token: data.token, expires_at: data.expires_at };
   }
 
   /**
-   * Espera a que el bundle esté cargado y monta la SPA.
-   * Sondea cada 50 ms; abort tras 30 s para no bloquear el navegador indefinidamente.
+   * Waits for the bundle to load and mounts the SPA.
+   * Polls every 50 ms and gives up after 30 s so it never spins forever.
    */
   function mountWhenReady() {
     var attempts = 0;
@@ -127,11 +118,15 @@
         return;
       }
 
+      // Cache shared by the tabs of this page, using the token's REAL expiry
+      // and a `refresh` for the retry after a 401.
+      var tokens = window.TrusteedEmbed.createTokenSource(psFetchToken);
       window.TrusteedEmbed.mount(rootEl, {
         section: rootEl.dataset.section || "inicio",
         source: "ps-embed",
         apiBase: cfg.apiBase,
-        getToken: psGetToken,
+        getToken: tokens.getToken,
+        refreshToken: tokens.refresh,
         locale: cfg.locale,
       });
     }, 50);

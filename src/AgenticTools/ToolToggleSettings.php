@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * ToolToggleSettings — per-tool enablement (spec-046 FR-018b) + bundled catalog
+ * ToolToggleSettings — per-tool enablement + bundled catalog
  * fallback (FR-018a) for the PrestaShop platform module.
  *
  * FR-018b: each of the 5 catalog tools has an independent toggle persisted in
@@ -20,7 +20,7 @@ declare(strict_types=1);
  * is unreachable, the module registers tools from this bundle. The bundle also
  * supplies the per-tool `routing.backendStatus`, so tools whose backend is
  * `planned` are registered DISABLED regardless of the merchant toggle (no
- * deployable backend yet — spec-046 OLA-1 honesty contract).
+ * deployable backend yet —-1 honesty contract).
  *
  * This class is PrestaShop-runtime aware (reads `Configuration`), but exposes
  * pure helpers (`bundledCatalog()`, `effectiveEnabledMap()`, `defaultForTool()`)
@@ -59,7 +59,7 @@ final class ToolToggleSettings
     ];
 
     /**
-     * Module fulfillability (spec-046 OLA-1/OLA-2 honesty contract).
+     * Module fulfillability.
      *
      * Distinct from catalog `backendStatus`: a backend can be `implemented`
      * globally yet NOT reachable from THIS platform module. Specifically:

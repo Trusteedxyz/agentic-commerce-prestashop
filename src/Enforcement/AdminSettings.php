@@ -18,7 +18,7 @@ if (!defined('_PS_VERSION_')) {
  *  - TRUSTEED_CEL_ENABLED          (checkbox)
  *  - TRUSTEED_CEL_MERCHANT_ID      (text)
  *  - TRUSTEED_CEL_INSTALLATION_ID  (text)
- *  - TRUSTEED_CEL_HMAC_SECRET      (password — never echoed back)
+ *  - TRUSTEED_CEL_HMAC_SECRET      (password, never echoed back)
  *  - TRUSTEED_CEL_FALLBACK_MODE    (select: strict|balanced|permissive)
  *
  * @package Trusteed\Enforcement
@@ -102,7 +102,7 @@ class AdminSettings
             \Configuration::updateValue('TRUSTEED_CEL_INSTALLATION_ID', $installationId);
         }
 
-        // HMAC secret — only update when explicitly provided (never echo back)
+        // HMAC secret: only update when explicitly provided (never echo back)
         $hmacSecret = trim((string) \Tools::getValue('TRUSTEED_CEL_HMAC_SECRET'));
         if ($hmacSecret !== '') {
             \Configuration::updateValue('TRUSTEED_CEL_HMAC_SECRET', $hmacSecret);
@@ -194,9 +194,13 @@ class AdminSettings
                         'label'   => $this->module->l('Fallback Mode'),
                         'name'    => 'TRUSTEED_CEL_FALLBACK_MODE',
                         'desc'    => $this->module->l(
-                            'strict: block when snapshot unavailable. '
+                            'Applies to agent checkouts only: a customer without an agent token is never blocked '
+                            . 'because the rules service is unavailable. '
+                            . 'It decides when the rules service does not answer but a verified copy of your rules is available. '
+                            . 'strict: block the agent checkout. '
                             . 'balanced: allow but alert. '
-                            . 'permissive: always allow when offline.'
+                            . 'permissive: allow. '
+                            . 'In every mode, an agent checkout is held when your signed rules cannot be loaded or fail their signature check.'
                         ),
                         'options' => [
                             'query' => [
@@ -244,7 +248,9 @@ class AdminSettings
             'TRUSTEED_CEL_MERCHANT_ID'     => \Configuration::get('TRUSTEED_CEL_MERCHANT_ID'),
             'TRUSTEED_CEL_INSTALLATION_ID' => \Configuration::get('TRUSTEED_CEL_INSTALLATION_ID'),
             'TRUSTEED_CEL_HMAC_SECRET'     => '', // Never echo secret back to browser
-            'TRUSTEED_CEL_FALLBACK_MODE'   => \Configuration::get('TRUSTEED_CEL_FALLBACK_MODE') ?: 'balanced',
+            // The mode the module actually applies (MerchantResolver: missing or
+            // unrecognized falls back to strict), not a `balanced` that is not in force.
+            'TRUSTEED_CEL_FALLBACK_MODE'   => MerchantResolver::getFallbackMode(),
         ];
 
         return $helper->generateForm([$fieldsForm]);
@@ -253,7 +259,7 @@ class AdminSettings
     /**
      * Fetch enforcement stats from the Trusteed API and render an HTML summary.
      *
-     * Non-critical path — returns a graceful degradation message on any error.
+     * Non-critical path: returns a graceful degradation message on any error.
      * Uses cURL consistent with SnapshotClient to avoid wp_remote_get dependency.
      */
     private function renderStatsBlock(): string

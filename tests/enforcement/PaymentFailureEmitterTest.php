@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * PaymentFailureEmitterTest — PHPUnit 10 tests for Spec-048 P0b PrestaShop
+ * PaymentFailureEmitterTest — PHPUnit 10 tests for PrestaShop
  * payment-failure emitter (src/Enforcement/PaymentFailureEmitter.php).
  *
  * The emitter exposes static private helpers (hmacSign, recursiveKsort,
@@ -24,7 +24,7 @@ declare(strict_types=1);
  *
  * Run from repo root:
  *   vendor/bin/phpunit \
- *     packages/prestashop-module-agenticmcpstores/tests/enforcement/PaymentFailureEmitterTest.php
+ *     tests/enforcement/PaymentFailureEmitterTest.php
  */
 
 namespace {

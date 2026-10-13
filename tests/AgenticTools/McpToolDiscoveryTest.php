@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * McpToolDiscoveryTest — tool discovery + graceful degradation (spec-046 H1 + T030).
+ * McpToolDiscoveryTest: tool discovery and graceful degradation.
  *
  * The previous revision tested a MockTrusteedModule re-declaring isMcpCompliant().
  * The real module class extends PrestaShop's `Module` base class and cannot be
@@ -11,7 +11,7 @@ declare(strict_types=1);
  * bare PHPUnit process. Instead of a tautological mock, this suite:
  *
  *   1. Asserts the REAL production source (trusteed.php) declares
- *      `isMcpCompliant(): bool` returning true (static source assertion — honest
+ *      `isMcpCompliant(): bool` returning true (static source assertion, honest
  *      about not running the PS-coupled method).
  *   2. Exercises the REAL discovery DECISION logic that drives which tools are
  *      registered (ToolToggleSettings::effectiveEnabledMap), which is what
@@ -66,7 +66,7 @@ final class McpToolDiscoveryTest extends TestCase
     {
         $src = $this->moduleSource();
         // The registration set must be computed from the effective enabled map,
-        // not hard-coded (FR-018a + FR-018b).
+        // not hard-coded.
         $this->assertStringContainsString('resolveEnabledToolMap', $src);
         $this->assertStringContainsString('effectiveEnabledMap', $src);
     }

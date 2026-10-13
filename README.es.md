@@ -122,14 +122,15 @@ Tras la instalación aparece un menú **Trusteed** en la barra lateral del Back 
 | Página                       | Descripción                                                                       |
 | ---------------------------- | --------------------------------------------------------------------------------- |
 | Inicio                       | Resumen de reputación y ventas recientes                                          |
-| ¿Cómo va mi tienda?          | Recibos firmados, claves de firma, registro de auditoría, puntuación de confianza |
-| Centro de comercio           | Pedidos, métodos de pago, agentes, certificaciones, NLWeb                         |
 | Mis ventas                   | Lista de pedidos y recibos de confianza IA                                        |
-| Mis Reglas                   | Reglas de enforcement de checkout                                                 |
-| Seguridad                    | Registro de auditoría y alertas de anomalías                                      |
 | Agentes                      | Identidades de agentes conectados                                                 |
-| ¿Pueden comprar los agentes? | Si los agentes pueden comprar de verdad en esta tienda                            |
-| Configuración                | Ajustes del módulo y auto-registro                                                |
+| Mis reglas                   | Reglas de enforcement de checkout                                                 |
+| Métodos de pago              | Métodos de pago que los agentes pueden usar en el checkout                        |
+| Confianza                    | Puntuación de confianza, recibos firmados, claves de firma, registro de auditoría |
+| Ajustes                      | Ajustes del módulo y auto-registro                                                |
+| Centro de comercio           | Fuera del menú: pedidos, métodos de pago, agentes, certificaciones, NLWeb         |
+| Seguridad                    | Fuera del menú: registro de auditoría y alertas de anomalías                      |
+| ¿Pueden comprar los agentes? | Fuera del menú: si los agentes pueden comprar de verdad en esta tienda            |
 
 ## Preguntas frecuentes
 
@@ -196,6 +197,16 @@ como actual un «todo bien» guardado sería justo el autoengaño que esta pági
 existe para cazar.
 
 ## Historial de cambios
+
+### 2.3.2 a 2.3.4
+
+- Nuevo: una clave de webservice opcional y de solo lectura. Un bloque de consentimiento en la página de configuración permite dar a Trusteed acceso de lectura al catálogo; enumera exactamente lo que se crea, no se crea nada hasta que pulsas el botón y puedes revocarla desde la misma página.
+- Nuevo: el menú del back-office coincide ahora con el de las otras plataformas, con una entrada propia de «Métodos de pago».
+- Cambiado: una compra humana nunca se bloquea por un fallo de nuestro lado (error de red, timeout, respuesta ilegible o snapshot ausente), tampoco en modo estricto. El modo de contingencia solo decide qué pasa con las compras de agentes. Un error interno inesperado se trata igual.
+- Cambiado: verificación más estricta del snapshot de reglas y de las claves de firma (JWKS): tamaños de respuesta acotados, límite de reintentos al refrescar claves, formato de caché más seguro y comprobaciones más estrictas del token (edad máxima, cabeceras críticas).
+- Cambiado: el módulo vuelve a informar de sus capacidades cada 7 días, no solo al cambiar de versión, para que una tienda tranquila no se dé por inactiva.
+- Corregido: las líneas del carrito enviadas con nombres de campo alternativos ahora se reconocen, y los códigos de regla se normalizan antes de compararlos.
+- Corregido: al actualizar se añade un índice que faltaba en la tabla de carritos de agentes, así que limpiar los carritos caducados ya no recorre toda la tabla.
 
 ### 2.3.1: Corrección de seguridad
 

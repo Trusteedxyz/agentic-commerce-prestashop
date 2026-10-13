@@ -15,7 +15,7 @@ if (!defined('_PS_VERSION_')) {
  * Each shop in a multishop group can have its own merchantId, installationId,
  * and HMAC secret via Configuration::get with a shop context.
  *
- * Pattern inherits from spec-042 multishop ACL implementation.
+ * Pattern inherits from ACL implementation.
  *
  * @package Trusteed\Enforcement
  */

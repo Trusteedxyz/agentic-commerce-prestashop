@@ -10,7 +10,7 @@ use PHPUnit\Framework\TestCase;
 require_once __DIR__ . '/../../src/Service/CartSignals.php';
 
 /**
- * Spec-048 Sprint E (T-E39) â€” PrestaShop CartSignals helpers.
+ * €” PrestaShop CartSignals helpers.
  *
  * Pure-function tests; mirror Magento CartSignalsTest + WC class-cart-signals-test.
  */

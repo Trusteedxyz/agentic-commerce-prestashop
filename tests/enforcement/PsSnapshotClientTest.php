@@ -3,25 +3,23 @@
 declare(strict_types=1);
 
 /**
- * PsSnapshotClientTest — PHPUnit 10 tests for callRulesEvaluate() (spec-048 Capa 2)
- * and computeTtl() (spec-048 P2 / PL-F7 stale-fail-closed fix).
+ * PHPUnit 10 tests for callRulesEvaluate() (layer 2) and computeTtl()
+ * (stale-fail-closed fix).
  *
  * SnapshotClient::httpPost() is protected so we can override it in a test
  * subclass without touching production curl calls.
  *
  * Tests:
- *   T078-7  callRulesEvaluate() returns null when httpPost returns curl error
- *   T078-8  callRulesEvaluate() returns null on non-200 HTTP status
- *   T078-9  callRulesEvaluate() returns structured array on ALLOW decision
- *   T078-10 callRulesEvaluate() returns BLOCK payload with ruleCode and reason
- *   T078-11 callRulesEvaluate() returns null when response body has no 'decision' key
- *   PL-F7   computeTtl() no longer clamps an expired/near-expired validUntil
- *           up to a 60s floor (mirrors the WooCommerce fix in
- *           packages/wp-plugin-agenticmcpstores/includes/enforcement/snapshot-client.php)
+ *   - callRulesEvaluate() returns null when httpPost returns curl error
+ *   - callRulesEvaluate() returns null on non-200 HTTP status
+ *   - callRulesEvaluate() returns structured array on ALLOW decision
+ *   - callRulesEvaluate() returns BLOCK payload with ruleCode and reason
+ *   - callRulesEvaluate() returns null when response body has no 'decision' key
+ *   - computeTtl() no longer clamps an expired/near-expired validUntil
+ *     up to a 60s floor (mirrors the fix in the WooCommerce plugin)
  *
- * Run from repo root:
- *   vendor/bin/phpunit \
- *     packages/prestashop-module-agenticmcpstores/tests/enforcement/PsSnapshotClientTest.php
+ * Run from the module root:
+ *   vendor/bin/phpunit tests/enforcement/PsSnapshotClientTest.php
  */
 
 namespace Trusteed\Tests\Enforcement;
@@ -71,7 +69,7 @@ class PsSnapshotClientTest extends TestCase
         );
     }
 
-    // ── T078-7: curl error → null ─────────────────────────────────────────────
+    // ── curl error → null ─────────────────────────────────────────────
 
     public function testCallRulesEvaluateReturnsNullOnCurlError(): void
     {
@@ -82,7 +80,7 @@ class PsSnapshotClientTest extends TestCase
         $this->assertNull($result, 'callRulesEvaluate() must return null when httpPost returns curl error');
     }
 
-    // ── T078-8: non-200 HTTP status → null ───────────────────────────────────
+    // ── non-200 HTTP status → null ───────────────────────────────────
 
     public function testCallRulesEvaluateReturnsNullOnNon200(): void
     {
@@ -93,7 +91,7 @@ class PsSnapshotClientTest extends TestCase
         $this->assertNull($result, 'callRulesEvaluate() must return null when HTTP status is not 200');
     }
 
-    // ── T078-9: ALLOW decision ────────────────────────────────────────────────
+    // ── ALLOW decision ────────────────────────────────────────────────
 
     public function testCallRulesEvaluateReturnsAllowDecision(): void
     {
@@ -113,7 +111,7 @@ class PsSnapshotClientTest extends TestCase
         $this->assertSame('eval-allow-ps-001', $result['evaluationId']);
     }
 
-    // ── T078-10: BLOCK decision with ruleCode ────────────────────────────────
+    // ── BLOCK decision with ruleCode ────────────────────────────────
 
     public function testCallRulesEvaluateReturnsBlockDecision(): void
     {
@@ -135,7 +133,7 @@ class PsSnapshotClientTest extends TestCase
         $this->assertSame('eval-block-ps-002', $result['evaluationId']);
     }
 
-    // ── T078-11: response missing 'decision' key → null ──────────────────────
+    // ── response missing 'decision' key → null ──────────────────────
 
     public function testCallRulesEvaluateReturnsNullWhenDecisionKeyMissing(): void
     {
@@ -146,8 +144,8 @@ class PsSnapshotClientTest extends TestCase
         $this->assertNull($result, 'callRulesEvaluate() must return null when decision key is absent');
     }
 
-    // ── PL-F7: computeTtl() no longer floors an expired/near-expired ────────
-    // ── validUntil up to 60s (mirrors the WooCommerce stale-fail-closed fix) ─
+    // ── computeTtl() no longer floors an expired/near-expired validUntil ────
+    // ── up to 60s (mirrors the WooCommerce stale-fail-closed fix) ───────────
 
     /**
      * A snapshot whose validUntil is already in the past must yield a
@@ -182,7 +180,7 @@ class PsSnapshotClientTest extends TestCase
 
     /**
      * Control: the 300s ceiling on a still-valid, far-future snapshot is
-     * unchanged by this fix — only the floor was removed.
+     * unchanged by this fix, only the floor was removed.
      */
     public function testComputeTtlStillClampsCeilingAtThreeHundredSeconds(): void
     {
@@ -194,13 +192,15 @@ class PsSnapshotClientTest extends TestCase
     }
 
     /**
-     * Control: a snapshot missing validUntil entirely still defaults to 300s.
+     * A snapshot signed by the server always carries `validUntil`: a missing or
+     * unreadable one is not "300 s", it is malformed, so the TTL is non-positive
+     * (same path as an expired one).
      */
-    public function testComputeTtlDefaultsToThreeHundredWhenValidUntilMissing(): void
+    public function testComputeTtlIsNonPositiveWhenValidUntilIsMissingOrUnreadable(): void
     {
-        $ttl = $this->invokeComputeTtl([]);
-
-        $this->assertSame(300, $ttl, 'computeTtl() must default to 300s when validUntil is absent');
+        foreach ([[], ['validUntil' => null], ['validUntil' => ''], ['validUntil' => 'basura'], ['validUntil' => 1893456000]] as $payload) {
+            $this->assertSame(0, $this->invokeComputeTtl($payload), json_encode($payload));
+        }
     }
 
     /**

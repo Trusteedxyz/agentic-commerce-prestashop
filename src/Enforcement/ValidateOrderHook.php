@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Trusteed\Enforcement;
 
+use Trusteed\Enforcement\FailurePolicy;
 use Trusteed\Enforcement\PriceSnapVerifier;
+use Trusteed\Enforcement\RuleCode;
 use Trusteed\Storage\FileCache;
 
 if (!defined('_PS_VERSION_')) {
@@ -14,8 +16,8 @@ if (!defined('_PS_VERSION_')) {
 /**
  * Trusteed CEL Hook Handler for PrestaShop.
  *
- * IMPORTANT: `actionValidateOrderBefore` does NOT exist in PS 8.2 core (confirmed
- * by T000c spike). The primary blocking path for PS 8.x is the PaymentModule
+ * IMPORTANT: `actionValidateOrderBefore` does NOT exist in PS 8.2 core. The primary
+ * blocking path for PS 8.x is the PaymentModule
  * override in override/classes/PaymentModule.php.
  *
  * This class:
@@ -28,15 +30,37 @@ if (!defined('_PS_VERSION_')) {
 class ValidateOrderHook
 {
     /**
+     * Fixed phrases shown to the buyer or agent (same as the Magento module,
+     * `CheckoutSubmitBefore.php`). They carry no rule code or thresholds: the real
+     * server reason goes to the merchant log, not to the shopper.
+     */
+    private const BLOCKED_MESSAGE = 'trusteed:CEL-BLOCKED — Your order could not be completed because it did not pass the store\'s agent verification rules. Please contact the store if you believe this is an error. requires_escalation: true';
+
+    private const PENDING_REVIEW_MESSAGE = 'trusteed:CEL-PENDING-REVIEW — Your order is pending review and requires merchant approval before it can be completed. You will be notified once it has been reviewed. requires_escalation: true';
+
+    /**
+     * Test seam: where the SnapshotClient comes from. `null` (what the override
+     * and the module use) means MerchantResolver, as usual.
+     * `tests/enforcement/ValidateOrderHookAgenticFlowTest.php` injects the real
+     * client with the network edges replaced.
+     */
+    private ?\Closure $snapshotClientFactory;
+
+    public function __construct(?\Closure $snapshotClientFactory = null)
+    {
+        $this->snapshotClientFactory = $snapshotClientFactory;
+    }
+
+    /**
      * Register CEL hooks on the module.
      * Called from Trusteed::install().
      */
     public static function register(\Trusteed $module): void
     {
-        // PS 9+ forward compat — no-op in PS 8.2 (hook does not exist in core)
+        // PS 9+ forward compat: no-op in PS 8.2 (hook does not exist in core)
         $module->registerHook('actionValidateOrderBefore');
 
-        // Telemetry: cart add/update — non-blocking early signal
+        // Telemetry: cart add/update, non-blocking early signal
         $module->registerHook('actionCartSave');
     }
 
@@ -67,13 +91,12 @@ class ValidateOrderHook
             return;
         }
 
-        // GHSA-2j2x-5q52-g48m, D3: `PaymentModule::validateOrder()` stays
-        // the single AUTHORITATIVE blocking point in every PS version this
-        // module supports — this hook is belt-and-suspenders, never the only
-        // defense (no PS9 core here to confirm whether Hook::exec() still
-        // swallows an exception thrown from a hook). Logging immediately
-        // before the re-throw means a blocked attempt on this path leaves a
-        // searchable trail even if PS9 core discards what follows.
+        // `PaymentModule::validateOrder()` stays the single AUTHORITATIVE blocking
+        // point in every PS version this module supports. This hook is
+        // belt-and-suspenders, never the only defense (no PS9 core here to confirm
+        // whether Hook::exec() still swallows an exception thrown from a hook).
+        // Logging immediately before the re-throw leaves a searchable trail for a
+        // blocked attempt on this path even if PS9 core discards what follows.
         try {
             $this->evaluateCart($cart);
         } catch (\PrestaShopException $e) {
@@ -90,10 +113,10 @@ class ValidateOrderHook
     }
 
     /**
-     * Cart save hook — non-blocking telemetry (PS 8.2 + PS 9+).
+     * Cart save hook, non-blocking telemetry (PS 8.2 + PS 9+).
      *
      * Used to detect agentic carts early for observability.
-     * Does NOT block — only logs / emits metrics.
+     * Does NOT block, only logs / emits metrics.
      *
      * @param array $params May contain 'cart' key.
      */
@@ -116,7 +139,7 @@ class ValidateOrderHook
             return;
         }
 
-        // Telemetry breadcrumb — log presence, do not block
+        // Telemetry breadcrumb, log presence, do not block
         \PrestaShopLogger::addLog(
             'CEL: agentic cart detected (id=' . (int) $cart->id . ')',
             \PrestaShopLogger::LOG_SEVERITY_INFO,
@@ -137,40 +160,75 @@ class ValidateOrderHook
      */
     public function evaluateCart(\Cart $cart): void
     {
+        // An exception of OUR OWN never blocks a human and is never a permit for an
+        // agent: it is decided by FailurePolicy (InternalErrorGuard), and only an
+        // agent ends up held, with `trusteed:CEL-INTERNAL-ERROR`. A checkout whose
+        // token could not even be read counts as an agent. The verdicts of this
+        // method are CelVerdictException and pass through untouched; a core
+        // \PrestaShopException is a failure like any other.
+        try {
+            $isHuman = $this->resolveAgentToken($cart) === '';
+        } catch (\Throwable $ignored) {
+            $isHuman = false;
+        }
+
+        try {
+            $this->evaluateCartUnguarded($cart);
+        } catch (CelVerdictException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            InternalErrorGuard::resolve($e, !$isHuman, (int) $cart->id);
+        }
+    }
+
+    /** The regular flow; {@see evaluateCart} decides what to do with its failures. */
+    private function evaluateCartUnguarded(\Cart $cart): void
+    {
         $shopId = MerchantResolver::currentShopId();
 
         if (!MerchantResolver::isEnabled($shopId)) {
             return;
         }
 
-        // App Store remediation (2026-07-11): previously this method returned
-        // immediately for any cart with no agent token ("human flow, not
-        // subject to CEL") — which meant merchant-wide policy rules (R019
-        // country restriction, R020 business hours, R030 max-order-amount,
-        // etc., all in $tier2Codes below) never applied to a normal human
-        // checkout. `$agentToken` may now be '' — $claims stays null in that
-        // case (no verification attempted, since there is nothing to verify)
-        // and every AGENT-specific branch below is gated on `$claims !== null`
-        // so it degrades to a no-op exactly as it already did for an absent
-        // snapshot/misconfigured merchant. The shared Layer-2 evaluator
-        // resolves each rule's `appliesTo` from ruleCode identity and safely
-        // excludes AGENT-only rules (R001, etc.) when `agentId` is null.
+        // This method used to return immediately for any cart with no agent token
+        // ("human flow, not subject to CEL"), which meant merchant-wide policy rules
+        // (R019 country restriction, R020 business hours, R030 max-order-amount,
+        // etc., all routed to layer 2 by RuleCode::needsServer()) never applied to a
+        // human checkout. `$agentToken` may now be '': $claims stays null in that
+        // case (no verification attempted, since there is nothing to verify) and
+        // every AGENT-specific branch below is gated on `$claims !== null`, so it
+        // degrades to a no-op exactly as it does for an absent snapshot or a
+        // misconfigured merchant. The shared Layer-2 evaluator resolves each rule's
+        // `appliesTo` from ruleCode identity and safely excludes AGENT-only rules
+        // (R001, etc.) when `agentId` is null.
         $agentToken = $this->resolveAgentToken($cart);
+        // A PRESENTED token is an agent even if it does not verify; no token means
+        // human. It is the only agentic signal on PS.
+        $isAgentic = FailurePolicy::isAgentic(null, $agentToken !== '', false);
 
-        $snapshotClient = MerchantResolver::buildSnapshotClient($shopId);
+        $snapshotClient = $this->snapshotClientFactory !== null
+            ? ($this->snapshotClientFactory)($shopId)
+            : MerchantResolver::buildSnapshotClient($shopId);
         if ($snapshotClient === null) {
-            // CEL not configured — fail-open (balanced fallback)
+            // CEL not configured: `layer_disabled` (configuration, not a failure), so
+            // nobody is held, same as with TRUSTEED_CEL_ENABLED off above.
             return;
         }
 
-        $jws = $snapshotClient->pull();
-        if ($jws === null) {
-            // Cannot pull snapshot — balanced fail-open
-            return;
-        }
+        // `pullResult()` tells a TAMPERED snapshot (the one just served does not
+        // verify after re-downloading the JWKS) from an UNAVAILABLE one (network,
+        // HTTP != 200, a cache that no longer verifies); the cause decides
+        // ({@see onSnapshotUnavailable()}).
+        $pulled  = $snapshotClient->pullResult();
+        $payload = $pulled['payload'];
+        if ($pulled['status'] !== SnapshotClient::PULL_OK || $payload === null) {
+            $this->onSnapshotUnavailable(
+                $shopId,
+                $pulled['status'] === SnapshotClient::PULL_TAMPERED ? 'snapshot_verify_failed' : 'snapshot_pull_failed',
+                $isAgentic,
+                $agentToken !== ''
+            );
 
-        $payload = $snapshotClient->verifyAndDecode($jws);
-        if ($payload === null) {
             return;
         }
 
@@ -189,34 +247,49 @@ class ValidateOrderHook
             $claims = $verifier->verify($agentToken, $intentHash);
 
             if ($claims === null) {
-                // Token PRESENTED but invalid — evaluate as unverified agent
+                // Token PRESENTED but invalid, evaluate as unverified agent
                 // under fallback policy. This is distinct from "no token at
                 // all" (handled below the outer `if`), which must never hit
                 // this fail-closed path.
                 $fallback = MerchantResolver::getFallbackMode($shopId);
                 if ($fallback === 'strict') {
-                    throw new \PrestaShopException(
+                    throw new CelVerdictException(
                         'trusteed:R001 — Agent identity not verified. '
                         . 'requires_escalation: true'
                     );
                 }
+                // Outside strict mode the invalid token is no longer treated as "no
+                // token": it is still an agent (with no identity: agentId null) and the
+                // server sees it (R001/R002).
+                $nonceAttrs = array_merge($nonceAttrs, [
+                    '_agent_token_present'           => 'true',
+                    '_agent_token_signature_invalid' => 'true',
+                ]);
             } else {
-                // Spec-048 P2.8 — single-use replay protection via backend
-                // nonce-consume. verify() guarantees jti is present +
-                // well-formed; consume it now so any subsequent reuse of the
-                // same token returns REPLAY. Failure_mode tri-state (Gap 5/6
-                // parity with WC):
-                //   ACCEPTED      → continue
-                //   REPLAY        → treat as INVALID, apply fallbackMode (strict throws)
-                //   INDETERMINATE → strict=block (throws), balanced/permissive=allow + telemetry attr
+                // Single-use replay protection via backend nonce-consume. verify()
+                // guarantees the single-use identifier (`nonce`, or the legacy `jti`
+                // alias; claims['jti']) is present and well-formed; consume it now so any
+                // later reuse of the same token returns REPLAY. Failure mode is tri-state
+                // (same as the WooCommerce module):
+                //   ACCEPTED      -> continue
+                //   REPLAY        -> treat as INVALID, apply fallbackMode (strict throws)
+                //   INDETERMINATE -> strict=block (throws), balanced/permissive=allow + telemetry attr
                 $nonceAttrs = $this->consumeAgentNonce($snapshotClient, $shopId, $claims);
+                // A REUSED token no longer proves identity. Outside strict mode (which
+                // threw above) the agent is still an agent, but anonymous: no DID, no
+                // trust score, no local identity rules. INDETERMINATE keeps the identity
+                // (the token did verify; the server allowlist does not exempt with
+                // `_agent_token_nonce_unavailable`).
+                if (($nonceAttrs['_agent_token_replay'] ?? '') === 'true') {
+                    $claims = null;
+                }
             }
         }
 
-        // Local (offline) tier-1 rules from the snapshot — R001/R043 etc. are
+        // Local (offline) tier-1 rules from the snapshot (R001/R043 etc.) are
         // genuinely agent-specific (evaluateRule()'s default branch ALLOWs
         // any rule it does not explicitly implement), so this loop is
-        // meaningless — and must not run — without verified claims.
+        // meaningless (and must not run) without verified claims.
         if ($claims !== null) {
             $rules = (array) ($payload['rules'] ?? []);
             foreach ($rules as $rule) {
@@ -230,40 +303,51 @@ class ValidateOrderHook
                 if ($decision === 'BLOCK') {
                     $rulePrefix  = preg_match('/^(R\d{3})/', $ruleCode, $m) ? $m[1] : substr($ruleCode, 0, 4);
                     $helpUrl     = 'https://trusteed.xyz/es/agent-rules#' . $rulePrefix;
-                    throw new \PrestaShopException(
-                        $ruleCode . ' — '
-                        . (string) ($rule['localizedMessage'] ?? 'Checkout blocked by Trusteed CEL policy.')
-                        . ' requires_escalation: true | Más info: ' . $helpUrl
+                    // Rule code, message and link go to the merchant log; the buyer sees
+                    // the fixed phrase.
+                    \PrestaShopLogger::addLog(
+                        '[trusteed.cel.block] ' . self::jsonLog([
+                            'ruleCode' => $ruleCode,
+                            'reason'   => (string) ($rule['localizedMessage'] ?? 'Checkout blocked by Trusteed CEL policy.'),
+                            'help'     => $helpUrl,
+                            'tier'     => 'local',
+                        ]),
+                        \PrestaShopLogger::LOG_SEVERITY_WARNING,
+                        null,
+                        'Cart',
+                        (int) $cart->id,
+                        true
                     );
+                    throw new CelVerdictException(self::BLOCKED_MESSAGE);
                 }
             }
         }
 
         $rules = (array) ($payload['rules'] ?? []);
 
-        // ── Capa 2: R002-R006, R008-R030 require server-side evaluation ──────
-        $tier2Codes = [
-            'R002', 'R003', 'R004', 'R005', 'R006', 'R008', 'R009', 'R010',
-            'R011', 'R012', 'R013', 'R014', 'R015', 'R016', 'R017', 'R018',
-            'R019', 'R020', 'R021', 'R022', 'R023', 'R024', 'R025', 'R026',
-            'R027', 'R028', 'R029', 'R030',
-        ];
-        $hasTier2 = false;
-        foreach ($rules as $rule) {
-            if (is_array($rule) && !empty($rule['enabled'])) {
-                if (in_array($rule['ruleCode'] ?? '', $tier2Codes, true)) {
-                    $hasTier2 = true;
-                    break;
-                }
-            }
-        }
+        // Layer 2: every enabled rule that is not decided locally.
+        //
+        // Membership is resolved on the NORMALISED code, derived from
+        // RuleCode::LOCAL_ONLY_SHORT_CODES (empty), not from a hand-written
+        // "tier-2" R002-R030 list, which left R001 and everything >= R031 unevaluated
+        // (a merchant with only R035 never got here).
+        //
+        // The query no longer depends on the snapshot carrying enabled rules. The
+        // platform ceilings R052/R053 are injected only by the layer-2 evaluator
+        // (no merchant row), and the kill-switch and the R005 safeguard also live
+        // there; with `RuleCode::needsServer($rules)` a merchant with no rules lost
+        // them. `needsServer` is still the contract of the shared fixture ("is
+        // there an enabled rule the port does not evaluate?"), not the gate.
+        // With no enabled rules there is nothing to ENFORCE if the server is down:
+        // `hasEnforcingServerRule` is false and the failure block does not block.
+        $needsServer = true;
 
-        // App Store remediation (2026-07-11): Layer-2 must run even without
-        // verified claims (organic checkout) — $agentId is null in that case
-        // and the shared evaluator's ruleCode-identity `appliesTo` partition
-        // safely excludes AGENT-only rules while still evaluating universal
-        // ones (R014/R018/R019/R020/R025/R027/R030) against orderContext.
-        if ($hasTier2) {
+        // Layer 2 must run even without verified claims (organic checkout):
+        // $agentId is null in that case and the shared evaluator's ruleCode-identity
+        // `appliesTo` partition safely excludes AGENT-only rules while still
+        // evaluating universal ones (R014/R018/R019/R020/R025/R027/R030) against
+        // orderContext.
+        if ($needsServer) {
             $agentId         = $claims !== null ? (string) ($claims['agentId'] ?? '') : null;
             $agentTrustScore = isset($claims['trustScore']) ? (float) $claims['trustScore'] : null;
             $products        = $cart->getProducts();
@@ -271,8 +355,8 @@ class ValidateOrderHook
             $currency        = \Currency::getCurrencyInstance((int) $cart->id_currency)->iso_code ?? 'EUR';
 
             $psCartCtx = $this->buildCartContext($cart, $claims ?? [], $payload);
-            // Merge spec-048 P2.8 nonce-consume flags (replay/indeterminate) into
-            // cartAttributes so backend tier-2 evaluators can react.
+            // Merge the nonce-consume flags (replay/indeterminate) into cartAttributes
+            // so backend tier-2 evaluators can react.
             if (!empty($nonceAttrs)) {
                 if (!isset($psCartCtx['cartAttributes']) || !is_array($psCartCtx['cartAttributes'])) {
                     $psCartCtx['cartAttributes'] = [];
@@ -285,14 +369,14 @@ class ValidateOrderHook
                 $currency,
                 count($products),
                 $agentTrustScore,
-                $psCartCtx
+                $psCartCtx,
+                $isAgentic
             );
 
             $fallback = MerchantResolver::getFallbackMode($shopId);
             if ($layer2 === null) {
-                // Sprint C T13: try the 24h local snapshot cache before
-                // applying FallbackMode. See PaymentModule::runCelEvaluation
-                // and `docs/analysis/rules_claude.md` §4.1 / §6.2.
+                // Try the 24h local snapshot cache before applying FallbackMode. See
+                // PaymentModule::runCelEvaluation.
                 $cached = $snapshotClient->getLocalSnapshotCache();
                 if ($cached !== null) {
                     \PrestaShopLogger::addLog(
@@ -308,15 +392,16 @@ class ValidateOrderHook
                         true
                     );
 
-                    // App Store remediation follow-up (2026-07-11): the
-                    // cached snapshot was previously ONLY used for this log
-                    // breadcrumb — nothing actually re-evaluated the cart
-                    // against it, so a merchant's own safety-valve rules
-                    // (max order amount, blocked countries, business hours,
-                    // PO-box block, gift-card cap...) silently never fired
-                    // during a Layer-2 outage. Evaluate the offline-capable
-                    // subset now, using the same last-known-good rules[].
+                    // The cached snapshot used to be used ONLY for this log breadcrumb:
+                    // nothing re-evaluated the cart against it, so a merchant's own
+                    // safety-valve rules (max order amount, blocked countries, business hours,
+                    // PO-box block, gift-card cap...) silently never fired during a Layer-2
+                    // outage. Evaluate the offline-capable subset now, using the same
+                    // last-known-good rules[].
                     $cachedRules = $this->decodeCachedSnapshotRules($cached['jws']);
+                    // A human is only subject to the merchant's ALL/HUMAN rules (the R030
+                    // cap, etc.).
+                    $cachedRules = $cachedRules === null ? null : FailurePolicy::offlineRulesFor($cachedRules, $isAgentic);
                     if ($cachedRules !== null) {
                         $offlineBlock = OfflineSafetyValveEvaluator::evaluate(
                             $cachedRules,
@@ -326,83 +411,75 @@ class ValidateOrderHook
                                 'billingCountry' => $psCartCtx['billingCountry'] ?? null,
                                 'shippingCountry' => $psCartCtx['shippingCountry'] ?? null,
                                 'lineItems' => $psCartCtx['lineItems'] ?? [],
+                                // Actor signal for the valve's currency branch.
+                                'agentCheckout' => $isAgentic,
                             ],
                             $psCartCtx['cartAttributes'] ?? []
                         );
                         if ($offlineBlock !== null) {
                             \PrestaShopLogger::addLog(
-                                sprintf(
-                                    '[trusteed.offline_safety_valve] {"ruleCode":"%s","reason":"%s"}',
-                                    $offlineBlock['ruleCode'],
-                                    $offlineBlock['reason']
-                                ),
+                                '[trusteed.offline_safety_valve] ' . self::jsonLog([
+                                    'ruleCode' => $offlineBlock['ruleCode'],
+                                    'reason'   => $offlineBlock['reason'],
+                                ]),
                                 \PrestaShopLogger::LOG_SEVERITY_WARNING,
                                 null,
                                 'Cart',
                                 (int) $cart->id,
                                 true
                             );
-                            $offlineHelp = 'https://trusteed.xyz/es/agent-rules#' . $offlineBlock['ruleCode'];
-                            throw new \PrestaShopException(
-                                $offlineBlock['ruleCode'] . ' — ' . $offlineBlock['reason']
-                                . ' requires_escalation: true | Más info: ' . $offlineHelp
-                            );
+                            // The detail (rule and threshold) is in the log above; the buyer
+                            // gets the fixed phrase.
+                            throw new CelVerdictException(self::BLOCKED_MESSAGE);
                         }
-                    }
-                } else {
-                    // OBSERVE-only Tier-2 rules: even in strict, do not block.
-                    $hasEnforce = false;
-                    foreach ($rules as $r) {
-                        if (!is_array($r) || empty($r['enabled'])) {
-                            continue;
-                        }
-                        if (!in_array($r['ruleCode'] ?? '', $tier2Codes, true)) {
-                            continue;
-                        }
-                        $mode = strtolower((string) ($r['mode'] ?? 'enforce'));
-                        if ($mode !== 'observe') {
-                            $hasEnforce = true;
-                            break;
-                        }
-                    }
-
-                    if ($fallback === 'strict' && $hasEnforce) {
-                        throw new \PrestaShopException(
-                            'trusteed:CEL-TIMEOUT — Rules evaluation service unavailable. requires_escalation: true'
-                        );
-                    }
-
-                    if ($fallback !== 'strict') {
-                        \PrestaShopLogger::addLog(
-                            sprintf(
-                                '[trusteed.snapshot.fallback_open] {"merchantId":"%s","fallbackMode":"%s","reason":"layer2_unavailable_no_cache"}',
-                                (string) MerchantResolver::getMerchantId($shopId),
-                                $fallback
-                            ),
-                            \PrestaShopLogger::LOG_SEVERITY_WARNING,
-                            null,
-                            'Cart',
-                            (int) $cart->id,
-                            true
-                        );
                     }
                 }
+
+                // After the non-blocking valve, with or without cache, the mode decides,
+                // ONLY for agents. Before, with a cache the mode was never consulted and
+                // an agent in `strict` got through; since every successful pull writes
+                // that cache, it was the normal case.
+                // OBSERVE-only server rules: even in strict, do not block.
+                $hasEnforce = RuleCode::hasEnforcingServerRule($rules);
+                if ($hasEnforce && FailurePolicy::decideOnDegradedEnforcement(
+                    FailurePolicy::KIND_EVALUATOR_UNAVAILABLE,
+                    $isAgentic,
+                    $agentToken !== '',
+                    $fallback,
+                    false
+                ) === 'BLOCK') {
+                    throw new CelVerdictException(
+                        'trusteed:CEL-TIMEOUT — Rules evaluation service unavailable. requires_escalation: true'
+                    );
+                }
+
+                if ($snapshotClient->claimFallbackLogSlot()) {
+                    \PrestaShopLogger::addLog(
+                        sprintf(
+                            '[trusteed.snapshot.fallback_open] {"merchantId":"%s","fallbackMode":"%s","reason":"%s"}',
+                            (string) MerchantResolver::getMerchantId($shopId),
+                            $fallback,
+                            $cached !== null ? 'layer2_unavailable_cached' : 'layer2_unavailable_no_cache'
+                        ),
+                        \PrestaShopLogger::LOG_SEVERITY_WARNING,
+                        null,
+                        'Cart',
+                        (int) $cart->id,
+                        true
+                    );
+                }
             } elseif ($layer2['decision'] === 'BLOCK') {
-                // H2: R043 HITL outcomes (decision=BLOCK + ucp.state=
-                // requires_escalation + ucp.reason_code=trusteed:R043…) must be
-                // HONORED via R043HitlGate rather than treated like a plain block
-                // or, worse, allowed. In the PS validateOrder() context the only
-                // safe primitive is to NOT create the order (a true create-then-
-                // freeze would require manipulating the parent order state, which
-                // is out of scope for the enforcement seam). We therefore block
-                // with the gate-derived R043 reason/evaluation id and log the
-                // freeze intent so the merchant dashboard escalation is traceable.
+                // R043 HITL outcomes (decision=BLOCK + ucp.state=requires_escalation +
+                // ucp.reason_code=trusteed:R043...) must be HONORED via R043HitlGate rather
+                // than treated like a plain block or, worse, allowed. In the PS
+                // validateOrder() context the only safe primitive is to NOT create the
+                // order (a true create-then-freeze would require manipulating the parent
+                // order state, which is out of scope for the enforcement seam). We
+                // therefore block with the gate-derived R043 reason/evaluation id and log
+                // the freeze intent so the merchant dashboard escalation is traceable.
                 if (R043HitlGate::isHitlResponse($layer2)) {
                     $freeze   = R043HitlGate::buildFreezePayload($layer2);
                     $ruleCode = $freeze['rule_code'] !== '' ? $freeze['rule_code'] : 'R043';
-                    $reason   = $freeze['reason'] !== ''
-                        ? $freeze['reason']
-                        : 'Human review required before this agentic order can complete.';
                     \PrestaShopLogger::addLog(
                         sprintf(
                             '[trusteed.r043_hitl] {"ruleCode":"%s","evaluationId":"%s","action":"block_pending_review"}',
@@ -415,43 +492,50 @@ class ValidateOrderHook
                         (int) $cart->id,
                         true
                     );
-                    // H5(b): mirror Magento's local quote freeze (is_active=0 +
-                    // QUOTE_META_HITL_PENDING) with a durable per-cart pending
-                    // record before aborting. The throw below keeps the order
-                    // from being created (parity with Magento, which also throws
-                    // and creates no order).
+                    // Mirror Magento's local quote freeze (is_active=0 +
+                    // QUOTE_META_HITL_PENDING) with a durable per-cart pending record before
+                    // aborting. The throw below keeps the order from being created (parity
+                    // with Magento, which also throws and creates no order).
                     $this->applyHitlFreeze($cart, $freeze);
-                    $hitlHelp = 'https://trusteed.xyz/es/agent-rules#'
-                        . (preg_match('/^(R\d{3})/', $ruleCode, $hm) ? $hm[1] : 'R043');
-                    throw new \PrestaShopException(
-                        $ruleCode . ' — ' . $reason
-                        . ' requires_escalation: true | Más info: ' . $hitlHelp
-                    );
+                    // Rule, reason and threshold are already in the log ([trusteed.r043_hitl]);
+                    // the buyer sees the fixed "pending review" phrase (as in Magento).
+                    throw new CelVerdictException(self::PENDING_REVIEW_MESSAGE);
                 }
 
                 $blockedCode   = $layer2['ruleCode'] !== '' ? $layer2['ruleCode'] : 'R000';
                 $blockedReason = $layer2['reason'] !== '' ? $layer2['reason'] : 'Checkout blocked by Trusteed CEL policy.';
-                $blockedPrefix = preg_match('/^(R\d{3})/', $blockedCode, $m) ? $m[1] : substr($blockedCode, 0, 4);
-                $blockedHelp   = 'https://trusteed.xyz/es/agent-rules#' . $blockedPrefix;
-                throw new \PrestaShopException(
-                    $blockedCode . ' — ' . $blockedReason . ' requires_escalation: true | Más info: ' . $blockedHelp
+                // The literal server reason (with thresholds) and the rule code (R066...)
+                // are not copied to the buyer or the agent. They stay in the merchant
+                // log; the message is a fixed phrase.
+                \PrestaShopLogger::addLog(
+                    '[trusteed.cel.block] ' . self::jsonLog(['ruleCode' => $blockedCode, 'reason' => $blockedReason]),
+                    \PrestaShopLogger::LOG_SEVERITY_WARNING,
+                    null,
+                    'Cart',
+                    (int) $cart->id,
+                    true
                 );
+                throw new CelVerdictException(self::BLOCKED_MESSAGE);
             }
         }
 
-        // ALLOW path: persist agentDid so OrderEventsEmitter can include it
-        // in the webhook payload for R023 agentIdHash propagation to PlatformOrder.
+        // ALLOW path: persist agentDid so OrderEventsEmitter can include it in the
+        // webhook payload for R023 agentIdHash propagation to PlatformOrder.
+        // `verify()` returns the verified DID in `agentId` (never `iss`) and it
+        // only counts with the ACCEPTED nonce ($nonceAttrs empty): neither REPLAY
+        // nor INDETERMINATE.
         if (
             $claims !== null
-            && isset($claims['iss'])
-            && (string) $claims['iss'] !== ''
+            && $nonceAttrs === []
+            && isset($claims['agentId'])
+            && (string) $claims['agentId'] !== ''
             && (int) $cart->id > 0
             && class_exists('Trusteed\\Storage\\CartAgentStorage')
         ) {
             try {
-                \Trusteed\Storage\CartAgentStorage::set((int) $cart->id, (string) $claims['iss']);
+                \Trusteed\Storage\CartAgentStorage::set((int) $cart->id, (string) $claims['agentId']);
             } catch (\Throwable) {
-                // Non-fatal — R023 will fail-open.
+                // Non-fatal, R023 will fail-open.
             }
         }
     }
@@ -459,46 +543,32 @@ class ValidateOrderHook
     /**
      * Resolve agent token from cart attributes or cookie.
      *
-     * GHSA-2j2x-5q52-g48m issue 2 (D1): `\Cart` (and its parent
-     * `\ObjectModel`) does not define `getContext()` — that was always a
-     * fatal `\Error`, thrown before the signed rule snapshot was even
-     * requested, for every checkout that reached this method without
-     * `_trusteed_agent_token` already in the POST body. That is every
+     * `\Cart` (and its parent `\ObjectModel`) does not define `getContext()`:
+     * calling it was always a fatal `\Error`, thrown before the signed rule
+     * snapshot was even requested, for every checkout that reached this method
+     * without `_trusteed_agent_token` already in the POST body. That is every
      * organic human checkout, plus any agent relying on the cookie fallback
      * instead of the request parameter. The correct PrestaShop API for the
      * current request's cookie jar is `\Context::getContext()->cookie`.
      */
     private function resolveAgentToken(\Cart $cart): string
     {
-        // Check for token in request (sent by agentic checkout layer)
-        $token = (string) \Tools::getValue('_trusteed_agent_token', '');
-        if ($token !== '') {
-            return $token;
-        }
-
-        // Check cookie fallback
-        $cookie = (string) (\Context::getContext()->cookie->trusteed_agent_token ?? '');
-
-        return $cookie;
+        // The read lives in InternalErrorGuard (the override uses it without a
+        // cart): a single source for the agentic signal.
+        return InternalErrorGuard::presentedToken();
     }
 
     /**
-     * App Store remediation follow-up (2026-07-11) — decode the `rules[]`
-     * array from a cached, already-verified snapshot JWS (written by
-     * SnapshotClient::pull() only after signature verification, so no
-     * re-verification — and no JWKS network call — is needed here; this
-     * runs on the Layer-2-unavailable path specifically to avoid one).
+     * Decode the `rules[]` array from a cached, already-verified snapshot JWS
+     * (written by SnapshotClient::pull() only after signature verification, so
+     * no re-verification, and no JWKS network call, is needed here; this runs
+     * on the Layer-2-unavailable path specifically to avoid one).
      *
      * @return array|null Snapshot `rules[]`, or null on any decode failure.
      */
     private function decodeCachedSnapshotRules(string $jws): ?array
     {
-        $parts = explode('.', $jws);
-        if (count($parts) !== 3) {
-            return null;
-        }
-        $payloadJson = SnapshotClient::base64UrlDecode($parts[1]);
-        $payload = json_decode($payloadJson, true);
+        $payload = SnapshotPayloadDecoder::payloadOfCachedVerifiedJws($jws);
         if (!is_array($payload) || !isset($payload['rules']) || !is_array($payload['rules'])) {
             return null;
         }
@@ -508,36 +578,35 @@ class ValidateOrderHook
     /**
      * Compute a checkoutIntentHash from cart contents for offline token binding.
      *
-     * ── M2 INVESTIGATION NOTE — canonical format divergence (documented, NOT changed)
+     * NOTE: canonical format divergence (documented, NOT changed).
      *
-     * The CANONICAL checkoutIntentHash SSOT is the TypeScript JCS (RFC 8785)
-     * implementation at
-     *   packages/shared/src/enforcement/checkout-intent-hash.service.ts
-     *     ::computeCheckoutIntentHash()
-     * which produces `sha256:<hex>` over a fixed field set
-     * {billingCountry, cartTotalCents, currency, customerEmailHash,
-     *  discountCodes, itemCount, lineItems[{id,priceCents,qty}], paymentMethod,
-     *  shippingCountry, taxAmountCents}, keys sorted lexicographically.
+     * The canonical checkoutIntentHash is the TypeScript JCS (RFC 8785)
+     * implementation, `computeCheckoutIntentHash()`, which produces
+     * `sha256:<hex>` over a fixed field set {billingCountry, cartTotalCents,
+     * currency, customerEmailHash, discountCodes, itemCount,
+     * lineItems[{id,priceCents,qty}], paymentMethod, shippingCountry,
+     * taxAmountCents}, keys sorted lexicographically.
      *
      * This PS routine instead emits a BARE sha256 hex (no `sha256:` prefix) over
-     * a different, smaller shape {merchantId, lineItems[{id,qty}], currency}
-     * via plain json_encode (NOT JcsCanonicalize). This DIVERGES from the SSOT.
+     * a different, smaller shape {merchantId, lineItems[{id,qty}], currency} via
+     * plain json_encode (NOT JcsCanonicalize). It diverges from the canonical
+     * one.
      *
-     * Why it is intentionally left as-is here:
-     *   - `computeCheckoutIntentHash` has NO production caller in apps/ — the
-     *     backend does not currently mint agent tokens that embed the JCS hash;
-     *     the agent/SDK side supplies the token's checkoutIntentHash.
-     *   - The deployed, WC-parity model (wp-plugin token-verifier) likewise uses
-     *     a platform-specific cart identifier, not the JCS hash.
+     * Why it is intentionally left as-is:
+     *   - The backend does not currently mint agent tokens that embed the JCS
+     *     hash; the agent/SDK side supplies the token's checkoutIntentHash.
+     *   - The deployed WooCommerce token verifier likewise uses a
+     *     platform-specific cart identifier, not the JCS hash.
      *   - Switching this to JCS unilaterally (without the agent-side minting the
-     *     SAME field set) would make NO token match → every agentic order
-     *     rejected. That is a worse failure than the current best-effort binding.
+     *     SAME field set) would make NO token match and every agentic order
+     *     would be rejected. That is a worse failure than the current
+     *     best-effort binding.
      *
-     * ACTION REQUIRED FOR ALIGNMENT (future, coordinated): port
-     * `computeCheckoutIntentHash` to PHP using JcsCanonicalize (src/Hmac/),
-     * emit the `sha256:` prefix and the full field set, AND verify against the
-     * cross-language golden vectors — simultaneously with the token-minting side.
-     * Do NOT change one side in isolation.
+     * To align (future, coordinated): port `computeCheckoutIntentHash` to PHP
+     * using JcsCanonicalize (src/Hmac/), emit the `sha256:` prefix and the full
+     * field set, and verify against the cross-language golden vectors,
+     * simultaneously with the token-minting side. Do NOT change one side in
+     * isolation.
      */
     private function computeCartHash(\Cart $cart, string $merchantId): string
     {
@@ -575,29 +644,31 @@ class ValidateOrderHook
             return 'ALLOW';
         }
 
-        switch ($ruleCode) {
+        // Dispatch on the NORMALISED code: a canonical row
+        // (`R001.verified-agent-required`) used to fall through to `default` and
+        // return ALLOW, i.e. the offline layer was silently inert.
+        switch (RuleCode::shortCode($ruleCode)) {
             case 'R001':
                 // Agent identity must be verified
                 return isset($claims['agentId']) && $claims['agentId'] !== '' ? 'ALLOW' : 'BLOCK';
 
-            // R007.cross-merchant-abuse-signal — NO SOPORTADA aquí
-            // (decisión 2026-07-30).
+            // R007.cross-merchant-abuse-signal is NOT supported here.
             //
-            // Lo que había: un `trustScore < 0.3` con un comentario encima que
-            // decía "High-risk country check" — o sea que ni hacía lo que el
-            // comentario afirmaba ni lo que el nombre canónico de la regla dice.
-            // Era la TERCERA lectura distinta del mismo código: el catálogo
-            // mira la señal de abuso cross-merchant, la Shopify Function hacía
-            // un control de países (semántica legacy) y esto miraba confianza.
+            // This used to be a `trustScore < 0.3` check with a comment saying
+            // "High-risk country check", so it did neither what the comment claimed nor
+            // what the canonical rule name says. It was the THIRD different reading of
+            // the same code: the catalog looks at the cross-merchant abuse signal, the
+            // Shopify Function did a country check (legacy semantics) and this looked
+            // at trust.
             //
-            // La señal canónica es estado cross-merchant que vive en la base de
-            // datos del backend; este evaluador es el camino OFFLINE, sin acceso
-            // a ella. Devolver ALLOW aquí no es fail-open sobre una señal
-            // disponible: es que la señal no existe en este contexto. El
-            // veredicto autoritativo de R007 lo da la capa 2 (REST).
+            // The canonical signal is cross-merchant state that lives in the backend
+            // database; this evaluator is the OFFLINE path, with no access to it.
+            // Returning ALLOW here is not fail-open on an available signal: the signal
+            // does not exist in this context. The authoritative R007 verdict comes from
+            // layer 2 (REST).
             //
-            // Si lo que se quería era el umbral de confianza, la regla es R006
-            // (`provider-confidence-tier`); si era el país, R014/R019.
+            // If the trust threshold was the intent, the rule is R006
+            // (`provider-confidence-tier`); if it was the country, R014/R019.
             case 'R007':
                 return 'ALLOW';
 
@@ -608,18 +679,17 @@ class ValidateOrderHook
     }
 
     /**
-     * Spec-048 4.9 — señales de carrito que ESTA instalación sabe proyectar.
+     * Cart signals THIS installation knows how to project.
      *
-     * Es la mitad "qué aporto" del contrato cuya otra mitad es
-     * `RULE_SIGNALS_READ` ("qué lee cada regla") en el servidor. Cruzarlas
-     * convierte el silencio de `NO_SIGNAL` —una regla activada en ENFORCE que
-     * nunca dispara porque su señal no llega— en un aviso que el comerciante
-     * ve al activarla.
+     * It is the "what I provide" half of a contract whose other half is
+     * `RULE_SIGNALS_READ` ("what each rule reads") on the server. Crossing them
+     * turns the silence of `NO_SIGNAL` (a rule enabled in ENFORCE that never
+     * fires because its signal never arrives) into a warning the merchant sees
+     * when enabling it.
      *
-     * La lista NO se mantiene a ojo: el gate
-     * `signals-provided-plugin-declarations.test.ts` (en `packages/shared`)
-     * lee el cuerpo de `buildCartContext()` y exige que coincida exactamente
-     * con las claves que escribe.
+     * The list is not maintained by hand: a gate in the platform's test suite
+     * reads the body of `buildCartContext()` and requires it to match exactly
+     * the keys it writes.
      *
      * @return string[]
      */
@@ -645,9 +715,8 @@ class ValidateOrderHook
      * Build enriched cart context from PrestaShop Cart for Layer-2 evaluation.
      * All fields are best-effort; missing data is omitted (fail-open for context).
      *
-     * SIGNALS_PROVIDED_BUILDER_START — ancla del gate de 4.9: todo lo que este
-     * cuerpo escriba en `$cartAttributes` tiene que estar en
-     * `signalsProvided()`.
+     * SIGNALS_PROVIDED_BUILDER_START: anchor for the signals gate. Everything this
+     * body writes into `$cartAttributes` has to be in `signalsProvided()`.
      */
     private function buildCartContext(\Cart $cart, array $agentResult = [], array $snapshot = []): array
     {
@@ -660,15 +729,15 @@ class ValidateOrderHook
             $lowestStock       = PHP_INT_MAX;
             $hasSubscription   = false;
 
-            // R022: Payment gateway selected by the buyer — available in POST at hook time.
+            // R022: Payment gateway selected by the buyer, available in POST at hook time.
             $paymentGateway = \Tools::getValue('payment', '');
             if (is_string($paymentGateway) && $paymentGateway !== '') {
-                // Strip anything outside [a-z0-9_-] — gateway IDs are always slug-like.
+                // Strip anything outside [a-z0-9_-], gateway IDs are always slug-like.
                 $ctx['paymentMethod'] = strtolower(preg_replace('/[^a-zA-Z0-9_\-]/', '', $paymentGateway));
             }
 
             // R015: Price snapshot stored in cookie at cart-add time.
-            // B4: HMAC-verified envelope only — raw client cookies are rejected.
+            // HMAC-verified envelope only: raw client cookies are rejected.
             // The merchant HMAC key arrives via R015.params.priceSnapHmacKeyHex
             // inside the signed snapshot (server-controlled, not agent-writable).
             $priceSnapshotKey = 'trusteed_price_snap_' . (int) $cart->id;
@@ -704,7 +773,7 @@ class ValidateOrderHook
                 }
 
                 // R026: subscription detection via product features (best-effort).
-                // PS has no native subscription type — modules typically add a Feature.
+                // PS has no native subscription type, modules typically add a Feature.
                 if (!$hasSubscription && $productId > 0) {
                     try {
                         $features = \Product::getFeaturesStatic($productId);
@@ -720,7 +789,7 @@ class ValidateOrderHook
                             }
                         }
                     } catch (\Throwable $ignored) {
-                        // Best-effort — never block on feature extraction failure
+                        // Best-effort, never block on feature extraction failure
                     }
                 }
 
@@ -733,7 +802,11 @@ class ValidateOrderHook
                 }
             }
 
-            $ctx['lineItems'] = $lineItems;
+            // R034 compares the merchant SKU with `lineItems[].id`: besides the
+            // numeric id the reference travels as an alias line (qty 0, price 0). They
+            // are kept apart so the R013 loop below still sees only real lines.
+            $aliasLines = LineItemAliases::forProducts($cart->getProducts(), $lineItems);
+            $ctx['lineItems'] = array_merge($lineItems, $aliasLines);
 
             // Shipping / billing country from delivery address
             $addressId = (int) $cart->id_address_delivery;
@@ -746,8 +819,7 @@ class ValidateOrderHook
                         $ctx['billingCountry']  = strtoupper((string) $country);
 
                         $addrLine = trim((string) ($addr->address1 ?? ''));
-                        // Audit docs/analysis/rules.md L228 — multi-language
-                        // PO-box coverage (en/es/fr/de/it/pt/nl/ru/zh/ja).
+                        // Multi-language PO-box coverage (en/es/fr/de/it/pt/nl/ru/zh/ja).
                         if ($addrLine !== '' && self::detectPoBox($addrLine)) {
                             $cartAttributes['_shipping_po_box'] = 'true';
                         }
@@ -786,8 +858,8 @@ class ValidateOrderHook
             }
 
             // R004: Track key first-seen across requests.
-            // B5: persistent FileCache so plain PS installs (no APCu) also see
-            // real key age instead of "0h" on every request.
+            // Persistent FileCache so plain PS installs (no APCu) also see the real
+            // key age instead of "0h" on every request.
             $kid = (string) ($agentResult['kid'] ?? '');
             if ($kid !== '') {
                 $kidKey      = 'trusteed_kid_fs_' . hash('sha256', $kid);
@@ -867,18 +939,18 @@ class ValidateOrderHook
                 $ctx['cartAttributes'] = $cartAttributes;
             }
         } catch (\Throwable $e) {
-            // Best-effort — never block on extraction failure
+            // Best-effort, never block on extraction failure
         }
 
         return $ctx;
     }
 
     /**
-     * Audit `docs/analysis/rules.md` L228 — multi-language PO-box detection.
+     * Multi-language PO-box detection.
      * Mirrors Magento `CartSignals::detectPoBox` + WC `trusteed_cel_detect_po_box`
      * + Shopify Function `detect_po_box`. Covered locales: en, es (ES/MX/AR/UY/
      * CL/PY/CO), fr (FR/CH-FR/Africa), de, it (incl. abbr CP, Vaticano), pt
-     * (BR/PT), nl, ru (а/я), ja (私書箱), zh (邮政信箱).
+     * (BR/PT), nl, ru, ja, zh.
      */
     public static function detectPoBox(string $street): bool
     {
@@ -917,8 +989,8 @@ class ValidateOrderHook
     }
 
     /**
-     * H5(b) — FileCache scoped to R043 HITL pending records. Separate directory
-     * from the R004 first-seen cache so their TTL/lifecycle never collide.
+     * FileCache scoped to R043 HITL pending records. Separate directory from
+     * the R004 first-seen cache so their TTL/lifecycle never collide.
      */
     private static function hitlCache(): ?FileCache
     {
@@ -934,11 +1006,11 @@ class ValidateOrderHook
     }
 
     /**
-     * H5(b) — Apply the R043 HITL freeze to the cart before the caller aborts
-     * order validation.
+     * Apply the R043 HITL freeze to the cart before the caller aborts order
+     * validation.
      *
      * PrestaShop's enforcement seam runs inside the PaymentModule::validateOrder()
-     * override — BEFORE any order row is committed — exactly like Magento's
+     * override, BEFORE any order row is committed, exactly like Magento's
      * sales_model_service_quote_submit_before observer. In both cases the safe
      * primitive is to NOT create the order (the caller's PrestaShopException
      * aborts it). PS's \Cart has no `is_active` column nor free-form meta, so the
@@ -987,12 +1059,13 @@ class ValidateOrderHook
     }
 
     /**
-     * B4: extract per-merchant HMAC key for R015 from the signed snapshot.
-     * Returns '' when R015 is absent or the key field is missing → verifier
-     * rejects every cookie, degrading R015 to PASS (safer than trusting raw).
+     * Extract the per-merchant HMAC key for R015 from the signed snapshot.
+     * Returns '' when R015 is absent or the key field is missing, so the
+     * verifier rejects every cookie and R015 degrades to PASS (safer than
+     * trusting the raw cookie).
      */
     /**
-     * Spec-048 P2.8 — consume the jti against backend /v1/agent-events/nonce-consume.
+     * Consume the jti against the backend /v1/agent-events/nonce-consume.
      *
      * Returns an array of cartAttributes to merge into psCartCtx. May throw on
      * strict-fail-closed paths (REPLAY in strict, INDETERMINATE in strict).
@@ -1010,7 +1083,7 @@ class ValidateOrderHook
         $exp      = (int)    ($claims['exp'] ?? 0);
 
         if ($jti === '' || $agentDid === '') {
-            // verify() guarantees both are present; defensive return — no attrs.
+            // verify() guarantees both are present; defensive return, no attrs.
             return [];
         }
 
@@ -1023,7 +1096,7 @@ class ValidateOrderHook
         }
 
         if ($outcome === NonceOutcome::REPLAY) {
-            // Token already seen — must reject. Strict fallback throws hard;
+            // Token already seen, must reject. Strict fallback throws hard;
             // balanced/permissive surface attribute so tier-2 R002/R005 can decide.
             \PrestaShopLogger::addLog(
                 '[trusteed.enforcement_replay] platform=prestashop merchant='
@@ -1036,7 +1109,7 @@ class ValidateOrderHook
                 true
             );
             if ($fallback === 'strict') {
-                throw new \PrestaShopException(
+                throw new CelVerdictException(
                     'trusteed:R002 — Agent token replay detected. requires_escalation: true'
                 );
             }
@@ -1046,7 +1119,7 @@ class ValidateOrderHook
             ];
         }
 
-        // INDETERMINATE — honor failure_mode.
+        // INDETERMINATE, honor failure_mode.
         \PrestaShopLogger::addLog(
             '[trusteed.enforcement_indeterminate] platform=prestashop merchant='
                 . MerchantResolver::getMerchantId($shopId)
@@ -1059,7 +1132,7 @@ class ValidateOrderHook
             true
         );
         if ($fallback === 'strict') {
-            throw new \PrestaShopException(
+            throw new CelVerdictException(
                 'trusteed:CEL-NONCE-UNAVAILABLE — Replay protection service unavailable. requires_escalation: true'
             );
         }
@@ -1091,5 +1164,75 @@ class ValidateOrderHook
             }
         }
         return '';
+    }
+
+    /**
+     * The policy could not be read. Decide and leave a trail.
+     *
+     * Snapshot unavailable => `CEL-TIMEOUT` (same code as layer 2 being down);
+     * snapshot tampered => `CEL-SNAPSHOT-INVALID`. Neither names a merchant
+     * rule.
+     *
+     * @throws \PrestaShopException when the verdict is BLOCK.
+     */
+    private function onSnapshotUnavailable(int $shopId, string $reason, bool $isAgentic, bool $tokenPresent): void
+    {
+        $local = MerchantResolver::getFallbackMode($shopId);
+        $kind  = $reason === 'snapshot_verify_failed'
+            ? FailurePolicy::KIND_INVALID_SIGNATURE
+            : FailurePolicy::KIND_MISSING_SNAPSHOT;
+
+        // The cause decides (FailurePolicy). An agent with a tampered snapshot, or
+        // with no snapshot and a token (without a snapshot there is no resolver to
+        // verify it with), is held in ALL modes. On PrestaShop the only agentic
+        // signal is the token, so that is every agent. A human is never blocked
+        // here. Replaces `TRUSTEED_CEL_FAIL_CLOSED_ON_UNAVAILABLE`, which only
+        // closed with the flag on and `strict` mode.
+        $decision = FailurePolicy::decideOnDegradedEnforcement($kind, $isAgentic, $tokenPresent, $local, false);
+
+        \PrestaShopLogger::addLog(
+            sprintf(
+                '[trusteed.snapshot.unavailable] {"merchantId":"%s","reason":"%s","kind":"%s",'
+                    . '"fallbackMode":"%s","isAgentic":%s,"decision":"%s"}',
+                (string) MerchantResolver::getMerchantId($shopId),
+                $reason,
+                $kind,
+                $local,
+                $isAgentic ? 'true' : 'false',
+                $decision
+            ),
+            \PrestaShopLogger::LOG_SEVERITY_WARNING,
+            null,
+            'Cart',
+            0,
+            true
+        );
+
+        if ($decision === 'BLOCK') {
+            // A failure or tampering, never "a rule blocked you".
+            throw new CelVerdictException(
+                $kind === FailurePolicy::KIND_INVALID_SIGNATURE
+                    ? 'trusteed:CEL-SNAPSHOT-INVALID — Rule snapshot could not be verified ('
+                        . $reason . '). requires_escalation: true'
+                    : 'trusteed:CEL-TIMEOUT — Rules evaluation service unavailable ('
+                        . $reason . '). requires_escalation: true'
+            );
+        }
+    }
+
+    /**
+     * Properly escaped log JSON (backslashes, newlines, invalid UTF-8)
+     * instead of composing it by hand.
+     *
+     * @param array<string,mixed> $data
+     */
+    private static function jsonLog(array $data): string
+    {
+        $json = json_encode(
+            $data,
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE
+        );
+
+        return is_string($json) ? $json : '{}';
     }
 }

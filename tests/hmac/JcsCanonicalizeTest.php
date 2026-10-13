@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Spec 042 R1 (codex remediation P1#1) — PHPUnit tests for JcsCanonicalize.
+ * PHPUnit tests for JcsCanonicalize.
  *
  * Loads the SAME golden vectors used by Node + Odoo. Cross-language CI gate.
  *

@@ -14,13 +14,86 @@
             <directory>tests/discovery</directory>
         </testsuite>
         <!--
-          Estado del alta (badge del back office + honestidad del mensaje de
-          auto-registro). Lógica pura sobre tres cadenas: no declara stubs
-          globales de PS, así que el directorio entero se puede registrar sin
-          las colisiones que obligan a listar `enforcement` fichero a fichero.
+          Setup status (back office badge and the wording of the auto-registration
+          message). Pure logic over three strings: it declares no global PS
+          stubs, so the whole directory can be registered without the collisions
+          that force `enforcement` to be listed file by file.
         -->
         <testsuite name="admin">
             <directory>tests/admin</directory>
+        </testsuite>
+        <!--
+          The rest of tests/enforcement is not wired up: those files define
+          colliding PS global stubs (\Configuration::set, etc.) that the shared
+          bootstrap already provides. Register this file individually rather
+          than the whole directory.
+        -->
+        <testsuite name="enforcement-defaults">
+            <file>tests/enforcement/FallbackModeDefaultTest.php</file>
+        </testsuite>
+        <!--
+          Rule-code normalisation. Kernel-free (no PS global stubs), so it could
+          join a directory suite; registered as a file for the same reason as
+          its neighbour above.
+        -->
+        <testsuite name="enforcement-rule-code">
+            <file>tests/enforcement/RuleCodeTest.php</file>
+        </testsuite>
+        <!--
+          Cross-language fixture for the main flow, plus the ValidateOrderHook
+          flow run with the real SnapshotClient and its network edges replaced.
+          The PS stubs of the second file are declared only if they do not
+          exist, and no other suite in this file declares them.
+        -->
+        <testsuite name="enforcement-platform-flow">
+            <file>tests/enforcement/PlatformFlowConformanceTest.php</file>
+            <file>tests/enforcement/ValidateOrderHookAgenticFlowTest.php</file>
+            <file>tests/enforcement/ValidateOrderHookDegradedFlowTest.php</file>
+            <file>tests/enforcement/ValidateOrderHookCompressedSnapshotFlowTest.php</file>
+            <file>tests/enforcement/InternalErrorFlowTest.php</file>
+            <file>tests/enforcement/ValidateOrderHookReplayIdentityTest.php</file>
+            <file>tests/enforcement/ValidateOrderHookNonceContractTest.php</file>
+            <file>tests/enforcement/SnapshotHardeningFlowTest.php</file>
+            <file>tests/enforcement/TokenVerifierCritFlowTest.php</file>
+            <file>tests/enforcement/TokenVerifierMaxAgeTest.php</file>
+        </testsuite>
+        <!--
+          Response body read limit, tested with real cURL against a local
+          server. Declares no PS stubs.
+        -->
+        <testsuite name="enforcement-snapshot-http">
+            <file>tests/enforcement/SnapshotClientResponseLimitTest.php</file>
+            <file>tests/enforcement/JwksCacheCodecTest.php</file>
+            <file>tests/enforcement/LineItemAliasesTest.php</file>
+            <file>tests/enforcement/CartAgentStorageTest.php</file>
+            <file>tests/enforcement/WebserviceGapMiddlewareTest.php</file>
+            <file>tests/enforcement/CapabilitiesReporterTest.php</file>
+            <file>tests/enforcement/SnapshotClientLayer2BreakerTest.php</file>
+            <file>tests/enforcement/ValidateOrderHookLogEscapingTest.php</file>
+        </testsuite>
+        <!--
+          Order event emitter. These tests existed but were not running because
+          the directory was not registered here, so the shipping date fix had no
+          safety net. Whole directory: its stubs (`\Order`, `\OrderSlip`,
+          `\Context`) are declared only if they do not exist and coexist with
+          the bootstrap ones.
+        -->
+        <testsuite name="hooks">
+            <directory>tests/hooks</directory>
+        </testsuite>
+        <!--
+          Upgrade 2.3.1. It passed but was not in any suite; the gate
+          `tests/meta/TodoTestEstaEnUnaSuiteTest.php` caught it.
+        -->
+        <testsuite name="upgrade">
+            <directory>tests/upgrade</directory>
+        </testsuite>
+        <!--
+          The gate that stops a `*Test.php` file from ending up outside every
+          suite unnoticed.
+        -->
+        <testsuite name="meta">
+            <directory>tests/meta</directory>
         </testsuite>
     </testsuites>
     <source>

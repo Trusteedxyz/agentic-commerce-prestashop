@@ -9,7 +9,7 @@ if (!defined('_PS_VERSION_')) {
 }
 
 /**
- * Spec-048 G1 â€” PrestaShop coupon-attempt-failed emitter.
+ * €” PrestaShop coupon-attempt-failed emitter.
  *
  * PrestaShop does not expose a dedicated "coupon rejected" hook. We hook
  * `actionValidateOrder` and inspect `Cart::getCartRules()` against the
@@ -135,7 +135,7 @@ class CouponFailureEmitter
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Content-Type: application/json',
             'Accept: application/json',
-            'User-Agent: Trusteed-PS/1.0 spec-048-g1',
+            'User-Agent: Trusteed-PS/1.0',
         ]);
         curl_setopt($ch, CURLOPT_TIMEOUT_MS, 1500);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT_MS, 800);
@@ -197,7 +197,7 @@ class CouponFailureEmitter
     private static function safeLog(string $message): void
     {
         if (class_exists('PrestaShopLogger')) {
-            \PrestaShopLogger::addLog('[spec-048 G1] ' . $message, 1);
+            \PrestaShopLogger::addLog('[trusteed] ' . $message, 1);
         }
     }
 }

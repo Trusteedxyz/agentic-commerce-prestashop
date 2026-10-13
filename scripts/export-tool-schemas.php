@@ -170,7 +170,7 @@ $tools = [
             'routing' => [
                 'backendStatus' => 'implemented',
                 'kind' => 'rest',
-                'notes' => 'Live spec-045 endpoint. Runtime-gated behind AGENT_IDENTITY_INTERNAL_VERIFY_ENABLED=true and internal auth; returns 503 agent_identity_internal_verify_disabled when the flag is off. This is a deployment/runtime gate, NOT a catalog-advertisement gate — the tool is always advertised (catalog `featureFlag` is reserved for advertisement gating like AP2/SD_JWT_ENABLED).',
+                'notes' => 'Live Runtime-gated behind AGENT_IDENTITY_INTERNAL_VERIFY_ENABLED=true and internal auth; returns 503 agent_identity_internal_verify_disabled when the flag is off. This is a deployment/runtime gate, NOT a catalog-advertisement gate — the tool is always advertised (catalog `featureFlag` is reserved for advertisement gating like AP2/SD_JWT_ENABLED).',
                 'target' => '/api/v1/internal/agent-identity/verify',
             ],
         ],
@@ -292,7 +292,7 @@ $tools = [
             'routing' => [
                 'backendStatus' => 'implemented',
                 'kind' => 'rest',
-                'notes' => 'Live spec-035 endpoint. Requires agent-key auth and a PAYMENT-SIGNATURE (V2) header or a V1 paymentPayload body. Returns 202 (fire-and-forget settlement); the Trust Receipt is fetched via the trust_receipt_polling_url in the response.',
+                'notes' => 'Live Requires agent-key auth and a PAYMENT-SIGNATURE (V2) header or a V1 paymentPayload body. Returns 202 (fire-and-forget settlement); the Trust Receipt is fetched via the trust_receipt_polling_url in the response.',
                 'target' => '/api/v1/agent/checkout/x402/verify',
             ],
         ],
@@ -356,7 +356,7 @@ $tools = [
             'routing' => [
                 'backendStatus' => 'planned',
                 'kind' => 'rest',
-                'notes' => 'AP2 v0.2 is dormant (spec-044, behind SD_JWT_ENABLED). The /api/v1/protocols/ap2/dispatch route does NOT exist yet — the AP2 adapter currently only exposes a dormant guard (503). Advertised as planned so platform modules register the tool disabled until spec-044 ships a dispatch route.',
+                'notes' => 'AP2 v0.2 is dormant. The /api/v1/protocols/ap2/dispatch route does NOT exist yet — the AP2 adapter currently only exposes a dormant guard (503). Advertised as planned so platform modules register the tool disabled until a dispatch route.',
                 'target' => '/api/v1/protocols/ap2/dispatch',
             ],
         ],

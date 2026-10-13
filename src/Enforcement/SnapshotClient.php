@@ -18,11 +18,11 @@ if (!defined('_PS_VERSION_')) {
  * @package Trusteed\Enforcement
  */
 /**
- * Outcome of consumeNonce() — single-use replay protection (spec-048 P2.8).
+ * Outcome of consumeNonce(): single-use replay protection.
  *
- *   ACCEPTED       — HTTP 200, nonce stored, token may be used.
- *   REPLAY         — HTTP 409, nonce already seen — caller must mark token INVALID.
- *   INDETERMINATE  — network / 5xx / 4xx / bad response — caller maps per failure_mode.
+ *   ACCEPTED       : HTTP 200, nonce stored, token may be used.
+ *   REPLAY         : HTTP 409, nonce already seen, caller must mark token INVALID.
+ *   INDETERMINATE  : network / 5xx / 4xx / bad response, caller maps per failure_mode.
  */
 class NonceOutcome
 {
@@ -42,13 +42,29 @@ class SnapshotClient
     private static array $memCache = [];
 
     /**
-     * Sprint C T13: long-TTL local snapshot cache (24h) used to evaluate rules
+     * Long-TTL local snapshot cache (24h) used to evaluate rules
      * offline when the Layer-2 rules-evaluate endpoint is unavailable.
      * Distinct key namespace from the short-TTL pull cache (5min) so it
      * survives normal cache rotation.
      */
     public const LOCAL_SNAPSHOT_TTL_SECONDS = 86400;
+
+    /** Read cap for a response (a legitimate compact JWS is at most about 4 MiB). */
+    public const MAX_RESPONSE_BYTES = 4194304;
     private const LOCAL_SNAPSHOT_KEY_PREFIX = 'trusteed_snapshot_';
+
+    /**
+     * Own connect timeout, shorter than the total, so an unresponsive layer 2
+     * does not hold every checkout for 5 s.
+     */
+    public const CONNECT_TIMEOUT_SECONDS = 2;
+
+    /**
+     * After a `callRulesEvaluate` failure, layer 2 is considered down for this
+     * window (a simple circuit breaker): no retry on every checkout and no
+     * repeated `fallback_open` warning in `ps_log`.
+     */
+    public const LAYER2_FAILURE_MEMORY_SECONDS = 60;
 
     public function __construct(
         string $apiBase,
@@ -82,12 +98,41 @@ class SnapshotClient
     }
 
     /**
-     * Pull snapshot JWS with conditional GET. Returns cached on 304 / failure.
-     * Verifies Ed25519 signature before updating cache.
+     * Reason reported by {@see pullResult()}. ValidateOrderHook maps it to the
+     * cause used by FailurePolicy::decideOnDegradedEnforcement():
+     * `tampered` becomes invalid_signature, `unavailable` becomes missing_snapshot.
+     */
+    public const PULL_OK          = 'ok';
+    public const PULL_TAMPERED    = 'tampered';
+    public const PULL_UNAVAILABLE = 'unavailable';
+
+    /**
+     * Pull snapshot JWS with conditional GET. Verified JWS or null.
+     * Wrapper around {@see pullResult()} (which says WHY there is no snapshot).
      *
      * @return string|null JWS Compact string on success, null on failure.
      */
     public function pull(): ?string
+    {
+        return $this->pullResult()['jws'];
+    }
+
+    /**
+     * Downloads and verifies the snapshot, saying why there is none:
+     *
+     * - `ok`: verified JWS (freshly served or from our 5 min cache).
+     * - `tampered`: the JWS the server JUST served does not verify even after
+     *   fetching the JWKS once more (key rotated while the 1 h cache is still
+     *   alive). It is never cached, and the cache is not served instead: it is
+     *   a tampering signal, not an outage.
+     * - `unavailable`: no usable snapshot (network, HTTP other than 200, empty
+     *   body, expired snapshot, unreachable JWKS so we cannot judge the
+     *   signature) and the cache, if any, does not verify. A copy of OUR cache
+     *   that no longer verifies is rotation or a down JWKS, not tampering.
+     *
+     * @return array{status:string,jws:?string,payload:?array}
+     */
+    public function pullResult(): array
     {
         $cacheKey = 'trusteed_cel_snap_' . substr($this->merchantId, 0, 8);
         $etagKey  = $cacheKey . '_etag';
@@ -108,53 +153,72 @@ class SnapshotClient
 
         $result = $this->httpGet($url, $headers, 8);
 
-        if ($result['error'] !== '') {
-            // Network failure — return cached if available
-            return $cached !== null ? (string) $cached : null;
+        // Network error, 304, HTTP other than 200 or empty body: use the cache if it verifies.
+        if ($result['error'] !== '' || $result['code'] !== 200) {
+            return $this->cachedPullResult($cached);
         }
 
-        if ($result['code'] === 304) {
-            return $cached !== null ? (string) $cached : null;
-        }
-
-        if ($result['code'] !== 200) {
-            return $cached !== null ? (string) $cached : null;
+        // Over the cap it is neither verified nor read further: unavailable.
+        if (strlen((string) $result['body']) > self::MAX_RESPONSE_BYTES) {
+            return $this->cachedPullResult($cached);
         }
 
         $jws = trim((string) $result['body']);
         if ($jws === '') {
-            return $cached !== null ? (string) $cached : null;
+            return $this->cachedPullResult($cached);
         }
 
-        $payload = $this->verifyAndDecode($jws);
-        if ($payload === null) {
-            return $cached !== null ? (string) $cached : null;
+        [$status, $payload] = $this->verifyResult($jws);
+        if ($status === self::PULL_TAMPERED) {
+            return ['status' => self::PULL_TAMPERED, 'jws' => null, 'payload' => null];
+        }
+        if ($status !== self::PULL_OK || $payload === null) {
+            return $this->cachedPullResult($cached);
         }
 
         $ttl = $this->computeTtl($payload);
 
-        // stale-fail-closed (spec-048 P2 / PL-F7): a snapshot whose validUntil
-        // is already in the past must NOT be cached or returned as a fresh/
-        // valid snapshot. computeTtl() returns <= 0 for an expired payload.
-        // Treat it as "no snapshot available" so the evaluator's fallback
-        // policy applies. We never cache the expired JWS as fresh (which the
-        // old max(60, …) clamp did).
+        // Stale fail-closed: a snapshot whose validUntil is already in the past
+        // must NOT be cached or returned as a fresh/valid snapshot. computeTtl()
+        // returns <= 0 for an expired payload. Treat it as "no snapshot
+        // available" so the evaluator's fallback policy applies. The expired JWS
+        // is never cached as fresh.
         if ($ttl <= 0) {
-            return $cached !== null ? (string) $cached : null;
+            return $this->cachedPullResult($cached);
         }
 
         $this->cacheSet($cacheKey, $jws, $ttl);
         $this->cacheSet($etagKey, (string) ($payload['ruleSetVersion'] ?? ''), $ttl);
 
-        // Sprint C T13: persist a long-TTL (24h) copy of the verified snapshot
+        // Persist a long-TTL (24h) copy of the verified snapshot
         // so the hook can evaluate rules offline if Layer-2 evaluate fails.
         $this->writeLocalSnapshotCache($jws);
 
-        return $jws;
+        return ['status' => self::PULL_OK, 'jws' => $jws, 'payload' => $payload];
     }
 
     /**
-     * Sprint C T13: read the 24h-TTL local snapshot cache for this merchant.
+     * The copy from our 5 min cache, re-verified. If it does not verify it is
+     * `unavailable`, never `tampered` (we wrote it ourselves after verifying).
+     *
+     * @param mixed $cached
+     * @return array{status:string,jws:?string,payload:?array}
+     */
+    private function cachedPullResult($cached): array
+    {
+        if (!is_string($cached) || $cached === '') {
+            return ['status' => self::PULL_UNAVAILABLE, 'jws' => null, 'payload' => null];
+        }
+        [$status, $payload] = $this->verifyResult($cached);
+        // The 5 min cache lives as long as the store TTL; even so, a copy whose
+        // own `validUntil` has passed is not a usable snapshot.
+        return $status === self::PULL_OK && $payload !== null && SnapshotPayloadDecoder::isUsable($payload, time())
+            ? ['status' => self::PULL_OK, 'jws' => $cached, 'payload' => $payload]
+            : ['status' => self::PULL_UNAVAILABLE, 'jws' => null, 'payload' => null];
+    }
+
+    /**
+     * Read the 24h-TTL local snapshot cache for this merchant.
      *
      * Returns null when no cache exists or when stale (>24h). Otherwise returns
      * the verified JWS + cache age (seconds) so callers can log structured
@@ -180,52 +244,31 @@ class SnapshotClient
         }
 
         if ($ageSeconds > self::LOCAL_SNAPSHOT_TTL_SECONDS) {
-            // Stale by file-age (>24h) — caller falls back to FallbackMode policy.
+            // Stale by file-age (>24h): caller falls back to FallbackMode policy.
             return null;
         }
 
-        // stale-fail-closed (spec-048 P2): even within the 24h file-age window,
+        // Stale fail-closed: even within the 24h file-age window,
         // a snapshot whose OWN validUntil has already passed must not be reused
         // as a valid offline snapshot. Otherwise an expired kill-switch / tier-1
         // ruleset would keep being honoured for up to 24h. When validUntil is in
         // the past we treat it as a cache miss so the caller's FallbackMode
-        // policy applies (strict → fail-closed for ENFORCE / tier-1 / kill-switch).
+        // policy applies (strict means fail-closed for ENFORCE / tier-1 / kill-switch).
         $validUntil = $this->extractSnapshotValidUntil($jws);
-        if ($validUntil !== null && $validUntil <= time()) {
+        // A missing or unreadable `validUntil` is a malformed payload, like an expired one.
+        if ($validUntil === null || $validUntil <= time()) {
             return null;
         }
 
         return ['jws' => $jws, 'ageSeconds' => $ageSeconds];
     }
 
-    /**
-     * Extract the snapshot's internal `validUntil` (unix seconds) from a JWS
-     * without re-verifying the signature or hitting JWKS.
-     *
-     * The JWS stored in the local cache was already signature-verified at write
-     * time (pull() only persists verified snapshots), so for the offline
-     * staleness check we only need to read the payload's validUntil claim. We
-     * deliberately avoid a network JWKS fetch here because this runs on the
-     * Layer-2-unavailable path.
-     *
-     * @return int|null Unix timestamp, or null when absent / unparseable.
-     */
+    /** `validUntil` of a JWS already verified when cached (no network: works with layer 2 down). */
     private function extractSnapshotValidUntil(string $jws): ?int
     {
-        $parts = explode('.', $jws);
-        if (count($parts) !== 3) {
-            return null;
-        }
+        $payload = SnapshotPayloadDecoder::payloadOfCachedVerifiedJws($jws);
 
-        $payloadJson = self::base64UrlDecode($parts[1]);
-        $payload     = json_decode($payloadJson, true);
-        if (!is_array($payload) || empty($payload['validUntil'])) {
-            return null;
-        }
-
-        $ts = strtotime((string) $payload['validUntil']);
-
-        return $ts === false ? null : $ts;
+        return is_array($payload) ? SnapshotPayloadDecoder::validUntil($payload) : null;
     }
 
     /**
@@ -263,51 +306,143 @@ class SnapshotClient
      */
     public function verifyAndDecode(string $jws): ?array
     {
+        [$status, $payload] = $this->verifyResult($jws);
+
+        return $status === self::PULL_OK ? $payload : null;
+    }
+
+    /**
+     * Verifies the JWS, saying why it does not verify:
+     *
+     * - Invalid shape (not compact, unreadable header, `alg` other than EdDSA,
+     *   no `kid`, payload that is not a JSON object): `tampered`.
+     * - Signature: against the cached JWKS (1 h); if the `kid` is missing or
+     *   does not match, the JWKS is DOWNLOADED once more and the check is
+     *   retried. If there is still no key after that retry (unreachable JWKS):
+     *   `unavailable`, since the signature cannot be judged. With keys that do
+     *   not verify: `tampered`.
+     * - Without sodium nothing can be verified: `unavailable`.
+     * - Valid signature with `zip` in the header: it is inflated with a cap
+     *   ({@see SnapshotPayloadDecoder}); if it cannot be read (zip other than
+     *   DEF, bomb, broken stream): `unavailable`, not `tampered`.
+     *
+     * @return array{0:string,1:?array} [PULL_*, payload or null]
+     */
+    public function verifyResult(string $jws): array
+    {
         if (!function_exists('sodium_crypto_sign_verify_detached')) {
-            return null;
+            return [self::PULL_UNAVAILABLE, null];
         }
 
         $parts = explode('.', $jws);
         if (count($parts) !== 3) {
-            return null;
+            return [self::PULL_TAMPERED, null];
         }
 
         [$headerB64, $payloadB64, $sigB64] = $parts;
 
         $headerJson = self::base64UrlDecode($headerB64);
         $header     = json_decode($headerJson, true);
-        if (!is_array($header) || empty($header['kid'])) {
-            return null;
+        if (!is_array($header) || empty($header['kid']) || !is_string($header['kid'])) {
+            return [self::PULL_TAMPERED, null];
         }
         if (($header['alg'] ?? '') !== 'EdDSA') {
-            return null;
+            return [self::PULL_TAMPERED, null];
+        }
+        // RFC 7515 4.1.11: `crit` requires understanding extensions that we do
+        // not understand and the signer does not emit.
+        if (array_key_exists('crit', $header)) {
+            return [self::PULL_TAMPERED, null];
         }
 
-        $jwks      = $this->fetchJwks();
-        $pubkeyRaw = $jwks[$header['kid']] ?? null;
-        if ($pubkeyRaw === null) {
-            return null;
-        }
-
+        $kid          = $header['kid'];
         $signingInput = $headerB64 . '.' . $payloadB64;
         $sig          = self::base64UrlDecode($sigB64);
 
-        if (!sodium_crypto_sign_verify_detached($sig, $signingInput, $pubkeyRaw)) {
-            return null;
+        $verdicts   = $this->jwksRetryVerdicts();
+        $negative   = $verdicts->read($kid);
+        $cachedKeys = JwksCacheCodec::decode($this->cacheGet('trusteed_cel_jwks_' . md5($this->apiBase)));
+        // JWKS unreachable less than a minute ago and no cached copy: do not
+        // download again on every checkout.
+        if ($cachedKeys === null && $negative === self::PULL_UNAVAILABLE) {
+            return [self::PULL_UNAVAILABLE, null];
+        }
+        $keys = $cachedKeys ?? $this->fetchJwks();
+
+        if (!self::ed25519Verifies($keys[$kid] ?? null, $sig, $signingInput)) {
+            // Already retried less than a minute ago with this `kid` and it did
+            // not verify: classify with what is known, without another download.
+            if ($negative !== null) {
+                return [$negative, null];
+            }
+            // Single retry: key rotation while the JWKS cache is still alive.
+            $fresh = $this->fetchJwks(true);
+            if ($fresh === []) {
+                $verdicts->remember($kid, self::PULL_UNAVAILABLE);
+                return [self::PULL_UNAVAILABLE, null];
+            }
+            if (!self::ed25519Verifies($fresh[$kid] ?? null, $sig, $signingInput)) {
+                $verdicts->remember($kid, self::PULL_TAMPERED);
+                return [self::PULL_TAMPERED, null];
+            }
         }
 
-        $payloadJson = self::base64UrlDecode($payloadB64);
-        $payload     = json_decode($payloadJson, true);
+        // Only after the signature verifies: inflate (if `zip`) with a cap and read.
+        [$decoded, $payload] = SnapshotPayloadDecoder::decode($header, self::base64UrlDecode($payloadB64));
+        if ($decoded === SnapshotPayloadDecoder::OK) {
+            return [self::PULL_OK, $payload];
+        }
 
-        return is_array($payload) ? $payload : null;
+        // With `zip` the platform signature verified but we cannot read it
+        // (unknown zip, bomb, broken stream): not usable, not tampering.
+        return SnapshotPayloadDecoder::declaresZip($header)
+            ? [self::PULL_UNAVAILABLE, null]
+            : [self::PULL_TAMPERED, null];
     }
 
-    /** @return array<string, string> Map of kid => 32-byte raw Ed25519 public key. */
-    private function fetchJwks(): array
+    /** Ed25519 check that never throws: a signature of odd length simply does not verify. */
+    private static function ed25519Verifies(?string $pubkeyRaw, string $sig, string $signingInput): bool
+    {
+        if ($pubkeyRaw === null || strlen($pubkeyRaw) !== 32 || strlen($sig) !== SODIUM_CRYPTO_SIGN_BYTES) {
+            return false;
+        }
+        try {
+            return sodium_crypto_sign_verify_detached($sig, $signingInput, $pubkeyRaw);
+        } catch (\SodiumException $e) {
+            return false;
+        }
+    }
+
+    /** Clock for the JWKS negative cache (protected: tests pin it). */
+    protected function now(): int
+    {
+        return time();
+    }
+
+    /** @param array<string,mixed> $entry Protected: test seam for the write failure. */
+    protected function persistJwksRetryVerdict(array $entry): void
+    {
+        $this->cacheSet('trusteed_cel_jwks_retry_' . md5($this->apiBase), $entry, JwksRetryVerdict::TTL_SECONDS);
+    }
+
+    private function jwksRetryVerdicts(): JwksRetryVerdict
+    {
+        return new JwksRetryVerdict(
+            fn (): mixed => $this->cacheGet('trusteed_cel_jwks_retry_' . md5($this->apiBase)),
+            fn (array $entry) => $this->persistJwksRetryVerdict($entry),
+            fn (): int => $this->now()
+        );
+    }
+
+    /**
+     * @param bool $forceRefresh Ignores the 1 h cache (retry after rotation).
+     * @return array<string, string> Map of kid => 32-byte raw Ed25519 public key.
+     */
+    private function fetchJwks(bool $forceRefresh = false): array
     {
         $cacheKey = 'trusteed_cel_jwks_' . md5($this->apiBase);
-        $cached   = $this->cacheGet($cacheKey);
-        if (is_array($cached)) {
+        $cached   = $forceRefresh ? null : JwksCacheCodec::decode($this->cacheGet($cacheKey));
+        if ($cached !== null) {
             return $cached;
         }
 
@@ -338,7 +473,10 @@ class SnapshotClient
             }
         }
 
-        $this->cacheSet($cacheKey, $keys, 3600);
+        // Raw bytes as base64 (json_encode rejects them) and never an empty list.
+        if (JwksCacheCodec::isCacheable($keys)) {
+            $this->cacheSet($cacheKey, JwksCacheCodec::encode($keys), 3600);
+        }
 
         return $keys;
     }
@@ -366,24 +504,24 @@ class SnapshotClient
      * seconds so the cache lifetime never exceeds the snapshot's own
      * validUntil window.
      *
-     * IMPORTANT (stale-fail-closed, spec-048 P2 / PL-F7): if validUntil is
+     * IMPORTANT (stale fail-closed): if validUntil is
      * already in the past ($until - now <= 0) this returns a non-positive
      * value. The 300s ceiling is ONLY applied when the remaining lifetime is
-     * positive — an expired snapshot must never be promoted back to a 60s
-     * "fresh" TTL (the old max(60, …) clamp did exactly that, keeping an
+     * positive: an expired snapshot must never be promoted back to a 60s
+     * "fresh" TTL (an old max(60, ...) clamp did exactly that, keeping an
      * expired/near-expired kill-switch or tier-1 ruleset cached for up to
      * 60s past when it should have refreshed). Callers MUST treat a <= 0
-     * result as "snapshot stale → no fresh snapshot available".
+     * result as "snapshot stale, so no fresh snapshot available".
      */
     private function computeTtl(array $payload): int
     {
-        if (empty($payload['validUntil'])) {
-            return 300;
-        }
-
-        $until = strtotime((string) $payload['validUntil']);
-        if ($until === false) {
-            return 300;
+        // A snapshot signed by our server always carries `validUntil`: missing
+        // or unreadable means malformed, which is "unavailable" just like an
+        // expired one (non-positive TTL). The signature verified, so it is not
+        // tampering.
+        $until = SnapshotPayloadDecoder::validUntil($payload);
+        if ($until === null) {
+            return 0;
         }
 
         $ttl = $until - time();
@@ -398,34 +536,20 @@ class SnapshotClient
         return min(300, $ttl);
     }
 
-    /** @return array{code: int, body: string, error: string} */
-    private function httpGet(string $url, array $headers, int $timeout = 8): array
+    /**
+     * Protected (like httpPost) so tests replace ONLY the network edge and
+     * exercise the real pull/verification.
+     *
+     * @return array{code: int, body: string, error: string}
+     */
+    protected function httpGet(string $url, array $headers, int $timeout = 8): array
     {
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL            => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => $timeout,
-            CURLOPT_HTTPHEADER     => array_map(
-                static fn($k, $v) => "{$k}: {$v}",
-                array_keys($headers),
-                array_values($headers)
-            ),
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_FOLLOWLOCATION => false,
-        ]);
-
-        $body = curl_exec($ch);
-        $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $err  = (string) curl_error($ch);
-        curl_close($ch);
-
-        return ['code' => $code, 'body' => is_string($body) ? $body : '', 'error' => $err];
+        return BoundedHttpGet::fetch($url, $headers, $timeout, self::MAX_RESPONSE_BYTES);
     }
 
     private function cacheGet(string $key): mixed
     {
-        // B5: prefer persistent file cache; APCu used only when available;
+        // Prefer persistent file cache; APCu used only when available;
         // static fallback preserved for unit tests that cannot write to disk.
         $fc = self::fileCache();
         if ($fc !== null) {
@@ -510,6 +634,7 @@ class SnapshotClient
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => $timeout,
+            CURLOPT_CONNECTTIMEOUT => min(self::CONNECT_TIMEOUT_SECONDS, max(1, $timeout)),
             CURLOPT_POST           => true,
             CURLOPT_POSTFIELDS     => $body,
             CURLOPT_HTTPHEADER     => $headerLines,
@@ -528,13 +653,33 @@ class SnapshotClient
         return ['code' => $code, 'body' => (string) $responseBody, 'error' => ''];
     }
 
+    private function layer2DownKey(): string
+    {
+        return 'trusteed_cel_l2_down_' . substr(md5($this->merchantId . '|' . $this->apiBase), 0, 16);
+    }
+
     /**
-     * Call Capa-2 proxy: POST /v1/rules/evaluate for R003-R010 historical rules.
+     * Is it this request's turn to write the `fallback_open` warning? Only once
+     * per failure window, so a layer 2 outage does not flood `ps_log`.
+     */
+    public function claimFallbackLogSlot(): bool
+    {
+        $key = 'trusteed_cel_l2_fallback_logged_' . substr(md5($this->merchantId . '|' . $this->apiBase), 0, 16);
+        if ($this->cacheGet($key) !== null) {
+            return false;
+        }
+        $this->cacheSet($key, 1, self::LAYER2_FAILURE_MEMORY_SECONDS);
+
+        return true;
+    }
+
+    /**
+     * Call the layer 2 proxy: POST /v1/rules/evaluate for R003-R010 historical rules.
      *
      * Returns null on network failure (caller applies fallbackMode).
      *
-     * @param string|null $agentId Null for an organic (non-agentic) checkout —
-     *                              App Store remediation 2026-07-11. The shared
+     * @param string|null $agentId Null for an organic (non-agentic) checkout.
+     *                              The shared
      *                              evaluator's ruleCode-identity `appliesTo`
      *                              partition safely excludes AGENT-only rules
      *                              in that case while still evaluating
@@ -544,6 +689,10 @@ class SnapshotClient
      * @param int        $itemCount
      * @param float|null $agentTrustScore 0-100
      * @param array      $cartContext     Enriched cart data extracted locally (best-effort).
+     * @param bool       $isAgentic       Checkout with an agentic signal (token
+     *                                    presented, verified or not). Only then is
+     *                                    `endpointClass: agentic_endpoint` added;
+     *                                    the organic body is unchanged byte for byte.
      * @return array{decision:string,ruleCode:string,reason:string,evaluationId:string,ucp:array<string,mixed>}|null
      */
     public function callRulesEvaluate(
@@ -552,14 +701,21 @@ class SnapshotClient
         string $currency,
         int $itemCount,
         ?float $agentTrustScore,
-        array $cartContext = []
+        array $cartContext = [],
+        bool $isAgentic = false
     ): ?array {
         $orderContext = [
             'cartTotalCents'  => $cartTotalCents,
             'currency'        => $currency,
             'itemCount'       => $itemCount,
-            'agentTrustScore' => $agentTrustScore,
         ];
+
+        // The server schema (`agentTrustScore: z.number().int().min(0).max(100).optional()`)
+        // rejects `null` and decimals with HTTP 400, and layer 2 then silently
+        // becomes "unavailable". Without a score the key is omitted; with one, an integer.
+        if ($agentTrustScore !== null) {
+            $orderContext['agentTrustScore'] = max(0, min(100, (int) round($agentTrustScore)));
+        }
 
         if (!empty($cartContext['billingCountry'])) {
             $orderContext['billingCountry'] = (string) $cartContext['billingCountry'];
@@ -580,14 +736,21 @@ class SnapshotClient
             $orderContext['cartAttributes'] = $cartContext['cartAttributes'];
         }
 
-        $payload = json_encode([
+        $body = [
             'merchantId'    => $this->merchantId,
             'agentId'       => $agentId,
             'orderContext'  => $orderContext,
             'platform'       => 'PRESTASHOP',
             'installationId' => $this->installationId,
             'timestamp'      => gmdate('Y-m-d\TH:i:s\Z'),
-        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        ];
+        // Agentic checkouts only: the organic payload does not change. This way
+        // the server treats an agent without a verified identity (invalid token)
+        // as an anonymous agent (R001/R031) and not as a human.
+        $payload = json_encode(
+            $isAgentic ? array_merge($body, ['endpointClass' => 'agentic_endpoint']) : $body,
+            JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE
+        );
 
         $sig     = $this->hmacSign($payload);
         $url     = rtrim($this->apiBase, '/') . '/v1/rules/evaluate';
@@ -597,19 +760,26 @@ class SnapshotClient
             'X-Trusteed-Signature'       => $sig,
         ];
 
+        // Circuit breaker: layer 2 was down less than LAYER2_FAILURE_MEMORY_SECONDS ago.
+        if ($this->cacheGet($this->layer2DownKey()) !== null) {
+            return null;
+        }
+
         $result = $this->httpPost($url, $headers, $payload, 5);
         if ($result['error'] !== '' || $result['code'] !== 200) {
+            $this->cacheSet($this->layer2DownKey(), 1, self::LAYER2_FAILURE_MEMORY_SECONDS);
             return null;
         }
 
         $body = json_decode($result['body'], true);
         if (!is_array($body) || !isset($body['decision'])) {
+            $this->cacheSet($this->layer2DownKey(), 1, self::LAYER2_FAILURE_MEMORY_SECONDS);
             return null;
         }
 
-        // H2: preserve the `ucp` envelope so R043HitlGate can distinguish a
+        // Preserve the `ucp` envelope so R043HitlGate can distinguish a
         // HITL outcome (decision=BLOCK + ucp.state=requires_escalation +
-        // ucp.reason_code=trusteed:R043…) from a plain rule block.
+        // ucp.reason_code=trusteed:R043...) from a plain rule block.
         return [
             'decision'     => (string) $body['decision'],
             'ruleCode'     => (string) ($body['ruleCode'] ?? ''),
@@ -621,13 +791,13 @@ class SnapshotClient
 
     /**
      * Call POST /v1/agent-events/nonce-consume to record a single-use
-     * agent-token jti (spec-048 P2.8 replay protection).
+     * agent-token jti (replay protection).
      *
-     * Mirrors WC class-enforcement-api-client.php::consume_nonce(). Reuses the
+     * Mirrors the WooCommerce plugin's consume_nonce(). Reuses the
      * Stripe-style HMAC signing helper already used by callRulesEvaluate().
      *
      * @param string $agentDid Verified agent DID from token iss/kid claim.
-     * @param string $jti      Single-use nonce — base64url 16–128 chars.
+     * @param string $jti      Single-use nonce, base64url 16 to 128 chars.
      * @param int    $exp      Token exp (unix seconds). Used as TTL upper bound.
      * @return array{outcome:string,reason:string,httpStatus:int|null}
      */

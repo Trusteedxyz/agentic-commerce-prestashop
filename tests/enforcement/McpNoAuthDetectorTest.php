@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * McpNoAuthDetectorTest — PHPUnit 10 tests for spec-048 W1.1 PrestaShop
+ * McpNoAuthDetectorTest — PHPUnit 10 tests for PrestaShop
  * MCP "No-Auth" mode detector (src/Enforcement/McpNoAuthDetector.php).
  *
  * PrestaShop 9.x ships the official MCP server addon (ps_mcp_server, addon

@@ -3,18 +3,18 @@
 declare(strict_types=1);
 
 /**
- * Spec 042 T042-086 — Tests para OrderEventsEmitter.
+ * Tests for OrderEventsEmitter.
  *
- * Verifica:
- *   - mapStateToEventType: 4/5 → FULFILLED, 7 → REFUNDED, otros → null
- *   - payloadHashCanonical: orden de keys irrelevante (sha256 stable)
- *   - signHmac: HMAC-SHA256 hex sobre canonical(body sin signature)
- *   - generateDeterministicJti (R5a): UUID v5 estable por minuto
- *   - resolvePreviousStateId (R15): respeta $newStateId
- *   - hookActionObjectOrderSlipAddAfter (R7): gates slip->id > 0
+ * Covers:
+ *   - mapStateToEventType: 4/5 map to FULFILLED, 7 to REFUNDED, others to null
+ *   - payloadHashCanonical: key order is irrelevant (stable sha256)
+ *   - signHmac: hex HMAC-SHA256 over the canonical body (without signature)
+ *   - generateDeterministicJti: UUID v5, stable per minute
+ *   - resolvePreviousStateId: honours $newStateId
+ *   - hookActionObjectOrderSlipAddAfter: gates on slip->id > 0
  *
- * No invoca el hook completo (requiere PrestaShop kernel) — testa la lógica
- * pura vía reflection.
+ * It does not invoke the full hook (that needs the PrestaShop kernel); the pure
+ * logic is tested through reflection.
  */
 
 namespace Trusteed\Tests\Hooks;
@@ -71,7 +71,7 @@ final class OrderEventsEmitterTest extends TestCase
     }
 
     /**
-     * R5a (codex P1#4): same (platform, merchantId, orderId, eventType,
+     * Same (platform, merchantId, orderId, eventType,
      * occurredAt-floor-1min) → same jti. Different eventType → different jti.
      */
     public function testGenerateDeterministicJtiStable(): void
@@ -105,7 +105,7 @@ final class OrderEventsEmitterTest extends TestCase
     }
 
     /**
-     * R5a (codex P1#4): two timestamps within the same UTC minute (different
+     * Two timestamps within the same UTC minute (different
      * seconds) MUST produce the same jti. Different minute → different jti.
      */
     public function testDeterministicJtiFloorMinute(): void
@@ -130,7 +130,7 @@ final class OrderEventsEmitterTest extends TestCase
     }
 
     /**
-     * R5a: floor must normalize to UTC so non-UTC inputs collapse to the same
+     * The minute floor must normalize to UTC so non-UTC inputs collapse to the same
      * minute as their UTC equivalent.
      */
     public function testDeterministicJtiTimezoneNormalization(): void
@@ -150,19 +150,19 @@ final class OrderEventsEmitterTest extends TestCase
 
     public function testSecretNotEchoedInPayloadHash(): void
     {
-        // Garantiza que el helper canonical no incluye el secret.
+        // The canonical helper must not include the secret.
         $emitter = new OrderEventsEmitter();
         $ref = new \ReflectionMethod($emitter, 'payloadHashCanonical');
         $ref->setAccessible(true);
 
         $h1 = $ref->invoke($emitter, ['orderId' => '1', 'currency' => 'EUR']);
-        // Mismo payload — el hash NO depende de ningún secret.
+        // Same payload: the hash does not depend on any secret.
         $h2 = $ref->invoke($emitter, ['orderId' => '1', 'currency' => 'EUR']);
         self::assertSame($h1, $h2);
     }
 
     /**
-     * R7 (codex P2#2): hook AddAfter must skip when $slip->id === 0
+     * The AddAfter hook must skip when $slip->id === 0
      * (i.e. failed persistence). We can't load PrestaShop's \OrderSlip in unit
      * tests, so we use a stub class. The hook should return without throwing
      * and without attempting to access $slip->id_order beyond the gate.
@@ -175,7 +175,7 @@ final class OrderEventsEmitterTest extends TestCase
         }
 
         $slip = new \OrderSlip();
-        $slip->id = 0; // unpersisted — must be skipped.
+        $slip->id = 0; // unpersisted, must be skipped.
         $slip->id_order = 42;
 
         $emitter = new OrderEventsEmitter();
@@ -185,19 +185,24 @@ final class OrderEventsEmitterTest extends TestCase
     }
 
     /**
-     * R15 (codex P3#1): with history [newest first] = [shipped(4), processing(3),
+     * With history [newest first] = [shipped(4), processing(3),
      * payment_accepted(2)] and newStateId=4, previous must be 3 (not blindly
      * history[1]; the algorithm must skip the entry that matches newStateId).
      */
     public function testResolvePreviousStateIdUsesNewStateId(): void
     {
         // Build a fake \Order with a getHistory() override.
-        $order = new class {
+        //
+        // The anonymous class must extend a minimal `\Order` (the real one if
+        // PrestaShop is loaded): `resolvePreviousStateId(\Order $order, ...)` is
+        // typed, so a plain `new class { ... }` would throw a TypeError.
+        self::ensureOrderStub();
+        $order = new class extends \Order {
             /** @return array<int,array<string,int>> */
             public function getHistory(int $langId): array
             {
                 return [
-                    ['id_order_state' => 4], // shipped — most recent
+                    ['id_order_state' => 4], // shipped, most recent
                     ['id_order_state' => 3], // processing
                     ['id_order_state' => 2], // payment_accepted
                 ];
@@ -227,13 +232,14 @@ final class OrderEventsEmitterTest extends TestCase
     }
 
     /**
-     * R15: when the most recent entry differs from $newStateId (history
+     * When the most recent entry differs from $newStateId (history
      * already advanced past it), walk until we find newStateId and return the
      * next non-matching entry. If newStateId never appears, return null.
      */
     public function testResolvePreviousStateIdReturnsNullWhenNewStateMissing(): void
     {
-        $order = new class {
+        self::ensureOrderStub();
+        $order = new class extends \Order {
             /** @return array<int,array<string,int>> */
             public function getHistory(int $langId): array
             {
@@ -262,5 +268,96 @@ final class OrderEventsEmitterTest extends TestCase
 
         // newStateId=7 (refunded) never appears → null.
         self::assertNull($ref->invoke($emitter, $order, 7));
+    }
+
+    /**
+     * The FULFILLED event used to carry no shipping time, and the server creates
+     * the order row at the same instant, so the measured latency was always
+     * about 0 h. The emitter now computes `hoursToFulfill` from the shop's own
+     * two clocks (order date and shipping date, in its time zone).
+     */
+    private function timing(?string $dateAdd, ?string $shippedAt, string $tz = 'Europe/Madrid'): array
+    {
+        $emitter = new OrderEventsEmitter();
+        $ref = new \ReflectionMethod($emitter, 'computeFulfillmentTiming');
+        $ref->setAccessible(true);
+        return $ref->invoke($emitter, $dateAdd, $shippedAt, $tz);
+    }
+
+    public function testFulfillmentTimingMeasuresRealLatency(): void
+    {
+        $t = $this->timing('2026-09-01 10:00:00', '2026-09-11 10:00:00');
+
+        self::assertSame('measured', $t['dataQuality']);
+        self::assertSame(240.0, $t['hoursToFulfill']);
+        self::assertSame('2026-09-11T10:00:00+02:00', $t['shippedAt']);
+    }
+
+    public function testFulfillmentTimingUsesShopTimezone(): void
+    {
+        $t = $this->timing('2026-09-01 10:00:00', '2026-09-01 12:30:00', 'America/New_York');
+
+        self::assertSame(2.5, $t['hoursToFulfill']);
+        self::assertSame('2026-09-01T12:30:00-04:00', $t['shippedAt']);
+    }
+
+    /**
+     * Without its own shipping time the data is NOT "measured": the server must
+     * not fall back to its ingestion clock, which gives about 0 h here.
+     */
+    public function testFulfillmentTimingWithoutShippedAtIsUnmeasured(): void
+    {
+        $t = $this->timing('2026-09-01 10:00:00', null);
+
+        self::assertSame(['dataQuality' => 'unknown'], $t);
+    }
+
+    public function testFulfillmentTimingRejectsShippedBeforeOrder(): void
+    {
+        $t = $this->timing('2026-09-10 10:00:00', '2026-09-01 10:00:00');
+
+        self::assertSame(['dataQuality' => 'unknown'], $t);
+    }
+
+    public function testFulfillmentTimingRejectsUnparseableDates(): void
+    {
+        self::assertSame(['dataQuality' => 'unknown'], $this->timing('0000-00-00 00:00:00', '2026-09-01 10:00:00'));
+        self::assertSame(['dataQuality' => 'unknown'], $this->timing('no es fecha', '2026-09-01 10:00:00'));
+        self::assertSame(['dataQuality' => 'unknown'], $this->timing(null, '2026-09-01 10:00:00'));
+    }
+
+    /**
+     * An order that goes straight to "delivered" has no shipping time: the
+     * delivery time is not the shipping time.
+     */
+    public function testShippedAtFromHistoryPrefersShippedEntry(): void
+    {
+        $emitter = new OrderEventsEmitter();
+        $ref = new \ReflectionMethod($emitter, 'pickShippedAtFromHistory');
+        $ref->setAccessible(true);
+
+        $history = [
+            ['id_order_state' => OrderEventsEmitter::STATE_DELIVERED, 'date_add' => '2026-09-12 09:00:00'],
+            ['id_order_state' => OrderEventsEmitter::STATE_SHIPPED, 'date_add' => '2026-09-05 18:00:00'],
+            ['id_order_state' => 2, 'date_add' => '2026-09-01 10:00:00'],
+        ];
+        self::assertSame('2026-09-05 18:00:00', $ref->invoke($emitter, $history));
+
+        $sinEnvio = [
+            ['id_order_state' => OrderEventsEmitter::STATE_DELIVERED, 'date_add' => '2026-09-12 09:00:00'],
+        ];
+        self::assertNull($ref->invoke($emitter, $sinEnvio));
+    }
+
+    /**
+     * Minimal `\Order` for tests that need to pass an order to a typed method.
+     * It is only declared when PrestaShop is not loaded; each test overrides
+     * its `getHistory`.
+     */
+    private static function ensureOrderStub(): void
+    {
+        if (!class_exists('\\Order', false)) {
+            eval('class Order { public function getHistory(int $langId) { return []; } }');
+        }
     }
 }

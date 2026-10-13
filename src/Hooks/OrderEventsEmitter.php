@@ -3,28 +3,28 @@
 declare(strict_types=1);
 
 /**
- * Spec 042 T042-082..088 — OrderEventsEmitter.
+ * OrderEventsEmitter.
  *
- * Captura cambios de estado de pedido y emisión de credit slips desde
- * PrestaShop 8.x/9.x y los envía firmados al backend Trusteed como
- * `PlatformOrderEvent` con tipo `FULFILLED` o `REFUNDED`.
+ * Captures order state changes and credit slip creation in PrestaShop 8.x/9.x
+ * and sends them, signed, to the Trusteed backend as `PlatformOrderEvent`
+ * with type `FULFILLED` or `REFUNDED`.
  *
- * Hooks soportados:
- *   - actionOrderStatusUpdate       → FULFILLED (states 4=shipped, 5=delivered),
- *                                     REFUNDED  (state 7), o payment_error (8)
- *   - actionObjectOrderSlipAddAfter → REFUNDED proxy (credit slip = refund)
- *     [R7 codex P2#2]: AddAfter en vez de AddBefore para que $slip->id sea > 0
- *     y para no emitir REFUNDED en creaciones fallidas.
+ * Supported hooks:
+ *   - actionOrderStatusUpdate       -> FULFILLED (states 4=shipped, 5=delivered),
+ *                                      REFUNDED  (state 7), or payment_error (8)
+ *   - actionObjectOrderSlipAddAfter -> REFUNDED proxy (credit slip = refund).
+ *     AddAfter rather than AddBefore so that $slip->id is > 0 and failed
+ *     creations do not emit REFUNDED.
  *
- * PrestaShop NO tiene modelo nativo de disputa/chargeback. Los refunds se
- * usan como proxy con `dataQuality='proxy'` y peso reducido en el score.
+ * PrestaShop has no native dispute/chargeback model. Refunds are used as a
+ * proxy with `dataQuality='proxy'` and reduced weight in the score.
  *
- * Diseño:
- *   - Fire-and-forget: errores no rompen el flujo de admin.
- *   - jti determinístico UUID v5 (R5a codex P1#4): mismo (platform, merchantId,
- *     orderId, eventType, occurredAt-floor-1min) → mismo jti → retries
- *     deduplican en el backend de forma natural.
- *   - Payload firmado HMAC-SHA256 con `TRUSTEED_CEL_HMAC_SECRET`.
+ * Design:
+ *   - Fire-and-forget: errors do not break the admin flow.
+ *   - Deterministic UUID v5 jti: the same (platform, merchantId, orderId,
+ *     eventType, occurredAt floored to 1 minute) gives the same jti, so
+ *     retries deduplicate naturally in the backend.
+ *   - Payload signed with HMAC-SHA256 using `TRUSTEED_CEL_HMAC_SECRET`.
  */
 
 namespace Trusteed\Hooks;
@@ -42,7 +42,7 @@ final class OrderEventsEmitter
     /**
      * Custom DNS-style namespace UUID for Trusteed deterministic jti generation.
      *
-     * R5a (codex P1#4): MUST match across PrestaShop, Odoo, and backend so that
+     * MUST match across PrestaShop, Odoo, and backend so that
      * the same logical event produces the same UUID v5 regardless of emitter.
      */
     private const TRUSTEED_NAMESPACE_UUID = '6ba7b815-9dad-11d1-80b4-00c04fd430c8';
@@ -77,7 +77,7 @@ final class OrderEventsEmitter
             $eventType = $this->mapStateToEventType($stateId);
 
             if ($eventType === null) {
-                return; // estado no mapeado → no-op
+                return; // unmapped state: no-op
             }
 
             $order = new \Order($orderId);
@@ -86,6 +86,18 @@ final class OrderEventsEmitter
             }
 
             $agentDid = $this->resolveCartAgentDid((int) $order->id_cart);
+            // Shipping latency is measured with the STORE's own clocks. If the
+            // event carried no shipping time, the server would create the order
+            // row at that same instant and measure about 0 h, which would look
+            // like 100% on-time by construction. Without a reliable shipping
+            // time the data quality is `unknown`, never `measured`.
+            $timing = $eventType === 'FULFILLED'
+                ? $this->computeFulfillmentTiming(
+                    $order->date_add,
+                    $this->resolveShippedAt($order, $stateId),
+                    date_default_timezone_get()
+                )
+                : ['dataQuality' => 'measured'];
             $this->emitEvent(
                 eventType: $eventType,
                 orderId: (string) $order->id,
@@ -98,9 +110,8 @@ final class OrderEventsEmitter
                     'currency' => $this->resolveCurrencyIso($order),
                     'dateAdd' => $order->date_add,
                     'dateUpd' => $order->date_upd,
-                    'dataQuality' => 'measured',
                     'agentDid' => $agentDid,
-                ], fn($v) => $v !== null),
+                ], fn($v) => $v !== null) + $timing,
             );
         } catch (\Throwable $e) {
             $this->logSafe('actionOrderStatusUpdate failed: ' . $e->getMessage());
@@ -108,7 +119,7 @@ final class OrderEventsEmitter
     }
 
     /**
-     * R7 (codex P2#2): fires AFTER the OrderSlip is persisted so $slip->id > 0,
+     * Fires AFTER the OrderSlip is persisted so $slip->id > 0,
      * and failed slip creations do NOT emit a spurious REFUNDED event.
      *
      * @param array{object: \OrderSlip|null} $params
@@ -121,7 +132,7 @@ final class OrderEventsEmitter
                 return;
             }
 
-            // Gate adicional: slip must be persisted (id > 0).
+            // Extra gate: slip must be persisted (id > 0).
             if ((int) $slip->id <= 0) {
                 return;
             }
@@ -148,7 +159,7 @@ final class OrderEventsEmitter
                     'shippingCost' => (float) $slip->shipping_cost_amount,
                     'currency' => $this->resolveCurrencyIso($order),
                     'dateAdd' => $slip->date_add ?? $order->date_upd,
-                    // PrestaShop no tiene dispute nativo → refunds = proxy.
+                    // PrestaShop has no native dispute, so refunds are a proxy.
                     'dataQuality' => 'proxy',
                     'subtype' => 'order_slip',
                     'agentDid' => $agentDid,
@@ -157,6 +168,94 @@ final class OrderEventsEmitter
         } catch (\Throwable $e) {
             $this->logSafe('actionObjectOrderSlipAddAfter failed: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Shipping time in the store's time zone (`Y-m-d H:i:s`), or null.
+     *
+     * - "Shipped" state: the hook fires on the change to that state, so the
+     *   shipping time is now.
+     * - "Delivered" state: the time of the "shipped" step in the history. If
+     *   the order jumped straight to delivered there is no shipping time: the
+     *   delivery time is not one, and using it would inflate the latency.
+     */
+    private function resolveShippedAt(\Order $order, int $stateId): ?string
+    {
+        if ($stateId === self::STATE_SHIPPED) {
+            return date('Y-m-d H:i:s');
+        }
+        try {
+            $history = $order->getHistory((int) \Context::getContext()->language->id);
+        } catch (\Throwable) {
+            return null;
+        }
+        return is_array($history) ? $this->pickShippedAtFromHistory($history) : null;
+    }
+
+    /**
+     * @param array<int, mixed> $history entries from `Order::getHistory()`
+     */
+    private function pickShippedAtFromHistory(array $history): ?string
+    {
+        $shippedAt = null;
+        foreach ($history as $entry) {
+            if (!is_array($entry) || !isset($entry['id_order_state'], $entry['date_add'])) {
+                continue;
+            }
+            if ((int) $entry['id_order_state'] !== self::STATE_SHIPPED) {
+                continue;
+            }
+            $date = (string) $entry['date_add'];
+            // The FIRST time it shipped: the history can repeat the state.
+            if ($shippedAt === null || strcmp($date, $shippedAt) < 0) {
+                $shippedAt = $date;
+            }
+        }
+        return $shippedAt;
+    }
+
+    /**
+     * Shipping latency using the store's two clocks.
+     *
+     * Both dates arrive as `Y-m-d H:i:s` without a zone (as PrestaShop stores
+     * them) and are interpreted in the store's time zone. Any input that
+     * prevents measuring (missing or unreadable date, the MySQL zero date, or
+     * a shipment earlier than the order) returns `unknown` and nothing else:
+     * "not measured" is better than an invented number.
+     *
+     * @return array{dataQuality: string, hoursToFulfill?: float, shippedAt?: string}
+     */
+    private function computeFulfillmentTiming(?string $orderDateAdd, ?string $shippedAtLocal, string $timezone): array
+    {
+        $unknown = ['dataQuality' => 'unknown'];
+        try {
+            $tz = new \DateTimeZone($timezone);
+        } catch (\Throwable) {
+            return $unknown;
+        }
+        $created = $this->parseShopDate($orderDateAdd, $tz);
+        $shipped = $this->parseShopDate($shippedAtLocal, $tz);
+        if ($created === null || $shipped === null) {
+            return $unknown;
+        }
+        $seconds = $shipped->getTimestamp() - $created->getTimestamp();
+        if ($seconds < 0) {
+            return $unknown;
+        }
+        return [
+            'dataQuality' => 'measured',
+            'hoursToFulfill' => round($seconds / 3600, 2),
+            'shippedAt' => $shipped->format(\DateTimeInterface::ATOM),
+        ];
+    }
+
+    private function parseShopDate(?string $value, \DateTimeZone $tz): ?\DateTimeImmutable
+    {
+        if ($value === null || $value === '' || str_starts_with($value, '0000-00-00')) {
+            return null;
+        }
+        $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $value, $tz);
+        return $parsed === false ? null : $parsed;
     }
 
     /** Resolve agentDid from CartAgentStorage if available (fail-open). */
@@ -177,14 +276,14 @@ final class OrderEventsEmitter
         return match ($stateId) {
             self::STATE_SHIPPED, self::STATE_DELIVERED => 'FULFILLED',
             self::STATE_REFUNDED => 'REFUNDED',
-            // payment_error no genera fulfillment/refund event; sólo telemetría
-            // genérica en otra ruta. Devuelvo null para no emitir aquí.
+            // payment_error produces no fulfillment/refund event (only generic
+            // telemetry elsewhere), so return null to emit nothing here.
             default => null,
         };
     }
 
     /**
-     * R15 (codex P3#1): walks the history (descending: newest first), finds the
+     * Walks the history (descending: newest first), finds the
      * first entry matching $newStateId, then returns the next entry whose state
      * differs from $newStateId. This avoids returning $newStateId itself when
      * history contains duplicates and avoids ignoring $newStateId entirely.
@@ -233,7 +332,7 @@ final class OrderEventsEmitter
     private function emitEvent(string $eventType, string $orderId, array $payload): void
     {
         $apiUrl = (string) \Configuration::get('TRUSTEED_API_BASE');
-        // Gap 2: prefer canonical key, fall back to legacy for backward compat.
+        // Prefer canonical key, fall back to legacy for backward compat.
         $bootstrap = (string) \Configuration::get('TRUSTEED_EMBED_S2S_SECRET');
         if ($bootstrap === '') {
             $bootstrap = (string) \Configuration::get('TRUSTEED_BOOTSTRAP_TOKEN');
@@ -243,7 +342,7 @@ final class OrderEventsEmitter
         $installationId = (string) \Configuration::get('TRUSTEED_CEL_INSTALLATION_ID');
 
         if ($apiUrl === '' || $bootstrap === '' || $hmacSecret === '' || $merchantId === '') {
-            // Gap 7 fix: surface misconfiguration explicitly so audits can detect
+            // Surface misconfiguration explicitly so audits can detect
             // "module installed but webhooks inert" without parsing absence of logs.
             // Logged once per emit attempt (PrestaShop ringbuffers by message).
             $missing = [];
@@ -264,7 +363,7 @@ final class OrderEventsEmitter
         }
 
         $occurredAt = (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format(\DateTimeInterface::ATOM);
-        // R5a (codex P1#4): deterministic jti so retries dedup naturally backend-side.
+        // Deterministic jti so retries dedup naturally backend-side.
         $jti = $this->generateDeterministicJti('PRESTASHOP', $merchantId, $orderId, $eventType, $occurredAt);
         $body = [
             'jti' => $jti,
@@ -295,7 +394,7 @@ final class OrderEventsEmitter
     /**
      * @param array<string,mixed> $payload
      *
-     * R1 (codex P1#1): use RFC 8785 JCS for cross-language byte-equal canonicalization.
+     * Uses RFC 8785 JCS for cross-language byte-equal canonicalization.
      */
     private function payloadHashCanonical(array $payload): string
     {
@@ -306,7 +405,7 @@ final class OrderEventsEmitter
     /**
      * @param array<string,mixed> $body
      *
-     * R1 (codex P1#1): sign over RFC 8785 JCS bytes (body minus signature).
+     * Signs over RFC 8785 JCS bytes (body minus signature).
      */
     private function signHmac(array $body, string $secret): string
     {
@@ -316,10 +415,10 @@ final class OrderEventsEmitter
     }
 
     /**
-     * R5a (codex P1#4): deterministic jti via UUID v5 (RFC 4122 §4.3) so the
+     * Deterministic jti via UUID v5 (RFC 4122 §4.3) so the
      * same logical event (same minute) always produces the same identifier.
      * Retries from PrestaShop, queue replays, and parallel emitters all
-     * converge on the same jti → backend idempotency works naturally.
+     * converge on the same jti, so backend idempotency works naturally.
      */
     private function generateDeterministicJti(
         string $platform,

@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * PermissionGuardTest — tests the REAL PermissionGuard (spec-046 H1 + T033).
+ * PermissionGuardTest: tests the REAL PermissionGuard.
  *
  * Previously this suite tested an inline MockPermissionGuardImpl that
  * re-implemented the capability→permission mapping, so it never exercised the

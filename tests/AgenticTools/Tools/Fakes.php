@@ -3,15 +3,14 @@
 declare(strict_types=1);
 
 /**
- * Fakes.php — deterministic test doubles implementing the production seams
+ * Fakes.php: deterministic test doubles implementing the production seams
  * (BackendApiClientInterface / PermissionGuardInterface).
  *
- * These are REAL implementations of the production interfaces — NOT
+ * These are REAL implementations of the production interfaces, NOT
  * re-implementations of the tool classes. The tests instantiate the REAL tool
  * classes (SignTrustReceiptTool, etc.) and inject these fakes for the external
- * dependencies (HTTP transport + PS permission check). This is the H1 fix: the
- * previous tests defined `MockSignTrustReceiptTool` and tested THAT, never the
- * real tool.
+ * dependencies (HTTP transport + PS permission check). Testing the real tool
+ * classes, instead of a mock copy of them, is the point of this setup.
  */
 
 namespace Trusteed\Tests\AgenticTools\Tools;

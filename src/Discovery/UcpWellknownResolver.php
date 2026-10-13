@@ -9,7 +9,7 @@ if (!defined('_PS_VERSION_')) {
 }
 
 /**
- * Trusteed — UCP `.well-known` discovery resolver (ADR-077, PrestaShop).
+ * Trusteed — UCP `.well-known` discovery resolver.
  *
  * Builds the canonical CENTRAL per-store UCP discovery URL from configuration
  * the module already stores and exposes the opt-in gate. Per ADR-077 the

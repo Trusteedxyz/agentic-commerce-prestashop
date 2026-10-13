@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * NonceConsumeTest — spec-048 P2.8 single-use replay protection (PrestaShop).
+ * NonceConsumeTest — single-use replay protection (PrestaShop).
  *
  * Covers SnapshotClient::consumeNonce() with the same four cases exercised by
  * the WooCommerce class-enforcement-api-client tests:
@@ -15,7 +15,7 @@ declare(strict_types=1);
  *
  * Run from repo root:
  *   vendor/bin/phpunit \
- *     packages/prestashop-module-agenticmcpstores/tests/enforcement/NonceConsumeTest.php
+ *     tests/enforcement/NonceConsumeTest.php
  */
 
 namespace Trusteed\Tests\Enforcement;

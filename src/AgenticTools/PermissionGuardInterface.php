@@ -5,7 +5,7 @@ declare(strict_types=1);
 /**
  * PermissionGuardInterface — seam for the PS permission check.
  *
- * Introduced (spec-046 H1) so AgenticTools unit tests can drive the REAL tool
+ * Introduced so AgenticTools unit tests can drive the REAL tool
  * classes with a deterministic permission decision without a live PrestaShop
  * back-office (Access / Tab / Employee). The production implementation is
  * PermissionGuard (final).

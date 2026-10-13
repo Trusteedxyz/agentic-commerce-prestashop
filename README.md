@@ -118,17 +118,18 @@ Enforcement stays fully inert until `TRUSTEED_CEL_ENABLED` is `1` **and** all th
 
 After installation a **Trusteed** menu appears in the PrestaShop Back Office sidebar:
 
-| Page                   | Description                                            |
-| ---------------------- | ------------------------------------------------------ |
-| Home                   | Reputation and recent sales overview                   |
-| How is my store doing? | Signed receipts, signing keys, audit log, trust score  |
-| Merchant Center        | Orders, payment methods, agents, certifications, NLWeb |
-| My sales               | Order list and AI trust receipts                       |
-| My Rules               | Checkout enforcement rules                             |
-| Security               | Audit log and anomaly alerts                           |
-| Agents                 | Connected agent identities                             |
-| Agent Readiness        | Whether agents can actually buy in this store          |
-| Settings               | Module settings and auto-registration                  |
+| Page            | Description                                                                  |
+| --------------- | ---------------------------------------------------------------------------- |
+| Home            | Reputation and recent sales overview                                         |
+| My sales        | Order list and AI trust receipts                                             |
+| Agents          | Connected agent identities                                                   |
+| My rules        | Checkout enforcement rules                                                   |
+| Payment methods | Payment methods agents can use at checkout                                   |
+| Trust           | Trust score, signed receipts, signing keys, audit log                        |
+| Settings        | Module settings and auto-registration                                        |
+| Merchant Center | Hidden from the menu: orders, payment methods, agents, certifications, NLWeb |
+| Security        | Hidden from the menu: audit log and anomaly alerts                           |
+| Agent Readiness | Hidden from the menu: whether agents can actually buy in this store          |
 
 ## FAQ
 
@@ -202,6 +203,16 @@ The report's central claim is accurate: our OAuth dynamic client registration en
 Investigating the report surfaced something it did not flag: an OAuth scope (`mcp:admin`) was published across our discovery documents and offered on the consent screen, but no code enforced it — a token holding it carried the exact same privileges as `mcp:read`. That scope has been retired platform-wide. The fix lives in our private API and dashboard, not in this module, but we record the credit here as agreed with the reporter.
 
 ## Changelog
+
+### 2.3.2 to 2.3.4
+
+- New: an optional, read-only webservice key. A consent block on the module settings page lets you grant Trusteed read access to your catalog; it lists exactly what is created, nothing is created until you click, and you can revoke it from the same page.
+- New: the back-office menu now matches the other platforms, with a "Payment methods" entry of its own.
+- Changed: a human checkout is never blocked by a failure on our side (network error, timeout, unreadable response or missing snapshot), even in strict mode. The fallback mode only decides what happens to agent checkouts. An unexpected internal error is handled the same way.
+- Changed: stronger verification of the rules snapshot and the signing keys (JWKS): bounded response sizes, a retry limit on key refresh, a safer cache format and stricter token checks (maximum age, critical headers).
+- Changed: the module now reports its capabilities again every 7 days, not only on a version change, so a quiet store is not treated as inactive.
+- Fixed: cart line items sent under alternative field names are now recognised, and rule codes are normalised before they are compared.
+- Fixed: upgrading adds a missing index on the agent carts table, so cleaning up expired carts no longer scans the whole table.
 
 ### 2.3.1: Security fix
 

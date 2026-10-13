@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Trusteed\Enforcement;
 
 /**
- * Spec-048 Sprint E.2 T-E45 â€” PrestaShop R043 HITL Gate.
+ * €” PrestaShop R043 HITL Gate.
  *
  * Detects R043 HITL outcomes from /v1/rules/evaluate responses and freezes
  * the order. PrestaShop is invoked from `override/classes/PaymentModule.php`
@@ -26,7 +26,7 @@ namespace Trusteed\Enforcement;
  * Compuerta de carrito-congelado PS para R043 â€” bloquea captura pago hasta
  * resoluciÃ³n del comerciante.
  *
- * @since 1.6.0 (spec-048 Sprint E.2 T-E45)
+ * @since 1.6.0
  */
 final class R043HitlGate
 {

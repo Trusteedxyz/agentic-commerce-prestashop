@@ -119,17 +119,18 @@ L'application des règles reste totalement inerte jusqu'à ce que `TRUSTEED_CEL_
 
 Après l'installation, un menu **Trusteed** apparaît dans la barre latérale du Back Office PrestaShop. Seul l'anglais dispose de libellés traduits : dans toutes les autres langues, y compris le français, la barre latérale affiche les libellés espagnols reproduits ci-dessous.
 
-| Page                         | Description                                                          |
-| ---------------------------- | -------------------------------------------------------------------- |
-| Inicio                       | Aperçu de la réputation et des ventes récentes                       |
-| ¿Cómo va mi tienda?          | Reçus signés, clés de signature, journal d'audit, score de confiance |
-| Centro de comercio           | Commandes, moyens de paiement, agents, certifications, NLWeb         |
-| Mis ventas                   | Liste des commandes et reçus de confiance IA                         |
-| Mis Reglas                   | Règles d'application au checkout                                     |
-| Seguridad                    | Journal d'audit et alertes d'anomalies                               |
-| Agentes                      | Identités des agents connectés                                       |
-| ¿Pueden comprar los agentes? | Si les agents peuvent réellement acheter dans cette boutique         |
-| Configuración                | Paramètres du module et auto-enregistrement                          |
+| Page                         | Description                                                                 |
+| ---------------------------- | --------------------------------------------------------------------------- |
+| Inicio                       | Aperçu de la réputation et des ventes récentes                              |
+| Mis ventas                   | Liste des commandes et reçus de confiance IA                                |
+| Agentes                      | Identités des agents connectés                                              |
+| Mis reglas                   | Règles d'application au checkout                                            |
+| Métodos de pago              | Moyens de paiement que les agents peuvent utiliser au checkout              |
+| Confianza                    | Score de confiance, reçus signés, clés de signature, journal d'audit        |
+| Ajustes                      | Paramètres du module et auto-enregistrement                                 |
+| Centro de comercio           | Hors du menu : commandes, moyens de paiement, agents, certifications, NLWeb |
+| Seguridad                    | Hors du menu : journal d'audit et alertes d'anomalies                       |
+| ¿Pueden comprar los agentes? | Hors du menu : si les agents peuvent réellement acheter dans cette boutique |
 
 ## FAQ
 
@@ -196,6 +197,16 @@ bien » mis en cache et présenté comme actuel serait exactement l'auto-illusio
 que cette page existe pour débusquer.
 
 ## Historique des versions
+
+### 2.3.2 à 2.3.4
+
+- Nouveau : une clé de webservice facultative et en lecture seule. Un bloc de consentement dans la page de configuration permet d'accorder à Trusteed un accès en lecture au catalogue ; il énumère exactement ce qui est créé, rien n'est créé tant que vous ne cliquez pas, et vous pouvez la révoquer depuis la même page.
+- Nouveau : le menu du back-office est désormais aligné sur celui des autres plateformes, avec une entrée « Moyens de paiement » dédiée.
+- Modifié : un checkout humain n'est jamais bloqué par une panne de notre côté (erreur réseau, délai dépassé, réponse illisible ou snapshot absent), même en mode strict. Le mode de repli ne décide que du sort des checkouts d'agents. Une erreur interne inattendue est traitée de la même façon.
+- Modifié : vérification renforcée du snapshot de règles et des clés de signature (JWKS) : tailles de réponse bornées, limite de tentatives lors du rafraîchissement des clés, format de cache plus sûr et contrôles de jeton plus stricts (âge maximal, en-têtes critiques).
+- Modifié : le module annonce de nouveau ses capacités tous les 7 jours, et plus seulement lors d'un changement de version, afin qu'une boutique calme ne soit pas jugée inactive.
+- Corrigé : les lignes de panier envoyées sous d'autres noms de champ sont désormais reconnues, et les codes de règle sont normalisés avant d'être comparés.
+- Corrigé : la mise à jour ajoute un index manquant sur la table des paniers d'agents, si bien que le nettoyage des paniers expirés ne parcourt plus toute la table.
 
 ### 2.3.1 : Correctif de sécurité
 

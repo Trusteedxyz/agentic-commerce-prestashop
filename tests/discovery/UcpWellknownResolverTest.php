@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * ADR-077 — UCP `.well-known` discovery resolver (PrestaShop).
+ * UCP `.well-known` discovery resolver (PrestaShop).
  *
  * Unit-tests the REAL Trusteed\Discovery\UcpWellknownResolver against a
  * configurable \Configuration stub. Verifies:
@@ -60,6 +60,30 @@ namespace Trusteed\Tests\Discovery {
         protected function setUp(): void
         {
             TestUcpConfigState::reset();
+            // When the whole suite runs, the bootstrap has already declared
+            // `\Configuration` (tests/stubs/PsContextStubs.php), which reads
+            // `TestPsState::$config`. This file's stub is skipped by the
+            // `class_exists` guard, so the tests that set the flag wrote to a
+            // store nobody read. The two stores are linked so the test measures
+            // the same thing in isolation and in the full suite.
+            if (class_exists('TestPsState', false)) {
+                \TestPsState::$config = &TestUcpConfigState::$values;
+                // Another test in the suite may have left its merchant id set;
+                // the stub's special case would take precedence over it.
+                $this->merchantIdPrevio = \TestPsState::$merchantId;
+                \TestPsState::$merchantId = '';
+            }
+        }
+
+        private string $merchantIdPrevio = '';
+
+        protected function tearDown(): void
+        {
+            if (class_exists('TestPsState', false)) {
+                $vacio = [];
+                \TestPsState::$config = &$vacio;
+                \TestPsState::$merchantId = $this->merchantIdPrevio;
+            }
         }
 
         public function testDisabledByDefault(): void
@@ -134,14 +158,14 @@ namespace Trusteed\Tests\Discovery {
 
         public function testTargetUrlFailsClosedWithoutMerchantId(): void
         {
-            // ADR-077 fail-closed: no merchant id → no redirect target (→ 404).
+            // Fail-closed: no merchant id means no redirect target (404).
             TestUcpConfigState::$values['TRUSTEED_API_BASE'] = 'https://api.trusteed.xyz';
             $this->assertSame('', UcpWellknownResolver::targetUrl());
         }
 
         public function testTargetUrlIsReferenceNotManifestBody(): void
         {
-            // ADR-077 doctrine: REFERENCE, never DUPLICATE — bare URL only.
+            // REFERENCE, never DUPLICATE: bare URL only.
             TestUcpConfigState::$values['TRUSTEED_API_BASE']     = 'https://api.trusteed.xyz';
             TestUcpConfigState::$values['TRUSTEED_CEL_MERCHANT_ID'] = 'acme-store';
 

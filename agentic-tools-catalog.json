@@ -255,7 +255,7 @@
       "routing": {
         "backendStatus": "planned",
         "kind": "rest",
-        "notes": "AP2 v0.2 is dormant (spec-044, behind SD_JWT_ENABLED). The /api/v1/protocols/ap2/dispatch route does NOT exist yet — the AP2 adapter currently only exposes a dormant guard (503). Advertised as planned so platform modules register the tool disabled until spec-044 ships a dispatch route.",
+        "notes": "AP2 v0.2 is dormant. The /api/v1/protocols/ap2/dispatch route does NOT exist yet — the AP2 adapter currently only exposes a dormant guard (503). Advertised as planned so platform modules register the tool disabled until spec-044 ships a dispatch route.",
         "target": "/api/v1/protocols/ap2/dispatch"
       }
     }

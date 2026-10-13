@@ -9,30 +9,29 @@ if (!defined('_PS_VERSION_')) {
 }
 
 /**
- * Offline safety-valve evaluator — local PHP port of the "universal merchant
- * policy" rule subset from `packages/shared/src/enforcement/rule-catalog.ts`
+ * Offline safety-valve evaluator: local PHP port of the "universal merchant
+ * policy" rule subset from the shared Trusteed rule catalog
  * (R014-country-only, R018, R019, R020, R025, R027, R028, R029, R030).
  *
  * Why this exists: `ValidateOrderHook::evaluateRule()` only implements R001
- * and R007 locally — every other rule's ALLOW/BLOCK verdict comes from the
+ * and R007 locally, and every other rule's ALLOW/BLOCK verdict comes from the
  * remote `callRulesEvaluate()` call. If that call fails (network error,
  * timeout, 5xx), the merchant's own safety rules (max order amount, blocked
  * countries, business hours, PO-box block, gift-card cap...) never get a
- * chance to fire — the checkout falls through to the blunt fallbackMode
+ * chance to fire, so the checkout falls through to the blunt fallbackMode
  * policy (block everything / allow everything) instead.
  *
  * This class is a FALLBACK, not a replacement: the remote evaluator stays
  * primary (it has richer history/DB signal for rules outside this subset).
  * This only runs when the remote call is unavailable, evaluating the last
- * pulled signed RuleSnapshot's `rules[]` params against the current cart —
+ * pulled signed RuleSnapshot's `rules[]` params against the current cart:
  * pure functions, no network, no DB.
  *
  * CONFORMANCE: every method here MUST match the behavior of its TypeScript
- * counterpart in rule-catalog.ts EXACTLY, and the WooCommerce plugin's
+ * counterpart in the shared rule catalog EXACTLY, and the WooCommerce plugin's
  * `Amcp_Offline_Safety_Valve_Evaluator` (same rule subset, mirrored
  * independently). All three are tested against the same fixture:
- * `packages/shared/src/enforcement/__fixtures__/
- * offline-safety-valve-conformance.json`. If you change one, update the
+ * `tests/fixtures/offline-safety-valve-conformance.json`. If you change one, update the
  * fixture and re-run all three test suites before shipping.
  */
 final class OfflineSafetyValveEvaluator
@@ -90,7 +89,43 @@ final class OfflineSafetyValveEvaluator
 
     private static function orderCountry(array $orderContext): ?string
     {
-        return $orderContext['billingCountry'] ?? $orderContext['shippingCountry'] ?? null;
+        return self::normalizeCountry($orderContext['billingCountry'] ?? $orderContext['shippingCountry'] ?? null);
+    }
+
+    /** trim + uppercase; empty / non-string => null (mirror of normalizeCountryCode in TS). */
+    private static function normalizeCountry($value): ?string
+    {
+        if (!is_string($value)) {
+            return null;
+        }
+        $code = strtoupper(trim($value));
+        return $code !== '' ? $code : null;
+    }
+
+    /**
+     * @param mixed $values
+     * @return array<int, string>
+     */
+    private static function normalizeCountryList($values): array
+    {
+        $out = [];
+        foreach ((array) $values as $value) {
+            $code = self::normalizeCountry($value);
+            if ($code !== null) {
+                $out[] = $code;
+            }
+        }
+        return $out;
+    }
+
+    /** ISO 4217: trim + uppercase, exactly 3 letters A-Z; anything else => null (mirror of normalizeCurrencyCode). */
+    private static function normalizeCurrency($value): ?string
+    {
+        if (!is_string($value)) {
+            return null;
+        }
+        $code = strtoupper(trim($value));
+        return preg_match('/^[A-Z]{3}$/', $code) === 1 ? $code : null;
     }
 
     private static function attrBool(array $cartAttributes, string $key): bool
@@ -107,11 +142,11 @@ final class OfflineSafetyValveEvaluator
         return (float) $cartAttributes[$key];
     }
 
-    // ── R014 (country dimension only — cancellation-history needs a DB lookup) ──
+    // R014 (country dimension only, cancellation-history needs a DB lookup)
 
     private static function evalR014(array $params, array $orderContext, array $cartAttributes): ?string
     {
-        $highRisk = $params['highRiskCountries'] ?? self::DEFAULT_HIGH_RISK_COUNTRIES;
+        $highRisk = self::normalizeCountryList($params['highRiskCountries'] ?? self::DEFAULT_HIGH_RISK_COUNTRIES);
         $country = self::orderCountry($orderContext);
         if ($country !== null && in_array($country, $highRisk, true)) {
             return "delivery country {$country} is high-risk";
@@ -119,7 +154,7 @@ final class OfflineSafetyValveEvaluator
         return null;
     }
 
-    // ── R018 cart-composition-guard ──
+    // R018 cart-composition-guard
 
     private static function evalR018(array $params, array $orderContext, array $cartAttributes): ?string
     {
@@ -152,7 +187,7 @@ final class OfflineSafetyValveEvaluator
         return null;
     }
 
-    // ── R019 country-jurisdiction ──
+    // R019 country-jurisdiction
 
     private static function evalR019(array $params, array $orderContext, array $cartAttributes): ?string
     {
@@ -160,18 +195,18 @@ final class OfflineSafetyValveEvaluator
         if ($country === null) {
             return null;
         }
-        $blocked = $params['blockedCountries'] ?? [];
+        $blocked = self::normalizeCountryList($params['blockedCountries'] ?? []);
         if (in_array($country, $blocked, true)) {
             return "country {$country} is blocked";
         }
-        $allowed = $params['allowedCountries'] ?? [];
+        $allowed = self::normalizeCountryList($params['allowedCountries'] ?? []);
         if (!empty($allowed) && !in_array($country, $allowed, true)) {
             return "country {$country} is not allowed";
         }
         return null;
     }
 
-    // ── R020 business-hours ──
+    // R020 business-hours
 
     private static function evalR020(array $params, array $orderContext, array $cartAttributes): ?string
     {
@@ -199,7 +234,7 @@ final class OfflineSafetyValveEvaluator
         return $inside ? null : "local hour {$hour} outside {$start}-{$end}";
     }
 
-    // ── R025 sensitive-delivery-address ──
+    // R025 sensitive-delivery-address
 
     private static function evalR025(array $params, array $orderContext, array $cartAttributes): ?string
     {
@@ -214,7 +249,7 @@ final class OfflineSafetyValveEvaluator
         return null;
     }
 
-    // ── R027 gift-card-stored-value ──
+    // R027 gift-card-stored-value
 
     private static function evalR027(array $params, array $orderContext, array $cartAttributes): ?string
     {
@@ -226,7 +261,7 @@ final class OfflineSafetyValveEvaluator
         return $raw > $max ? "stored value {$raw} > {$max}" : null;
     }
 
-    // ── R028 b2b-po-guard ──
+    // R028 b2b-po-guard
 
     private static function evalR028(array $params, array $orderContext, array $cartAttributes): ?string
     {
@@ -238,7 +273,7 @@ final class OfflineSafetyValveEvaluator
         return ($isB2b && !$hasPoHash) ? 'B2B purchase order evidence missing' : null;
     }
 
-    // ── R029 merchant-preset ──
+    // R029 merchant-preset
 
     private static function evalR029(array $params, array $orderContext, array $cartAttributes): ?string
     {
@@ -251,26 +286,43 @@ final class OfflineSafetyValveEvaluator
         }
         if ($preset === 'estricto') {
             // Offline evaluator has no agent context (organic checkout by
-            // definition here) — "estricto" REQUIRES a verified high-trust
+            // definition here). "estricto" REQUIRES a verified high-trust
             // agent by design, so this correctly HITs for every organic cart.
             return 'strict preset requires verified high-trust agent';
         }
         return null;
     }
 
-    // ── R030 simple-controls ──
+    // R030 simple-controls
 
     private static function evalR030(array $params, array $orderContext, array $cartAttributes): ?string
     {
         $max = $params['maxAmountCents'] ?? null;
         $cartTotalCents = (int) ($orderContext['cartTotalCents'] ?? 0);
-        if ($max !== null && $cartTotalCents > $max) {
+        // The amount is only compared against a cap of the SAME
+        // currency (no FX). Order currency absent/malformed or cap currency
+        // undeclared/malformed => compared as before (mirror of classifyMoneyCap).
+        // Different currencies => not comparable; what happens depends on the
+        // actor signal `orderContext['agentCheckout']` (set by the call-site):
+        //   true  => agent: BLOCK "currency not comparable" (block_agent);
+        //   false => person: amount skipped (country control still applies);
+        //   absent/non-bool => unknown actor: conservative, compare as before.
+        $orderCurrency = self::normalizeCurrency($orderContext['currency'] ?? null);
+        $capCurrency = self::normalizeCurrency($params['maxAmountCurrency'] ?? null);
+        $agentSignal = $orderContext['agentCheckout'] ?? null;
+        $sameOrUnknown = $orderCurrency === null || $capCurrency === null || $orderCurrency === $capCurrency;
+        $comparable = $sameOrUnknown || !is_bool($agentSignal);
+        $notComparableAgent = !$sameOrUnknown && $agentSignal === true;
+        if ($max !== null && $comparable && $cartTotalCents > $max) {
             return "cart total {$cartTotalCents} > merchant max {$max}";
         }
         $country = self::orderCountry($orderContext);
-        $allowed = $params['allowedCountries'] ?? [];
+        $allowed = self::normalizeCountryList($params['allowedCountries'] ?? []);
         if ($country !== null && !empty($allowed) && !in_array($country, $allowed, true)) {
             return "country {$country} is outside merchant controls";
+        }
+        if ($max !== null && $notComparableAgent) {
+            return "currency not comparable: order {$orderCurrency}, merchant cap {$capCurrency}";
         }
         return null;
     }

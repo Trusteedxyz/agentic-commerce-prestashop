@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * R022PaymentRailTest — PHPUnit 10 tests for R022 payment-method propagation (spec-048).
+ * R022PaymentRailTest — PHPUnit 10 tests for R022 payment-method propagation.
  *
  * R022 requires that the payment gateway selected by the buyer reaches the
  * Layer-2 callRulesEvaluate() context so that CEL rules can enforce
@@ -24,7 +24,7 @@ declare(strict_types=1);
  *
  * Because both files depend on the PrestaShop kernel we cannot load them
  * directly.  Instead we use focused in-test doubles that mirror the exact
- * R022 code paths — the same strategy as ValidateOrderHookTest.php (T078).
+ * R022 code paths — the same strategy as ValidateOrderHookTest.php.
  *
  * Tests:
  *   Group 1 — PaymentModule: paymentMethod reaches callRulesEvaluate
@@ -40,7 +40,7 @@ declare(strict_types=1);
  *
  * Run from repo root:
  *   vendor/bin/phpunit \
- *     packages/prestashop-module-agenticmcpstores/tests/enforcement/R022PaymentRailTest.php
+ *     tests/enforcement/R022PaymentRailTest.php
  */
 
 namespace Trusteed\Tests\Enforcement;

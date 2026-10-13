@@ -10,7 +10,7 @@ declare(strict_types=1);
  *  - 1 automatic retry ONLY on transient failures (5xx / curl transport error).
  *    4xx responses (400/401/402/403/404/409/422/429, …) are NEVER retried — a
  *    blind retry on a 402/409 against a payment endpoint risks a double charge
- *    (spec-046 H7). The retry decision inspects the HTTP status, not merely the
+ *. The retry decision inspects the HTTP status, not merely the
  *    exception type.
  *  - TLS verification pinned ON (CURLOPT_SSL_VERIFYPEER / VERIFYHOST=2) to match
  *    the other module HTTP clients (AdminTrusteedController, SnapshotClient).
@@ -288,7 +288,7 @@ final class BackendApiClient implements BackendApiClientInterface
      * private, loopback, link-local or reserved IP range — in addition to the
      * HTTPS-only scheme guard. A bare IP-literal host is validated directly; a
      * DNS name is resolved and every returned A/AAAA record is checked. This
-     * mirrors the sibling WordPress client (spec-046 F8 parity).
+     * mirrors the sibling WordPress client.
      *
      * NOTE: a literal IP host is validated without DNS (deterministic). A DNS
      * name is resolved and EVERY returned A/AAAA record must be public.

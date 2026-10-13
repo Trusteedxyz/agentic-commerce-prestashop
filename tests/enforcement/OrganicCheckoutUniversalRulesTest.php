@@ -7,20 +7,20 @@ namespace Trusteed\Tests\Enforcement;
 use PHPUnit\Framework\TestCase;
 
 /**
- * App Store remediation (2026-07-11) — R030 (and every other merchant-wide
+ * R030 (and every other merchant-wide
  * "appliesTo:ALL" policy rule: R014/R018/R019/R020/R025/R027) must apply to
  * a normal human (non-agentic) PrestaShop checkout, not just agentic carts.
  *
  * Root cause fixed in ValidateOrderHook::evaluateCart(): the method used to
  * `return` immediately with the comment "human flow, not subject to CEL"
- * whenever no agent token was resolvable from the cart — before ever pulling
- * the snapshot or calling Layer-2 (`callRulesEvaluate`) — so a merchant's
+ * whenever no agent token was resolvable from the cart, before ever pulling
+ * the snapshot or calling Layer-2 (`callRulesEvaluate`), so a merchant's
  * universal safety-valve rules never applied to a real customer.
  *
  * `evaluateCart()` depends on the live PrestaShop kernel (\Cart, \Currency,
  * \Tools, \PrestaShopLogger) and cannot be instantiated in this unit-test
  * process (see ValidateOrderHookTest.php's own docblock for the same
- * constraint — it tests a hand-written MockCelEvaluator mirror instead of
+ * constraint, it tests a hand-written MockCelEvaluator mirror instead of
  * the real class for exactly this reason). This test instead asserts the
  * control-flow structurally against the real source. Every substring below
  * was verified byte-for-byte against the real file (`sed -n '<line>p'`)
@@ -49,7 +49,7 @@ final class OrganicCheckoutUniversalRulesTest extends TestCase
     {
         $src = $this->hookSource();
         // The refactor introduces an explicit `$claims = null;` default that
-        // is only overwritten inside the `if ($agentToken !== '')` branch —
+        // is only overwritten inside the `if ($agentToken !== '')` branch,
         // proving evaluation continues (snapshot pull, tier-2 dispatch) even
         // when no token was presented.
         $this->assertStringContainsString('$claims = null;', $src);
@@ -63,8 +63,10 @@ final class OrganicCheckoutUniversalRulesTest extends TestCase
         // applicable tier-2 rule.
         $this->assertStringNotContainsString('if ($hasTier2 && $claims !== null)', $src);
         // New gate: tier-2 (Layer-2) evaluation runs whenever an applicable
-        // rule exists, agent or not.
-        $this->assertStringContainsString('if ($hasTier2) {', $src);
+        // rule exists, agent or not. The gate is now derived
+        // (`RuleCode::needsServer`); the behaviour is exercised
+        // for real in ValidateOrderHookAgenticFlowTest (in suite).
+        $this->assertStringContainsString('if ($needsServer) {', $src);
     }
 
     public function test_agent_id_passed_to_layer2_is_nullable(): void

@@ -3,13 +3,13 @@
 declare(strict_types=1);
 
 /**
- * McpToolException — structured MCP tool error (spec-046 FR-014).
+ * McpToolException — structured MCP tool error.
  *
  * FR-014 requires that errors surfaced by the AgenticTools carry a stable,
  * machine-readable `code` so the MCP server / AI app can react deterministically
  * instead of parsing free-form RuntimeException messages.
  *
- * Canonical codes (spec-046 §FR-014):
+ * Canonical codes:
  *   - capability_disabled       → the merchant has not enabled this tool (FR-018b
  *                                 toggle OFF) OR the catalog marks the backend as
  *                                 `planned` (no deployable backend yet).

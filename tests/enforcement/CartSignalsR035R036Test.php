@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Spec-048 Sprint E.3 â€” PrestaShop CartSignals R035/R036 instance evaluators.
+ * €” PrestaShop CartSignals R035/R036 instance evaluators.
  *
  * Mirrors `evaluateR035` (max-order-value) and `evaluateR036`
  * (max-line-item-value) from `packages/shared/src/enforcement/rule-catalog.ts`.
