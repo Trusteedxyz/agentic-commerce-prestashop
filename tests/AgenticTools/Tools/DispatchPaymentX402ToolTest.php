@@ -3,11 +3,12 @@
 declare(strict_types=1);
 
 /**
- * DispatchPaymentX402ToolTest: tests the REAL DispatchPaymentX402Tool.
+ * DispatchPaymentX402ToolTest — tests the REAL DispatchPaymentX402Tool
+ * (spec-046 H1 + H7 + H8 + FR-014).
  *
  * Covers the only module-fulfillable payment rail end-to-end against the REAL
- * tool: canonical x402 endpoint, idempotency-key forwarding, the cross-shop
- * merchant guard, and structured error codes.
+ * tool: canonical spec-035 endpoint, idempotency-key forwarding, the H8
+ * cross-shop merchant guard, and structured FR-014 error codes.
  */
 
 namespace Trusteed\Tests\AgenticTools\Tools;
@@ -26,14 +27,14 @@ final class DispatchPaymentX402ToolTest extends TestCase
 
     protected function setUp(): void
     {
-        // The active shop's authoritative merchantId.
+        // H8: the active shop's authoritative merchantId.
         \TestPsState::reset();
         \TestPsState::$merchantId = self::MERCHANT;
         \TestPsState::$shopId = 1;
-        // Defense in depth: this rail is module-fulfillable; the merchant has
+        // C3 defense-in-depth: this rail is module-fulfillable; the merchant has
         // toggled it ON. Seed the effective-enabled map so the call-time guard
         // does not fail-close before the seams under test (the unit harness has
-        // no PrestaShop Configuration backing store for the tool toggles).
+        // no PrestaShop Configuration backing store for FR-018b toggles).
         ToolToggleSettings::overrideEnabledForTesting(['dispatch-payment-x402' => true]);
     }
 
@@ -60,7 +61,7 @@ final class DispatchPaymentX402ToolTest extends TestCase
         $result = $this->tool($api)->execute('cart-1', 'idem-key-1', self::MERCHANT, self::PAYLOAD);
 
         $call = $api->lastCall();
-        // Merchant-facing per-store server-to-server route.
+        // LANE 046-F1 Option A — merchant-facing per-store S2S route.
         $this->assertSame('/api/v1/embed/agentic-tools/dispatch-payment-x402', $call['endpoint']);
         $this->assertTrue($call['s2s'] ?? false, 'must use the S2S call path');
         $this->assertSame('idem-key-1', $call['idempotencyKey'], 'idempotency key must be forwarded');
@@ -69,7 +70,7 @@ final class DispatchPaymentX402ToolTest extends TestCase
         $this->assertSame('pending', $result['status']);
     }
 
-    // ─── cross-shop IDOR rejection (real guard) ────────────────────────────────
+    // ─── H8: cross-shop IDOR rejection (real guard) ────────────────────────────
 
     public function testCrossShopMerchantIdIsRejectedUnauthorized(): void
     {
@@ -97,7 +98,7 @@ final class DispatchPaymentX402ToolTest extends TestCase
         $this->assertSame(0, $api->callCount());
     }
 
-    // ─── structured error codes (real class) ───────────────────────────────────
+    // ─── FR-014 structured codes (real class) ──────────────────────────────────
 
     public function testDeniedPermissionThrowsUnauthorized(): void
     {

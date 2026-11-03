@@ -3,17 +3,16 @@
 declare(strict_types=1);
 
 /**
- * A REUSED token carries no identity.
+ * Plan 04 Task 29c (L1) — un token REUTILIZADO no aporta identidad.
  *
- * With the nonce in REPLAY the hook kept sending the token's DID as `agentId` to
- * `/v1/rules/evaluate` (and its `agentTrustScore`): the server saw an identified
- * agent whose identity had just been declared untrustworthy, and an allowlist
- * could return ALLOW. Now it is an ANONYMOUS agent (`agentId` null,
- * `endpointClass: agentic_endpoint`, no trust score) with `_agent_token_replay`.
+ * Con el nonce en REPLAY el hook seguía mandando el DID del token como
+ * `agentId` a `/v1/rules/evaluate` (y su `agentTrustScore`): el servidor veía
+ * un agente identificado cuya identidad acababa de declararse no fiable, y una
+ * allowlist podía darle ALLOW. Ahora: agente ANÓNIMO (`agentId` null,
+ * `endpointClass: agentic_endpoint`, sin trust score) con `_agent_token_replay`.
  *
- * Everything goes through `ValidateOrderHook::evaluateCart()` with the real
- * SnapshotClient (only the network edge is a test double).
- * Harness: ValidateOrderHookFlowHarness.php.
+ * Todo pasa por `ValidateOrderHook::evaluateCart()` con el SnapshotClient real
+ * (sólo el borde de red es de prueba). Arnés: ValidateOrderHookFlowHarness.php.
  */
 
 namespace Trusteed\Tests\Enforcement;
@@ -82,10 +81,10 @@ final class ValidateOrderHookReplayIdentityTest extends ValidateOrderHookFlowTes
 
     public function testAnIndeterminateNonceKeepsTheProvenIdentityForTheServerToJudge(): void
     {
-        // The token IS cryptographically valid and only the reuse check is
-        // missing. The identity travels with `_agent_token_nonce_unavailable`
-        // (the server allowlist no longer exempts on that signal) so R005 still
-        // sees a revoked agent.
+        // Decisión (plan 04 Task 29c): el token ES criptográficamente válido y
+        // sólo falta comprobar que no se reutilizó. La identidad viaja con
+        // `_agent_token_nonce_unavailable` (la allowlist del servidor ya no
+        // exime con esa señal) para que R005 siga viendo a un agente revocado.
         $this->client->nonceResponse = ['code' => 503, 'body' => '', 'error' => ''];
         $this->presentToken($this->token());
 

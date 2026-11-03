@@ -3,11 +3,11 @@
 declare(strict_types=1);
 
 /**
- * Trusteed CEL: PaymentModule override for PrestaShop 8.x.
+ * Trusteed CEL — PaymentModule override for PrestaShop 8.x.
  *
  * IMPORTANT: `actionValidateOrderBefore` does NOT exist in PS 8.2 core.
  * The only way to intercept validateOrder() before any rows are committed
- * is via the PS Override mechanism.
+ * is via the PS Override mechanism (confirmed by T000c spike).
  *
  * This override wraps PaymentModuleCore::validateOrder() to:
  *  1. Detect agentic requests by the presence of _trusteed_agent_token in POST.
@@ -16,24 +16,27 @@ declare(strict_types=1);
  *  4. Throw CelVerdictException (a PrestaShopException; rolls back the order) when BLOCK.
  *  5. Call parent::validateOrder() for all other cases.
  *
- * PS 8.2 core does NOT fire `actionValidateOrderBefore`, so this override is
+ * C1: PS 8.2 core does NOT fire `actionValidateOrderBefore`, so this override is
  * the SINGLE universal blocking point. To avoid maintaining a second, divergent
  * copy of the enforcement logic, the override DELEGATES to
- * `Trusteed\Enforcement\ValidateOrderHook::evaluateCart()`, the same code
+ * `Trusteed\Enforcement\ValidateOrderHook::evaluateCart()` — the same code
  * path used by the PS 9+ pre-validate hook. That shared method already performs:
  *   (a) anti-replay nonce consume (SnapshotClient::consumeNonce, jti single-use),
  *   (b) R015 price-snapshot verification (PriceSnapVerifier) inside buildCartContext,
  *   (c) R023 agentDid propagation (CartAgentStorage::set) on the ALLOW path,
- * plus the full tier-2 cart context.
+ * plus the full tier-2 cart context. The previous inline copy here was missing
+ * (a)/(b)/(c) and diverged from the canonical fail-open/fail-closed semantics.
  *
  * Override collision handling: if another module ships an identical override,
  * PS will refuse installation with "class already overridden". The module
  * install() method checks for this and presents an admin warning.
+ *
+ * @see packages/prestashop-module-agenticmcpstores/F0C-SPIKE-RESULT.md
  */
 class PaymentModule extends PaymentModuleCore
 {
     /**
-     * Intercept order validation: the single universal blocking point for
+     * Intercept order validation — the single universal blocking point for
      * PS 8.x UI and non-Webservice agentic checkouts.
      *
      * Signature matches PaymentModuleCore::validateOrder() exactly.
@@ -62,20 +65,24 @@ class PaymentModule extends PaymentModuleCore
             && class_exists('Trusteed\\Enforcement\\ValidateOrderHook')
         ) {
             try {
-                $this->runCelEvaluation((int) $id_cart, (string) $payment_method);
+                // R022: el NOMBRE DEL MÓDULO (`ps_wirepayment`, `paypal`, `stripe_official`)
+                // es el id de pasarela. `$payment_method` es una etiqueta visible
+                // ("Bank transfer", o "Unknown" por defecto): no es un raíl y NO
+                // se reenvía, o una lista de permitidos bloquearía "unknown".
+                $this->runCelEvaluation((int) $id_cart, is_string($this->name ?? null) ? $this->name : '');
             } catch (\Trusteed\Enforcement\CelVerdictException $e) {
-                // Re-throw: CEL explicitly blocked this order
+                // Re-throw — CEL explicitly blocked this order
                 throw $e;
             } catch (\Throwable $e) {
-                // A failure in OUR code is neither a verdict nor a permit.
-                // `evaluateCart()` already resolves its own; only outside
-                // failures (cart, hook, class loading) and core
-                // \PrestaShopException reach here. See onUnexpectedCelError().
+                // Task 26: un fallo de NUESTRO código no es un veredicto ni un
+                // permiso. `evaluateCart()` ya resuelve los suyos; aquí sólo
+                // llegan los de fuera (carrito, hook, carga de clases) y las
+                // \PrestaShopException del núcleo. Ver onUnexpectedCelError().
                 $this->onUnexpectedCelError($e, (int) $id_cart);
             }
         }
 
-        // All checks passed (or CEL not configured): proceed with order creation
+        // All checks passed (or CEL not configured) — proceed with order creation
         return parent::validateOrder(
             $id_cart,
             $id_order_state,
@@ -93,8 +100,8 @@ class PaymentModule extends PaymentModuleCore
     /**
      * Perform CEL rule evaluation against the current cart.
      *
-     * This DELEGATES to ValidateOrderHook::evaluateCart(), the single
-     * canonical enforcement path shared with the PS 9+ pre-validate hook, so the
+     * C1: This now DELEGATES to ValidateOrderHook::evaluateCart() — the single
+     * canonical enforcement path shared with the PS 9+ pre-validate hook — so the
      * override gains anti-replay nonce-consume (R002/jti single-use),
      * R015 price-snapshot verification, R023 agentDid propagation
      * (CartAgentStorage::set) and the full tier-2 cart context, without keeping a
@@ -102,16 +109,16 @@ class PaymentModule extends PaymentModuleCore
      *
      * The shared method resolves the agent token itself (POST `_trusteed_agent_token`
      * → cookie fallback) and is a no-op only for unconfigured merchants / an
-     * unreachable snapshot. It is NOT a no-op for human (non-agentic)
-     * flows: merchant-wide policy
+     * unreachable snapshot. App Store remediation (2026-07-11): it is NO
+     * LONGER a no-op for human (non-agentic) flows — merchant-wide policy
      * rules (R014/R018/R019/R020/R025/R027/R030) now evaluate against every
      * cart regardless of agent presence, via Layer-2 with a null agentId.
      * It throws PrestaShopException on BLOCK / fail-closed, which
      * validateOrder() re-throws to roll back the order.
      *
-     * @param string $paymentMethod Forwarded for parity; the shared path also
-     *                              derives the payment gateway from the request
-     *                              (Tools::getValue('payment')) for R022.
+     * @param string $paymentMethod Payment module name (not the display label).
+     *                              Used for R022 when the request has no `payment`
+     *                              field; the POST value wins when present.
      * @throws \PrestaShopException when rules block the order.
      */
     private function runCelEvaluation(int $cartId, string $paymentMethod = ''): void
@@ -121,10 +128,10 @@ class PaymentModule extends PaymentModuleCore
             return;
         }
 
-        $this->newEvaluationHook()->evaluateCart($cart);
+        $this->newEvaluationHook()->evaluateCart($cart, $paymentMethod);
     }
 
-    /** Test seam: the hook that evaluates the cart. */
+    /** Costura de prueba: el hook que evalúa el carrito. */
     protected function newEvaluationHook(): \Trusteed\Enforcement\ValidateOrderHook
     {
         return new \Trusteed\Enforcement\ValidateOrderHook();
@@ -133,14 +140,16 @@ class PaymentModule extends PaymentModuleCore
     /**
      * Handle an unexpected exception raised during CEL evaluation.
      *
-     * An unexpected \Throwable is never treated as a permit. The decision is
-     * made by `FailurePolicy::decideOnInternalError()` (via
-     * `InternalErrorGuard`), independent of the merchant's mode: an agent is
-     * held in every mode with `trusteed:CEL-INTERNAL-ERROR` and a human is
-     * never blocked. If the token cannot even be read, the request is treated
-     * as agentic.
+     * GHSA-2j2x-5q52-g48m issue 2 dejó de tratar cualquier \Throwable como
+     * permiso; la Task 26 (plan 04) corrige además QUIÉN decide: antes lo hacía
+     * `SnapshotUnavailablePolicy` con el modo del comerciante, y un agente en
+     * `balanced`/`permissive` pasaba ante un fallo de nuestro código. Ahora decide
+     * `FailurePolicy::decideOnInternalError()` (vía `InternalErrorGuard`): un
+     * agente se retiene en todos los modos con `trusteed:CEL-INTERNAL-ERROR` y un
+     * humano nunca se bloquea. Si ni siquiera se puede leer el token, se trata
+     * como agente.
      *
-     * The exception's own message is logged internally; never surfaced in the
+     * The exception's own message is logged internally — never surfaced in the
      * `\PrestaShopException` message, which PrestaShop can render to the buyer.
      *
      * @throws \PrestaShopException when an agent checkout is held.
@@ -158,7 +167,7 @@ class PaymentModule extends PaymentModuleCore
      * Load CEL enforcement classes via require_once as fallback
      * when composer autoloader is not active in the override context.
      *
-     * ValidateOrderHook is the delegation target, so it and its
+     * C1: ValidateOrderHook is now the delegation target, so it and its
      * collaborators (PriceSnapVerifier, FileCache, CartAgentStorage) must be
      * loadable here too when the composer autoloader is not active.
      */
@@ -172,9 +181,9 @@ class PaymentModule extends PaymentModuleCore
             'Trusteed\\Storage\\CartAgentStorage'      => 'Storage/CartAgentStorage.php',
             'Trusteed\\Enforcement\\MerchantResolver'  => 'Enforcement/MerchantResolver.php',
             'Trusteed\\Enforcement\\SnapshotClient'    => 'Enforcement/SnapshotClient.php',
-            // Decodes the `zip: DEF` payload (used by SnapshotClient and the hook).
+            // Task 24: decodifica el payload `zip: DEF` (SnapshotClient y el hook).
             'Trusteed\\Enforcement\\SnapshotPayloadDecoder' => 'Enforcement/SnapshotPayloadDecoder.php',
-            // Bounded HTTP reads and the negative JWKS cache used by SnapshotClient.
+            // Task 29c: lectura acotada (L6b) y caché negativa del JWKS (L3) de SnapshotClient.
             'Trusteed\\Enforcement\\BoundedHttpGet'         => 'Enforcement/BoundedHttpGet.php',
             'Trusteed\\Enforcement\\JwksRetryVerdict'       => 'Enforcement/JwksRetryVerdict.php',
             'Trusteed\\Enforcement\\JwksCacheCodec'         => 'Enforcement/JwksCacheCodec.php',
@@ -182,16 +191,22 @@ class PaymentModule extends PaymentModuleCore
             'Trusteed\\Enforcement\\TokenVerifier'     => 'Enforcement/TokenVerifier.php',
             'Trusteed\\Enforcement\\PriceSnapVerifier' => 'Enforcement/PriceSnapVerifier.php',
             'Trusteed\\Enforcement\\R043HitlGate'      => 'Enforcement/R043HitlGate.php',
+            'Trusteed\\Enforcement\\AgentReason'         => 'Enforcement/AgentReason.php',
             'Trusteed\\Enforcement\\ValidateOrderHook' => 'Enforcement/ValidateOrderHook.php',
-            // Own verdict and own failure policy
+            // Task 26 — veredicto propio y política de avería propia
             // (onUnexpectedCelError, ValidateOrderHook::evaluateCart).
             'Trusteed\\Enforcement\\CelVerdictException'     => 'Enforcement/CelVerdictException.php',
             'Trusteed\\Enforcement\\InternalErrorGuard'      => 'Enforcement/InternalErrorGuard.php',
-            // Used by ValidateOrderHook (derived routing, failure policy,
-            // offline safety valve). Guarded by tests/meta/OverrideCargaLasClasesDeEnforcementTest.php.
+            // Usadas por ValidateOrderHook (enrutado derivado, política de
+            // avería, válvula offline). Gate: tests/meta/OverrideCargaLasClasesDeEnforcementTest.php.
             'Trusteed\\Enforcement\\FailurePolicy'     => 'Enforcement/FailurePolicy.php',
             'Trusteed\\Enforcement\\RuleCode'          => 'Enforcement/RuleCode.php',
             'Trusteed\\Enforcement\\OfflineSafetyValveEvaluator' => 'Enforcement/OfflineSafetyValveEvaluator.php',
+            // Firma RFC 9421 del agente de navegador (verificación con el cliente S2S del módulo).
+            'Trusteed\\Enforcement\\BrowserAgentSignature'  => 'Enforcement/BrowserAgentSignature.php',
+            'Trusteed\\AgenticTools\\McpToolException'      => 'AgenticTools/McpToolException.php',
+            'Trusteed\\AgenticTools\\BackendApiClientInterface' => 'AgenticTools/BackendApiClientInterface.php',
+            'Trusteed\\AgenticTools\\BackendApiClient'      => 'AgenticTools/BackendApiClient.php',
         ];
 
         foreach ($classes as $fqn => $relPath) {

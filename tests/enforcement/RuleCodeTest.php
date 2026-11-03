@@ -3,13 +3,13 @@
 declare(strict_types=1);
 
 /**
- * Rule-code normalisation for the PrestaShop CEL path.
+ * P0-3 — rule-code normalisation for the PrestaShop CEL path.
  *
  * The defect this pins: `merchant_trust_rules.ruleCode` holds BOTH the bare
  * short code and the canonical dotted form, and the hook compared the raw
  * value against short literals. On a canonical merchant `$hasTier2` came out
  * false, layer 2 was never called, and the layer-1 switch fell through to its
- * `default`: the offline layer was inert with no error anywhere.
+ * `default` — the offline layer was inert with no error anywhere.
  *
  * `RuleCode` is deliberately free of the PS kernel, so unlike
  * `ValidateOrderHook` (guarded by `_PS_VERSION_`) it can be exercised for
@@ -59,10 +59,11 @@ class RuleCodeTest extends TestCase
     }
 
     /**
-     * R001 and R007 are routed to layer 2 too. R001 with verified claims always
-     * comes out ALLOW and R007 is ALLOW by design: nothing local can block.
-     * Excluding them only meant a merchant whose sole rule is R001 never
-     * reached the server.
+     * Invertido el 2026-09-27 (A9). Sustituye a `testOfflineEvaluatedCodesAreNotTier2`,
+     * que fijaba R001 y R007 FUERA de la capa 2 «porque se evalúan offline».
+     * Aquí R001 con claims verificados siempre sale ALLOW y R007 es ALLOW por
+     * decisión: nada local puede bloquear. Excluirlos sólo servía para que un
+     * comerciante con R001 como única regla no llegara nunca al servidor.
      */
     public function testEveryCodeIsAServerRule(): void
     {
@@ -93,7 +94,7 @@ class RuleCodeTest extends TestCase
         ];
     }
 
-    /** A merchant with only R035 must reach the server. */
+    /** El caso de A9: un comerciante con sólo R035 tiene que llegar al servidor. */
     public function testOnlyR035StillReachesTheServer(): void
     {
         $this->assertTrue(RuleCode::needsServer([['ruleCode' => 'R035.max-order-value', 'enabled' => true]]));

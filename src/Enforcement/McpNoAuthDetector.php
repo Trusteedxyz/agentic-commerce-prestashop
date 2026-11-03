@@ -9,7 +9,7 @@ if (!defined('_PS_VERSION_')) {
 }
 
 /**
- * PrestaShop MCP "No-Auth" mode detector.
+ * Spec-048 W1.1 — PrestaShop MCP "No-Auth" mode detector.
  *
  * PrestaShop 9.x ships the official MCP server addon (`ps_mcp_server`,
  * addon 96617). That server can be configured in a "No-Auth" mode, which is a
@@ -18,23 +18,23 @@ if (!defined('_PS_VERSION_')) {
  * binding (the whole premise of the CEL enforcement layer).
  *
  * Detection posture (mirrors the observe/enforce convention used across the
- * Enforcement layer, see ValidateOrderHook + WebserviceGapMiddleware):
+ * Enforcement layer — see ValidateOrderHook + WebserviceGapMiddleware):
  *
- *   - NO_AUTH detected: emit an OBSERVE signal: a persistent admin notice flag
+ *   - NO_AUTH detected → emit an OBSERVE signal: a persistent admin notice flag
  *     (rendered as a back-office warning by AdminSettings) + a PS log warning.
  *     Does NOT block on its own (observe is the default posture).
  *
- *   - TOKEN mode (the common, secure case): no-op.
+ *   - TOKEN mode (the common, secure case) → no-op.
  *
- *   - UNKNOWN posture (ps_mcp_server not installed/enabled): no-op.
+ *   - UNKNOWN posture (ps_mcp_server not installed/enabled) → no-op.
  *
- * Note: enforce-time fail-closed is NOT reachable from this module.
+ * ── H3 HONESTY NOTE — enforce-time fail-closed is NOT reachable from this module
  *
  * The PrestaShop MCP server is the official add-on 96617 (`ps_mcp_server`),
  * which runs OUTSIDE this module. This module has NO request-time caller in the
  * MCP/Webservice path: the only wired caller is the back-office sweep on
  * `displayBackOfficeHeader`, which invokes `detect()` with the default
- * `$unknownAgent = true` ONLY to raise the observe banner, it never has real
+ * `$unknownAgent = true` ONLY to raise the observe banner — it never has real
  * agent context and never blocks.
  *
  * Consequently the `detect(false)` / strict-mode `throw PrestaShopException`
@@ -43,9 +43,9 @@ if (!defined('_PS_VERSION_')) {
  * The branch is intentionally RETAINED as a reserved seam for a future
  * integration where the official add-on (or a proxy in front of it) drives this
  * detector per-request with `detect($unknownAgent)`. Until that integration
- * exists, this detector ships in OBSERVE mode only. Do not assume it
- * fail-closes the MCP path. See also WebserviceGapMiddleware (which is the
- * analogous observe-only surface for the Webservice gap).
+ * exists, this detector ships in OBSERVE mode only — do not assume it
+ * fail-closes the MCP path. See spec-048 W1.1 + WebserviceGapMiddleware (which
+ * is the analogous observe-only surface for the Webservice gap).
  *
  * The detector reads the PS MCP server configuration the same way the rest of
  * the Enforcement layer reads config: via \Configuration::get. The official
@@ -67,7 +67,7 @@ class McpNoAuthDetector
     /** PS MCP server is not installed/enabled, or posture is indeterminate. */
     public const MODE_UNKNOWN = 'unknown';
 
-    /** Admin notice option key, avoids repeated notices across requests. */
+    /** Admin notice option key — avoids repeated notices across requests. */
     private const ADMIN_NOTICE_KEY = 'trusteed_cel_mcp_noauth_notice';
 
     /**
@@ -131,7 +131,7 @@ class McpNoAuthDetector
      *                           ONLY wired caller is the back-office sweep, which
      *                           has no agent context (observe path).
      *
-     *                           NOTE: no request-time MCP caller exists in
+     *                           NOTE (H3): no request-time MCP caller exists in
      *                           this module, so `detect(false)` is never invoked
      *                           in production and the strict-mode throw below is
      *                           an unreachable, reserved seam (see class docblock).
@@ -147,19 +147,25 @@ class McpNoAuthDetector
     {
         $shopId = MerchantResolver::currentShopId();
         if (!MerchantResolver::isEnabled($shopId)) {
-            return; // CEL disabled for this shop: fully inert.
+            return; // CEL disabled for this shop — fully inert.
         }
 
         $mode = self::classifyAuthMode($shopId);
 
         if ($mode !== self::MODE_NO_AUTH) {
-            return; // Token mode or unknown posture: no-op.
+            // Only a confirmed token posture re-arms the notice (UNKNOWN must not: it flaps in
+            // multishop). The "already raised" marker is per shop; the banner flag stays global.
+            if ($mode === self::MODE_TOKEN
+                && (string) \Configuration::get(self::raisedKey($shopId)) !== '') {
+                \Configuration::updateValue(self::raisedKey($shopId), '');
+            }
+            return; // Token mode or unknown posture — no-op.
         }
 
-        // No-Auth detected: always surface the OBSERVE signal.
+        // ── No-Auth detected: always surface the OBSERVE signal ─────────────
         self::raiseObserveSignal($shopId);
 
-        // ENFORCE gate: strict fallback + unknown agent means fail-closed.
+        // ── ENFORCE gate: strict fallback + unknown agent → fail-closed ─────
         $fallback = MerchantResolver::getFallbackMode($shopId);
         if ($fallback === 'strict' && $unknownAgent) {
             throw new CelVerdictException(
@@ -188,7 +194,7 @@ class McpNoAuthDetector
             if (in_array($normalized, self::TOKEN_VALUES, true)) {
                 return self::MODE_TOKEN;
             }
-            // An unrecognised explicit value is treated as UNKNOWN: we do not
+            // An unrecognised explicit value is treated as UNKNOWN — we do not
             // guess a posture we cannot interpret (no false enforce).
             return self::MODE_UNKNOWN;
         }
@@ -203,11 +209,21 @@ class McpNoAuthDetector
         return self::MODE_UNKNOWN;
     }
 
+    private static function raisedKey(int $shopId): string
+    {
+        return self::ADMIN_NOTICE_KEY . '_raised_' . $shopId;
+    }
+
     /**
      * Emit the observe signal: persistent admin notice flag + PS log warning.
      */
     private static function raiseObserveSignal(int $shopId): void
     {
+        // RUI-109: only on the transition. '1' = pending, '0' = acknowledged: both mean already raised.
+        if ((string) \Configuration::get(self::raisedKey($shopId)) !== '') {
+            return;
+        }
+        \Configuration::updateValue(self::raisedKey($shopId), '1');
         \Configuration::updateValue(self::ADMIN_NOTICE_KEY, '1');
 
         \PrestaShopLogger::addLog(

@@ -81,7 +81,7 @@ namespace Trusteed\Tests\Enforcement {
     {
         public static ?\Throwable $blockWith = null;
 
-        public function evaluateCart(\Cart $cart): void
+        public function evaluateCart(\Cart $cart, string $paymentHint = ''): void
         {
             if (self::$blockWith !== null) {
                 throw self::$blockWith;

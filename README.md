@@ -204,6 +204,14 @@ Investigating the report surfaced something it did not flag: an OAuth scope (`mc
 
 ## Changelog
 
+### 2.3.5 to 2.3.6
+
+- Added: a browser agent that checks out in your store is recognised by its Web Bot Auth signature, and the checkout exposes WebMCP tools that mark the order as placed by an agent. The signature mode is a new setting (off by default).
+- Changed: when an agent checkout is blocked, the agent always receives the reason, naming the limit, category or product that caused it and, for order limits, the rule, the cap and the order value.
+- Fixed: rules R034, R022 and R014 now reach every checkout surface, including payment-module overrides.
+- Fixed: permission checks of the agent payment tools (ACP, AP2, x402) and detection of an MCP endpoint without authentication were tightened.
+- Fixed: the Pending approvals panel no longer brings back a purchase that was already decided and shows the products of the cart; approving or rejecting leaves a confirmation message.
+
 ### 2.3.2 to 2.3.4
 
 - New: an optional, read-only webservice key. A consent block on the module settings page lets you grant Trusteed read access to your catalog; it lists exactly what is created, nothing is created until you click, and you can revoke it from the same page.

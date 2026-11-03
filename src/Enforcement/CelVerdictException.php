@@ -5,20 +5,20 @@ declare(strict_types=1);
 namespace Trusteed\Enforcement;
 
 /**
- * A verdict of OURS: the order check decided to block (a merchant rule, an
- * unverified token, an unavailable service that closes on an agent, an internal
- * fault that holds the agent back, and so on).
+ * Un veredicto NUESTRO: el chequeo del pedido decidió bloquear (una regla del
+ * comerciante, un token no verificado, un servicio caído que cierra a un agente,
+ * una avería propia que retiene al agente…).
  *
- * It exists to tell it apart from the `\PrestaShopException`s thrown by the
- * PrestaShop core (database, unloaded objects...): those are NOT a verdict, they
- * are a fault, and an internal fault never blocks a human nor opens up to an
- * agent ({@see InternalErrorGuard}). It counts as a `\PrestaShopException` for
- * PrestaShop, so the order is rolled back all the same.
+ * Existe para distinguirlo de las `\PrestaShopException` que lanza el núcleo de
+ * PrestaShop (base de datos, objetos sin cargar…): esas NO son un veredicto, son
+ * una avería, y una avería propia nunca bloquea a un humano ni abre a un agente
+ * ({@see InternalErrorGuard}). Cuenta como `\PrestaShopException` para PrestaShop:
+ * el pedido se revierte igual.
  *
- * Every blocking `throw` in src/ uses this class; a gate
- * (tests/meta/NingunBloqueoLanzaPrestaShopExceptionTest.php) fails if another
- * `new \PrestaShopException` appears, because that verdict would be read as a
- * fault and let through a human the merchant wanted to stop.
+ * Todo `throw` de bloqueo de src/ usa esta clase; un gate
+ * (tests/meta/NingunBloqueoLanzaPrestaShopExceptionTest.php) falla si aparece
+ * otro `new \PrestaShopException`, porque ese veredicto se leería como avería y
+ * dejaría pasar a un humano que el comerciante quería parar.
  *
  * @since 2.3.2
  */

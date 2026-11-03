@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Trusteed\Service;
 
 /**
- * What `ReadKeyManager` needs from PrestaShop. An interface so the
- * orchestration can be tested without booting the framework; the real
- * implementation is `PrestaShopReadKeyEnvironment`.
+ * Lo que `ReadKeyManager` necesita de PrestaShop. Interfaz para poder fijar la
+ * orquestación en tests sin levantar el framework; la implementación real es
+ * `PrestaShopReadKeyEnvironment`.
  */
 interface ReadKeyEnvironment
 {
@@ -15,13 +15,13 @@ interface ReadKeyEnvironment
 
     public function enableWebservice(): void;
 
-    /** Only to undo our own enabling when the consented action fails. */
+    /** Sólo para deshacer un encendido propio cuando el acto consentido falla. */
     public function disableWebservice(): void;
 
     /**
      * @param array<string, array<string, int>> $permissions
      *
-     * @return int id of the created account; 0 if it could not be created
+     * @return int id de la cuenta creada; 0 si no se pudo crear
      */
     public function createKey(string $key, string $description, array $permissions): int;
 
@@ -29,12 +29,12 @@ interface ReadKeyEnvironment
 
     public function keyExists(int $id): bool;
 
-    /** Total number of Webservice keys left in the shop. */
+    /** Número total de claves de Webservice que quedan en la tienda. */
     public function countKeys(): int;
 
     public function storedKeyId(): int;
 
-    /** 0 clears the stored id. */
+    /** 0 borra el id guardado. */
     public function storeKeyId(int $id): void;
 
     public function enabledByModule(): bool;

@@ -3,21 +3,20 @@
 declare(strict_types=1);
 
 /**
- * One of our own failures is not a permission, exercised in the REAL flow.
+ * Plan 04, Task 26 — una avería propia no es un permiso, en el flujo REAL.
  *
- * An exception of OURS while checking an AGENT's order holds it in every mode
- * (`trusteed:CEL-INTERNAL-ERROR`, decided by `FailurePolicy::decideOnInternalError()`
- * through `InternalErrorGuard`); a human is never blocked by it. The override
- * used to decide through the snapshot-unavailable fallback, so an agent in
- * `balanced`/`permissive` mode got through.
+ * Una excepción NUESTRA durante el chequeo del pedido de un AGENTE lo retiene
+ * en todos los modos (`trusteed:CEL-INTERNAL-ERROR`); a un humano no lo bloquea
+ * nunca. Antes el override decidía con `SnapshotUnavailablePolicy` y un agente
+ * en `balanced`/`permissive` pasaba.
  *
- * This runs the real `ValidateOrderHook` with the real `SnapshotClient` (only
- * the network is a test double) and the real `PaymentModule` override (the file
- * under `override/classes/`), whose only substitute is the `newEvaluationHook()`
- * seam that injects the test client. `PaymentModuleCore` is a stub that returns
- * a marker when the order gets created.
+ * Aquí se ejecutan el `ValidateOrderHook` real con el `SnapshotClient` real (sólo
+ * la red es de prueba) y el override `PaymentModule` real (el fichero de
+ * `override/classes/`), cuyo único sustituto es la costura `newEvaluationHook()`
+ * que inyecta el cliente de prueba. `PaymentModuleCore` es un stub que devuelve
+ * una marca cuando se llega a crear el pedido.
  *
- * Harness: ValidateOrderHookFlowHarness.php.
+ * Arnés: ValidateOrderHookFlowHarness.php.
  */
 
 namespace {
@@ -70,7 +69,7 @@ namespace Trusteed\Tests\Enforcement {
     use Trusteed\Enforcement\InternalErrorGuard;
     use Trusteed\Enforcement\ValidateOrderHook;
 
-    /** The REAL override; only where the hook comes from changes (test seam). */
+    /** El override REAL; sólo cambia de dónde sale el hook (costura de prueba). */
     final class OverrideUnderTest extends \PaymentModule
     {
         public static ?ValidateOrderHook $hook = null;
@@ -102,7 +101,7 @@ namespace Trusteed\Tests\Enforcement {
             parent::tearDown();
         }
 
-        /** Creates the order through the real override: returns the block message, or null if it was created. */
+        /** Crea el pedido por el override real: devuelve el mensaje del bloqueo o null si se creó. */
         private function place(): ?string
         {
             try {
@@ -114,7 +113,7 @@ namespace Trusteed\Tests\Enforcement {
             }
         }
 
-        // ── error inside evaluateCart (reaches both the override and the hook) ──
+        // ── error dentro de evaluateCart (llega por el override y por el hook) ──
 
         public function testAnInternalErrorHoldsAnAgentInEveryModeThroughTheOverride(): void
         {
@@ -140,7 +139,7 @@ namespace Trusteed\Tests\Enforcement {
 
         public function testAnInternalErrorOnTheHookPathAlsoHoldsAnAgentWithTheVerdictException(): void
         {
-            // PS 9: the hook decides by itself; it cannot raise a raw exception.
+            // PS 9: el hook decide por sí mismo; no puede subir una excepción cruda.
             $this->client->snapshotThrows = new \RuntimeException('boom');
             $this->presentToken('not.a.token');
             $this->mode('permissive');
@@ -167,7 +166,7 @@ namespace Trusteed\Tests\Enforcement {
 
         public function testAVerdictOfOursStillBlocksAHumanWhenTheMerchantRuleSaysSo(): void
         {
-            // Sanity check: our own verdict is not mistaken for an internal failure.
+            // Sanidad del cambio de tipo: el veredicto propio no se confunde con una avería.
             $this->withRules([['ruleCode' => 'R030', 'enabled' => true, 'appliesTo' => 'ALL', 'params' => ['maxAmountCents' => 5000]]]);
             $this->serverDown();
             foreach (self::MODES as $mode) {
@@ -178,19 +177,19 @@ namespace Trusteed\Tests\Enforcement {
             }
         }
 
-        // ── PrestaShop core exceptions (not our verdicts) ──
+        // ── excepciones del núcleo de PrestaShop (no son nuestros veredictos) ──
 
         public function testACorePrestaShopExceptionIsAnInternalErrorNotAVerdict(): void
         {
             $this->client->snapshotThrows = new \PrestaShopException('core: database went away');
 
-            // Human: passes in every mode (it used to be blocked as if a rule had fired).
+            // Humano: pasa en todos los modos (antes se bloqueaba como si fuera una regla).
             foreach (self::MODES as $mode) {
                 $this->mode($mode);
                 self::assertNull($this->place(), 'humano ' . $mode);
             }
 
-            // Agent: held, with the internal-error code and not the core's text.
+            // Agente: retenido, con el código de avería y no con el texto del núcleo.
             $this->presentToken('not.a.token');
             foreach (self::MODES as $mode) {
                 $this->mode($mode);
@@ -201,7 +200,7 @@ namespace Trusteed\Tests\Enforcement {
             }
         }
 
-        // ── error outside evaluateCart (the override has no cart or hook) ──
+        // ── error fuera de evaluateCart (el override no tiene carrito ni hook) ──
 
         public function testAnErrorOutsideEvaluateCartHoldsAnAgentInEveryMode(): void
         {
@@ -226,7 +225,7 @@ namespace Trusteed\Tests\Enforcement {
 
         public function testAnErrorOutsideEvaluateCartHoldsWhenTheTokenCannotEvenBeRead(): void
         {
-            // We cannot tell if it is a human: do not open the door to an agent (only a proven human is protected).
+            // No se sabe si es humano: no se le abre a un agente (D1 sólo protege al humano probado).
             OverrideUnderTest::$hookFactoryThrows = new \RuntimeException('constructor roto');
             \Context::getContext()->cookie = new class () {
                 public function __isset(string $n): bool
@@ -247,9 +246,9 @@ namespace Trusteed\Tests\Enforcement {
             }
         }
 
-        // ── A token in a LINK (GET) does not turn a human into an agent ──
+        // ── Task 27c (L5): el token de un ENLACE (GET) no convierte a un humano en agente ──
 
-        /** Simulates real PS: `Tools::getValue` returns the value whether it comes from POST or GET. */
+        /** Simula PS real: `Tools::getValue` devuelve el valor venga de POST o de GET. */
         private function presentTokenVia(string $token, bool $post, bool $get): void
         {
             $this->presentToken($token);
@@ -273,7 +272,7 @@ namespace Trusteed\Tests\Enforcement {
                 self::assertSame('', InternalErrorGuard::presentedToken());
                 self::assertFalse(InternalErrorGuard::requestIsAgentic());
 
-                // Internal failure: a person with a `?_trusteed_agent_token=x` link passes in every mode.
+                // Avería propia: una persona con un enlace `?_trusteed_agent_token=x` pasa en todos los modos.
                 $this->client->snapshotThrows = new \RuntimeException('boom');
                 foreach (self::MODES as $mode) {
                     $this->mode($mode);

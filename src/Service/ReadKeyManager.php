@@ -5,21 +5,21 @@ declare(strict_types=1);
 namespace Trusteed\Service;
 
 /**
- * "Allow Trusteed to read the catalog" / "Revoke", with consent.
+ * «Permitir a Trusteed leer el catálogo» / «Revocar», con consentimiento.
  *
- * Why it exists: a self-registered store has no Webservice key, so Trusteed
- * cannot compare the catalog agents see with the real one (the coherence
- * checks report "no read access"). This only runs when the merchant presses
- * the button, never at install time or in the background.
+ * Por qué existe: la tienda auto-registrada no tiene clave del Webservice, así
+ * que Trusteed no puede contrastar el catálogo que ven los agentes con el real
+ * (C3/C4/C5 salen «sin acceso de lectura»). Esto sólo corre cuando el
+ * comerciante pulsa el botón; nunca en la instalación ni en segundo plano.
  *
- * Rules:
- *  - The key is not stored in the shop beyond the Webservice account itself:
- *    locally only the id is kept. It is never logged.
- *  - If the action does not complete, it is rolled back: the key is deleted
- *    and the Webservice setting returns to how it was.
- *  - On revoke the local key is deleted first (it stops working even if the
- *    backend does not answer) and the Webservice is NOT turned off: other
- *    integrations may depend on it, so the merchant is warned instead.
+ * Reglas:
+ *  - La clave no se guarda en la tienda más allá de la propia cuenta de
+ *    Webservice: localmente sólo el id. Nunca se registra.
+ *  - Si el acto no se completa, se deshace: la clave se borra y el Webservice
+ *    vuelve a como estaba.
+ *  - Al revocar se borra primero la clave local (deja de servir aunque el
+ *    backend no conteste) y NO se apaga el Webservice: otras integraciones
+ *    pueden depender de él; se avisa al comerciante.
  */
 final class ReadKeyManager
 {
@@ -40,7 +40,7 @@ final class ReadKeyManager
             if ($this->env->keyExists($existingId)) {
                 return ReadKeyResult::success('already_enabled');
             }
-            // Deleted by hand from the back office: the stored id no longer means anything.
+            // Borrada a mano desde el back office: el id ya no significa nada.
             $this->env->storeKeyId(0);
         }
 
@@ -69,8 +69,8 @@ final class ReadKeyManager
 
             return ReadKeyResult::failure('backend_rejected', $e->reason());
         } catch (\Throwable $e) {
-            // Network, JSON, whatever the reason: a key that Trusteed does not
-            // hold must not stay alive in the store.
+            // Red, JSON… da igual el motivo: una clave que Trusteed no tiene
+            // no debe quedarse viva en la tienda.
             $this->env->deleteKey($id);
             $this->restoreWebservice($wasEnabled);
 
@@ -93,8 +93,8 @@ final class ReadKeyManager
             $deletedLocally = $this->env->deleteKey($id);
         }
 
-        // Notify even without a local id (lost configuration) or after a failed
-        // local delete: Trusteed dropping the key does not depend on either.
+        // Se avisa aunque no haya id local (configuración perdida) o el borrado
+        // local haya fallado: que Trusteed deje de usarla no depende de eso.
         $notified = $installKey !== '' && $this->backend->revokeReadKey($storeUrl, $installKey);
 
         if (!$deletedLocally) {

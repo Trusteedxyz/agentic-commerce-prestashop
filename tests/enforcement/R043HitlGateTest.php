@@ -8,7 +8,7 @@ use Trusteed\Enforcement\R043HitlGate;
 use PHPUnit\Framework\TestCase;
 
 /**
- * €” R043 HITL Gate (PrestaShop).
+ * Spec-048 Sprint E.2 T-E45 â€” R043 HITL Gate (PrestaShop).
  */
 final class R043HitlGateTest extends TestCase
 {

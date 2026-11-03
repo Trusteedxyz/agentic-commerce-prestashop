@@ -3,7 +3,8 @@
 declare(strict_types=1);
 
 /**
- * ToolToggleSettingsTest: bundled catalog and toggles, pure logic, tested against the REAL class (no PS runtime, no filesystem mocks
+ * ToolToggleSettingsTest — spec-046 FR-018a (bundled catalog) + FR-018b (toggles)
+ * pure logic, tested against the REAL class (no PS runtime, no filesystem mocks
  * beyond the bundled JSON shipped in the module).
  */
 
@@ -14,7 +15,7 @@ use PHPUnit\Framework\TestCase;
 
 final class ToolToggleSettingsTest extends TestCase
 {
-    // ─── toggle defaults ───────────────────────────────────────────────────────
+    // ─── FR-018b defaults ──────────────────────────────────────────────────────
 
     public function testTrustAndIdentityDefaultOn(): void
     {
@@ -29,7 +30,7 @@ final class ToolToggleSettingsTest extends TestCase
         $this->assertFalse(ToolToggleSettings::defaultForTool('dispatch-payment-ap2'));
     }
 
-    // ─── bundled catalog ───────────────────────────────────────────────────────
+    // ─── FR-018a bundled catalog ───────────────────────────────────────────────
 
     public function testBundledCatalogLoadsFiveTools(): void
     {
@@ -63,8 +64,9 @@ final class ToolToggleSettingsTest extends TestCase
         $status = ToolToggleSettings::backendStatusMap(ToolToggleSettings::bundledCatalog());
         $effective = ToolToggleSettings::effectiveEnabledMap(ToolToggleSettings::DEFAULTS, $status);
 
-        // verify: default ON, implemented and fulfillable, so enabled.
-        // sign: default ON but only planned, so disabled.
+        // ONLY x402 is enabled by default: verify is fulfillable+implemented but
+        // its default toggle is ON — wait, verify default is ON and implemented
+        // and fulfillable → enabled. sign default ON but planned → disabled.
         $this->assertTrue($effective['verify-agent-signature'], 'verify: ON + implemented + fulfillable');
         $this->assertFalse($effective['sign-trust-receipt'], 'sign: planned → disabled despite ON');
         $this->assertFalse($effective['dispatch-payment-acp'], 'acp: OFF default + not fulfillable');

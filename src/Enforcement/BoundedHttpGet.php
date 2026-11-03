@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Trusteed\Enforcement;
 
 /**
- * cURL GET that never reads more than a byte cap.
+ * Plan 04 Task 29c (L6b) — GET con cURL que no lee más de un tope de bytes.
  *
- * A legitimate JWS or JWKS fits well under the cap. Anything larger is not
- * read further: the body is neither accumulated nor verified. Two mechanisms
- * enforce it: `CURLOPT_MAXFILESIZE` (aborts when the server announces the size,
- * and cURL also applies it while reading) and `CURLOPT_WRITEFUNCTION` (aborts
- * when no size is announced). Past the cap the result is
+ * Un JWS o un JWKS legítimos caben con holgura en el tope; lo que lo supera no
+ * se sigue leyendo: ni se acumula el cuerpo entero ni se verifica. Dos
+ * mecanismos: `CURLOPT_MAXFILESIZE` (corta cuando el servidor anuncia el
+ * tamaño, y cURL también lo aplica mientras lee) y `CURLOPT_WRITEFUNCTION`
+ * (corta cuando no lo anuncia). Superado el tope el resultado es
  * `code 0, body '', error 'response_too_large'`.
  */
 final class BoundedHttpGet

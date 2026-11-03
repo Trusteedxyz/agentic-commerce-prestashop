@@ -8,12 +8,12 @@ use PHPUnit\Framework\TestCase;
 use Trusteed\Service\ReadOnlyWebserviceKey;
 
 /**
- * What exactly the read key grants when the merchant agrees to create it.
+ * Qué concede exactamente la clave de lectura que el comerciante acepta crear.
  *
- * What the consent text promises ("read only, only these resources") must be
- * what is written to `webservice_permission`. If someone adds a resource or a
- * method here, these tests fail before the merchant has consented to
- * something different from what is read.
+ * Lo que el texto de consentimiento promete («sólo lectura, sólo estos
+ * recursos») tiene que ser lo que se escribe en `webservice_permission`. Si
+ * alguien añade un recurso o un método aquí, estos tests se ponen rojos antes
+ * de que el comerciante haya consentido algo distinto de lo que lee.
  */
 final class ReadOnlyWebserviceKeyTest extends TestCase
 {
@@ -41,8 +41,8 @@ final class ReadOnlyWebserviceKeyTest extends TestCase
         );
 
         foreach ($permissions as $resource => $methods) {
-            // Shape expected by `WebserviceKey::setPermissionForAccount`: it reads
-            // the KEYS of each resource as methods.
+            // Forma que espera `WebserviceKey::setPermissionForAccount`: lee
+            // las CLAVES de cada recurso como métodos.
             $this->assertSame(['GET' => 1], $methods, $resource);
         }
     }
@@ -60,8 +60,8 @@ final class ReadOnlyWebserviceKeyTest extends TestCase
     {
         $key = ReadOnlyWebserviceKey::generate();
 
-        // The backend and `validatePrestaShopKey` require /^[A-Z0-9]{32}$/;
-        // `WebserviceRequest::authenticate` only requires length 32.
+        // El backend y `validatePrestaShopKey` exigen /^[A-Z0-9]{32}$/;
+        // `WebserviceRequest::authenticate` sólo exige longitud 32.
         $this->assertMatchesRegularExpression('/\A[A-Z0-9]{32}\z/', $key);
         $this->assertTrue(ReadOnlyWebserviceKey::isValidFormat($key));
     }
@@ -80,7 +80,7 @@ final class ReadOnlyWebserviceKeyTest extends TestCase
 
     public function testDescripcionIdentificable(): void
     {
-        // This is what the merchant will see under Advanced Parameters > Webservice.
+        // Es lo que el comerciante verá en Parámetros avanzados > Webservice.
         $this->assertSame('Trusteed read-only', ReadOnlyWebserviceKey::DESCRIPTION);
     }
 }

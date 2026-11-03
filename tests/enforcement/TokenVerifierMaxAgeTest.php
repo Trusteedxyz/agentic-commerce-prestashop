@@ -3,16 +3,16 @@
 declare(strict_types=1);
 
 /**
- * The PrestaShop TOKEN verifier caps the age since `iat` at 300 s, the same
- * number as WooCommerce, Magento and Odoo and the one the contract declares
- * (`exp - iat <= 300`).
+ * Decisión 48 (2026-10-02) — el verificador de TOKEN de PrestaShop acota la
+ * antigüedad desde `iat` en 300 s, el mismo número que WooCommerce, Magento y
+ * Odoo y que el contrato declara (`exp - iat <= 300`).
  *
- * PrestaShop used to have no age cap: a token with an `iat` from an hour ago and
- * an `exp` inside the grace window (lifetime up to 330 s) verified.
+ * Antes PrestaShop no tenía tope de antigüedad: un token con `iat` de hace una
+ * hora y `exp` dentro de la ventana de gracia (lifetime ≤ 330 s) verificaba.
  *
- * REAL TokenVerifier with a real Ed25519 signature; the clock is re-read around
- * the boundary call so a second rollover does not turn it into 301.
- * Harness: ValidateOrderHookFlowHarness.php.
+ * TokenVerifier REAL con firma Ed25519 real; el reloj se relee alrededor de la
+ * llamada de frontera para que un cambio de segundo no la convierta en 301.
+ * Arnés: ValidateOrderHookFlowHarness.php.
  */
 
 namespace Trusteed\Tests\Enforcement;
@@ -73,7 +73,7 @@ final class TokenVerifierMaxAgeTest extends ValidateOrderHookFlowTestCase
 
     public function testAnOldIatWithARenewedExpIsRejected(): void
     {
-        // lifetime = 330 s (at the edge of the lifetime window), iat from 320 s ago.
+        // vida = 330 s (en el límite de la ventana de vida), iat de hace 320 s.
         self::assertNull($this->verifyAged(320, 10));
     }
 

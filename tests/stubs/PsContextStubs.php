@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * PsContextStubs.php: minimal, test-configurable PrestaShop globals so the REAL
+ * PsContextStubs.php — minimal, test-configurable PrestaShop globals so the REAL
  * payment tools (which call MerchantContextGuard::enforce → \Context + \Configuration)
  * can be unit-tested without a live PrestaShop install.
  *
@@ -45,9 +45,10 @@ namespace {
             /** @return mixed */
             public static function get(string $key, $idLang = null, $idShopGroup = null, $idShop = null, $default = false)
             {
-                // The special case only applies when a test has set `$merchantId`.
-                // Returning an empty string unconditionally would hide an id
-                // set through `$config` (as the UcpWellknownResolver tests do).
+                // R2 (2026-09-26) — el caso especial sólo manda cuando un test
+                // ha fijado `$merchantId`. Antes devolvía siempre la cadena
+                // vacía, así que un test que ponía el identificador por
+                // `$config` (los de UcpWellknownResolver) lo perdía.
                 if ($key === 'TRUSTEED_CEL_MERCHANT_ID' && TestPsState::$merchantId !== '') {
                     return TestPsState::$merchantId;
                 }
@@ -65,7 +66,8 @@ namespace {
             public ?object $shop = null;
 
             /**
-             * ValidateOrderHook::resolveAgentToken() reads the cookie fallback from
+             * GHSA-2j2x-5q52-g48m issue 2 (D1) — ValidateOrderHook::
+             * resolveAgentToken() reads the cookie fallback from
              * `\Context::getContext()->cookie`, mirroring real PS's
              * `Context::$cookie` (a `Cookie` object). Declared here (not set
              * dynamically by a test) because PHP 8.2+ deprecates creating an
@@ -75,11 +77,11 @@ namespace {
             public ?object $cookie = null;
 
             /**
-             * `OrderEventsEmitter::resolvePreviousStateId()` reads
-             * `Context::getContext()->language->id`, as real PS does
-             * (`Context::$language`, a `Language`). Without the declaration the
-             * `tests/hooks` tests raise "Undefined property", which fails them
-             * under `failOnWarning="true"`.
+             * R2 (2026-09-26) — `OrderEventsEmitter::resolvePreviousStateId()`
+             * lee `Context::getContext()->language->id`, como en PS real
+             * (`Context::$language`, un `Language`). Sin declararlo, los tests
+             * de `tests/hooks` daban «Undefined property» y, con
+             * `failOnWarning="true"`, fallaban en cuanto entraron en la suite.
              */
             public ?object $language = null;
 
@@ -154,11 +156,13 @@ namespace {
     if (!class_exists('Access')) {
         final class Access
         {
-            /** Mirrors PS Access::isGranted('view', $tabId, $profileId). */
-            public static function isGranted(string $action, int $tabId, int $profileId): bool
+            /** Mirrors the real PS Access::isGranted('ROLE_MOD_TAB_<CLASS>_READ', $profileId). */
+            public static function isGranted(string $role, int $profileId): bool
             {
-                $token = TestTabRegistry::$idToToken[$tabId] ?? '';
-                return $token !== '' && (TestPsPermissions::$granted[$token] ?? false);
+                if (preg_match('/\AROLE_MOD_TAB_([A-Z0-9]+)_(READ|CREATE|UPDATE|DELETE)\z/', $role, $m) !== 1) {
+                    throw new \InvalidArgumentException('Invalid role slug: ' . $role);
+                }
+                return TestPsPermissions::$granted[$m[1] . ':' . $m[2]] ?? false;
             }
         }
     }

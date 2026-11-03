@@ -10,11 +10,11 @@ use Trusteed\Enforcement\LineItemAliases;
 require_once __DIR__ . '/../../src/Enforcement/LineItemAliases.php';
 
 /**
- * R034 (blocked SKU list) compares `lineItems[].id` EXACTLY against the
- * merchant's list, which holds SKUs/references. PrestaShop only sent the numeric
- * product id, so a blocked SKU never matched. The server already uses the
- * convention "alias line with qty 0 and price 0": it does not alter amounts or
- * counts for the numeric rules.
+ * R034 (lista de SKU bloqueados) compara EXACTO `lineItems[].id` con la lista del
+ * comerciante, que escribe SKU/referencias. PrestaShop mandaba sólo el id numérico
+ * del producto, así que un SKU bloqueado nunca casaba (barrido 2026-10-10, 20613d0ee).
+ * El servidor ya usa la convención «línea alias con qty 0 y precio 0»: no altera
+ * importes ni conteos de las reglas numéricas.
  */
 final class LineItemAliasesTest extends TestCase
 {
@@ -73,8 +73,8 @@ final class LineItemAliasesTest extends TestCase
     }
 
     /**
-     * Wiring: the class existing does not prove anyone calls it (the
-     * "mechanism built but never called" pattern).
+     * Cableado: que la clase exista no prueba que alguien la llame (el patrón
+     * «mecanismo construido y sin llamador» de esta auditoría).
      */
     public function testValidateOrderHookSendsTheAliasLinesAfterTheRealOnes(): void
     {

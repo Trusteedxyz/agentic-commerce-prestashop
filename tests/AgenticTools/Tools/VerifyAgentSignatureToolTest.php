@@ -3,7 +3,8 @@
 declare(strict_types=1);
 
 /**
- * VerifyAgentSignatureToolTest: tests the REAL VerifyAgentSignatureTool.
+ * VerifyAgentSignatureToolTest — tests the REAL VerifyAgentSignatureTool
+ * (spec-046 H1 de-tautologization).
  *
  * The previous revision tested an inline MockVerifyAgentSignatureTool. This
  * version instantiates the production class and injects fakes ONLY for the
@@ -25,7 +26,7 @@ final class VerifyAgentSignatureToolTest extends TestCase
 
     protected function setUp(): void
     {
-        // The merchant-facing server-to-server route authenticates by the
+        // LANE 046-F1: the merchant-facing S2S route authenticates by the
         // authoritative per-store merchant id resolved from the PS shop context.
         \TestPsState::reset();
         \TestPsState::$merchantId = self::MERCHANT;
@@ -56,7 +57,7 @@ final class VerifyAgentSignatureToolTest extends TestCase
         $result = $this->tool($api)->execute('post', 'https://shop.example/x', self::HEADERS);
 
         $this->assertSame(1, $api->callCount());
-        // Merchant-facing per-store server-to-server route.
+        // LANE 046-F1 Option A — merchant-facing per-store S2S route.
         $this->assertSame('/api/v1/embed/agentic-tools/verify-agent-signature', $api->lastCall()['endpoint']);
         $this->assertTrue($api->lastCall()['s2s'] ?? false, 'must use the S2S call path');
         $this->assertSame(self::MERCHANT, $api->lastCall()['merchantId']);

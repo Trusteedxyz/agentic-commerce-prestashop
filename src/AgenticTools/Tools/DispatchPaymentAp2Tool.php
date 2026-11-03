@@ -12,7 +12,7 @@ declare(strict_types=1);
  * MCP tool name : trusteed_dispatch_payment_ap2
  * Capability    : pay_with_agent
  * Backend route : (PLANNED) /api/v1/protocols/ap2/dispatch — does NOT exist yet.
- *                 AP2 v0.2 is dormant; the
+ *                 AP2 v0.2 is dormant (spec-044, gated behind SD_JWT_ENABLED); the
  *                 adapter only exposes a dormant 503 guard. Catalog marks this
  *                 backendStatus:"planned" → tool registered DISABLED and execute()
  *                 returns a structured capability_disabled error.
@@ -77,7 +77,7 @@ final class DispatchPaymentAp2Tool
         if (!$this->permissionGuard->check('pay_with_agent', $this->employeeId)) {
             throw new McpToolException(
                 McpToolException::CODE_UNAUTHORIZED,
-                'Insufficient permissions: pay_with_agent requires ADMINPAYMENTCART access'
+                'Insufficient permissions: pay_with_agent requires ADMINORDERS update access'
             );
         }
 
@@ -110,7 +110,7 @@ final class DispatchPaymentAp2Tool
         // structured capability_disabled error instead of POSTing to a non-route.
         throw new McpToolException(
             McpToolException::CODE_CAPABILITY_DISABLED,
-            'AP2 v0.2 dispatch is dormant: '
+            'AP2 v0.2 dispatch is dormant (spec-044, gated behind SD_JWT_ENABLED): '
             . 'no dispatch endpoint is deployed yet. This tool is advertised for '
             . 'forward-compatibility only.'
         );

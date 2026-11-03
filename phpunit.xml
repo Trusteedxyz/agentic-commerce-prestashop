@@ -14,10 +14,10 @@
             <directory>tests/discovery</directory>
         </testsuite>
         <!--
-          Setup status (back office badge and the wording of the auto-registration
-          message). Pure logic over three strings: it declares no global PS
-          stubs, so the whole directory can be registered without the collisions
-          that force `enforcement` to be listed file by file.
+          Estado del alta (badge del back office + honestidad del mensaje de
+          auto-registro). Lógica pura sobre tres cadenas: no declara stubs
+          globales de PS, así que el directorio entero se puede registrar sin
+          las colisiones que obligan a listar `enforcement` fichero a fichero.
         -->
         <testsuite name="admin">
             <directory>tests/admin</directory>
@@ -32,18 +32,19 @@
             <file>tests/enforcement/FallbackModeDefaultTest.php</file>
         </testsuite>
         <!--
-          Rule-code normalisation. Kernel-free (no PS global stubs), so it could
-          join a directory suite; registered as a file for the same reason as
-          its neighbour above.
+          P0-3 — rule-code normalisation. Kernel-free (no PS global stubs), so
+          it could join a directory suite; registered as a file for the same
+          reason as its neighbour above.
         -->
         <testsuite name="enforcement-rule-code">
             <file>tests/enforcement/RuleCodeTest.php</file>
         </testsuite>
         <!--
-          Cross-language fixture for the main flow, plus the ValidateOrderHook
-          flow run with the real SnapshotClient and its network edges replaced.
-          The PS stubs of the second file are declared only if they do not
-          exist, and no other suite in this file declares them.
+          Auditoría 2026-09-27 (A9/A8, plan 04 Task 8) — fixture cross-language
+          del flujo principal + el flujo de ValidateOrderHook ejecutado con el
+          SnapshotClient real y sus bordes de red sustituidos. Los stubs de PS
+          del segundo fichero se declaran sólo si no existen y ninguna otra
+          suite de este xml los declara.
         -->
         <testsuite name="enforcement-platform-flow">
             <file>tests/enforcement/PlatformFlowConformanceTest.php</file>
@@ -53,13 +54,17 @@
             <file>tests/enforcement/InternalErrorFlowTest.php</file>
             <file>tests/enforcement/ValidateOrderHookReplayIdentityTest.php</file>
             <file>tests/enforcement/ValidateOrderHookNonceContractTest.php</file>
+            <file>tests/enforcement/ValidateOrderHookPaymentRailFlowTest.php</file>
             <file>tests/enforcement/SnapshotHardeningFlowTest.php</file>
             <file>tests/enforcement/TokenVerifierCritFlowTest.php</file>
             <file>tests/enforcement/TokenVerifierMaxAgeTest.php</file>
+            <file>tests/enforcement/BrowserAgentSignatureTest.php</file>
+            <file>tests/enforcement/WebmcpCheckoutControllerTest.php</file>
+            <file>tests/enforcement/WebmcpChannelMarkTest.php</file>
         </testsuite>
         <!--
-          Response body read limit, tested with real cURL against a local
-          server. Declares no PS stubs.
+          Plan 04 Task 29c (L6b) — tope de lectura del cuerpo con cURL real
+          contra un servidor local. No declara stubs de PS.
         -->
         <testsuite name="enforcement-snapshot-http">
             <file>tests/enforcement/SnapshotClientResponseLimitTest.php</file>
@@ -70,28 +75,38 @@
             <file>tests/enforcement/CapabilitiesReporterTest.php</file>
             <file>tests/enforcement/SnapshotClientLayer2BreakerTest.php</file>
             <file>tests/enforcement/ValidateOrderHookLogEscapingTest.php</file>
+            <file>tests/enforcement/AgentReasonTest.php</file>
         </testsuite>
         <!--
-          Order event emitter. These tests existed but were not running because
-          the directory was not registered here, so the shipping date fix had no
-          safety net. Whole directory: its stubs (`\Order`, `\OrderSlip`,
-          `\Context`) are declared only if they do not exist and coexist with
-          the bootstrap ones.
+          A4/A5 (auditoría agent-readiness 2026-09-26) — el emisor de eventos de
+          pedido. Estos tests existían y NO corrían: el directorio no estaba
+          aquí, así que la fecha de envío que arregla «cumple el 100 %» en C16
+          no tenía ninguna red. Directorio entero: sus stubs (`\Order`,
+          `\OrderSlip`, `\Context`) se declaran sólo si no existen y conviven
+          con los del bootstrap.
         -->
         <testsuite name="hooks">
             <directory>tests/hooks</directory>
         </testsuite>
         <!--
-          Upgrade 2.3.1. It passed but was not in any suite; the gate
-          `tests/meta/TodoTestEstaEnUnaSuiteTest.php` caught it.
+          R2 (2026-09-26) — upgrade 2.3.1. Pasaba y no estaba en ninguna suite:
+          lo destapó el gate `tests/meta/TodoTestEstaEnUnaSuiteTest.php`.
         -->
         <testsuite name="upgrade">
             <directory>tests/upgrade</directory>
         </testsuite>
         <!--
-          The gate that stops a `*Test.php` file from ending up outside every
-          suite unnoticed.
+          El gate que impide que un `*Test.php` vuelva a quedar fuera de toda
+          suite sin que nadie lo vea.
         -->
+        <!--
+          Sincronización de la cuenta PayPal del módulo `paypal` (202 ecommerce)
+          con la plataforma (plan 2026-10-12 F4.1). Lógica con dependencias
+          inyectadas: no declara stubs globales de PS.
+        -->
+        <testsuite name="paypal-sync">
+            <directory>tests/PayPalSync</directory>
+        </testsuite>
         <testsuite name="meta">
             <directory>tests/meta</directory>
         </testsuite>

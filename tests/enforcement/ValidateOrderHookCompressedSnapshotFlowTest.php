@@ -3,23 +3,23 @@
 declare(strict_types=1);
 
 /**
- * Compressed snapshot (`zip: "DEF"`, payload > 50 KB).
+ * Plan 04 Task 24 — snapshot comprimido (`zip: "DEF"`, payload > 50 KB).
  *
- * Consumes the `compressedSnapshot` section of the shared fixture: the JWS was
- * produced by the server's REAL builder and signer, with keys derived from
- * public labels. Here:
+ * Consume la sección `compressedSnapshot` del fixture compartido: el JWS lo
+ * produjeron el builder y el firmador REALES del servidor (test de apps/api),
+ * con claves derivadas de etiquetas públicas. Aquí:
  *
- *   - the 12 vectors go through the REAL `SnapshotClient::verifyResult()`, with
- *     the fixture JWKS served by the test network edge (count asserted);
- *   - the 11 whose signature verifies also go through the decoder, reason by
- *     reason (count asserted);
- *   - the `ValidateOrderHook` flow with the compressed snapshot served by the
- *     real client: an agent with a token is NOT held because of the size, its
- *     token verifies against the 300-DID resolver, a person passes, the offline
- *     valve reads the rules from the compressed JWS in the 24 h cache, and the
- *     decompression bomb is handled without reserving more than the cap.
+ *   - los 12 vectores pasan por `SnapshotClient::verifyResult()` REAL, con el
+ *     JWKS del fixture servido por el borde de red de prueba (conteo asertado);
+ *   - los 11 cuya firma verifica pasan además por el decodificador, motivo a
+ *     motivo (conteo asertado);
+ *   - el flujo de `ValidateOrderHook` con el snapshot comprimido servido por el
+ *     cliente real: el agente con token NO queda retenido por el tamaño, su
+ *     token verifica contra el resolver de 300 DIDs, la persona pasa, la
+ *     válvula offline lee las reglas del JWS comprimido de la caché de 24 h, y
+ *     la bomba se maneja sin reservar más que el tope.
  *
- * Harness, stubs and test network client: ValidateOrderHookFlowHarness.php.
+ * Arnés, stubs y cliente de red de prueba: ValidateOrderHookFlowHarness.php.
  */
 
 namespace Trusteed\Tests\Enforcement;
@@ -36,9 +36,9 @@ final class ValidateOrderHookCompressedSnapshotFlowTest extends ValidateOrderHoo
     private static function section(): array
     {
         if (self::$section === null) {
-            $path = __DIR__ . '/../fixtures/platform-flow-conformance.json';
+            $path = __DIR__ . '/../../../shared/src/enforcement/__fixtures__/platform-flow-conformance.json';
             $json = json_decode((string) file_get_contents($path), true);
-            self::assertIsArray($json, 'the conformance fixture must exist under tests/fixtures');
+            self::assertIsArray($json, 'el fixture tiene que ser alcanzable desde el monorepo (monta la raíz)');
             self::$section = $json['compressedSnapshot'];
         }
         return self::$section;
@@ -67,7 +67,7 @@ final class ValidateOrderHookCompressedSnapshotFlowTest extends ValidateOrderHoo
         $this->client->snapshotResponse = ['code' => 200, 'body' => self::vector($id)['jws'], 'error' => ''];
     }
 
-    /** Conformance agent key: seed = SHA-256(public label). */
+    /** Clave del agente de conformidad: semilla = SHA-256(etiqueta pública). */
     private function conformanceAgentSecret(): string
     {
         $seed = hash('sha256', self::section()['agent']['seedLabel'], true);
@@ -91,7 +91,7 @@ final class ValidateOrderHookCompressedSnapshotFlowTest extends ValidateOrderHoo
         }
     }
 
-    // ── Conformance: the 12 vectors ────────────────────────────────────────
+    // ── Conformidad: los 12 vectores ───────────────────────────────────────
 
     public function testTheFixtureCapIsThePortCap(): void
     {
@@ -155,12 +155,12 @@ final class ValidateOrderHookCompressedSnapshotFlowTest extends ValidateOrderHoo
         $grown = memory_get_peak_usage() - $before;
 
         self::assertSame(SnapshotPayloadDecoder::INFLATE_OVER_CAP, $reason);
-        // 8 MiB declared; the peak stays within the cap (2 MiB) plus one step and
-        // the final string: without a cap it would be at least 8 MiB.
+        // 8 MiB declarados; el pico no pasa del tope (2 MiB) más un paso y la
+        // cadena final: sin tope serían ≥ 8 MiB.
         self::assertLessThan(6 * 1024 * 1024, $grown, 'la bomba no se infla entera');
     }
 
-    // ── Real ValidateOrderHook flow with the compressed snapshot ───────────
+    // ── Flujo real de ValidateOrderHook con el snapshot comprimido ─────────
 
     public function testALegitimateAgentIsNotHeldBecauseOfTheSizeAndItsTokenVerifies(): void
     {
@@ -198,9 +198,9 @@ final class ValidateOrderHookCompressedSnapshotFlowTest extends ValidateOrderHoo
 
     public function testTheOfflineValveReadsTheRulesOfTheCompressedCachedJws(): void
     {
-        // First request: the compressed snapshot verifies and goes into the 24 h cache.
+        // Primera petición: el snapshot comprimido verifica y va a la caché de 24 h.
         self::assertNull($this->outcomeFor(100.0));
-        // Layer 2 down: the valve reads R030 (cap 5000.00) from the cached COMPRESSED JWS.
+        // Capa 2 caída: la válvula lee R030 (tope 5000,00) del JWS COMPRIMIDO en caché.
         $this->serverDown();
         self::assertNull($this->outcomeFor(100.0), 'por debajo del tope pasa');
         $msg = $this->outcomeFor(6000.0);
@@ -216,7 +216,7 @@ final class ValidateOrderHookCompressedSnapshotFlowTest extends ValidateOrderHoo
             $this->presentToken($this->conformanceToken());
             $msg = $this->outcome();
             self::assertNotNull($msg, $mode);
-            self::assertStringContainsString('snapshot_pull_failed', $msg, $mode);
+            self::assertStringContainsString('checks_unavailable', $msg, $mode);
             self::assertStringNotContainsString('SNAPSHOT-INVALID', $msg, 'firma de la plataforma: no es manipulación');
         }
         unset(\Tools::$mockValues['_trusteed_agent_token']);
@@ -232,7 +232,7 @@ final class ValidateOrderHookCompressedSnapshotFlowTest extends ValidateOrderHoo
 
         $msg = $this->outcome();
         self::assertNotNull($msg);
-        self::assertStringContainsString('snapshot_pull_failed', $msg);
+        self::assertStringContainsString('checks_unavailable', $msg);
         self::assertSame(1, $this->logsContaining('"kind":"missing_snapshot"'));
     }
 

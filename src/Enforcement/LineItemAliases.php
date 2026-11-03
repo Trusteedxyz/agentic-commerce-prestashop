@@ -5,20 +5,20 @@ declare(strict_types=1);
 namespace Trusteed\Enforcement;
 
 /**
- * Alias lines carrying the SKU (reference) of each cart product.
+ * Líneas alias con el SKU (referencia) de cada producto del carrito.
  *
- * R034 compares `lineItems[].id` EXACTLY against the merchant's blocked SKU
- * list; with only the numeric PrestaShop id a blocked SKU never matched. Same
- * convention as the server (`protocol-line-items.ts`): an extra line with qty 0
- * and price 0, which does not alter amounts or counts for numeric rules. They
- * are kept OUTSIDE the real lines: any local logic that walks products by id
- * does not see them.
+ * R034 compara EXACTO `lineItems[].id` con la lista de SKU bloqueados que
+ * escribe el comerciante; con sólo el id numérico de PrestaShop un SKU
+ * bloqueado nunca casaba. Misma convención que el servidor
+ * (`protocol-line-items.ts`): línea extra con qty 0 y precio 0, que no altera
+ * importes ni conteos de las reglas numéricas. Se mantienen FUERA de las líneas
+ * reales: cualquier lógica local que recorra los productos por id no las ve.
  */
 final class LineItemAliases
 {
     /**
-     * @param list<array<string,mixed>> $products  Products from `Cart::getProducts()`.
-     * @param list<array<string,mixed>> $realLines Already projected lines (`id`, `qty`, `priceCents`).
+     * @param list<array<string,mixed>> $products  Productos de `Cart::getProducts()`.
+     * @param list<array<string,mixed>> $realLines Líneas ya proyectadas (`id`, `qty`, `priceCents`).
      * @return list<array{id: string, qty: int, priceCents: int}>
      */
     public static function forProducts(array $products, array $realLines): array

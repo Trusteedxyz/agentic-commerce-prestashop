@@ -3,16 +3,16 @@
 declare(strict_types=1);
 
 /**
- * Upgrade script to 2.3.4: `idx_created_at` index on `trusteed_agent_carts`.
+ * Upgrade script to 2.3.4 — índice `idx_created_at` de `trusteed_agent_carts`.
  *
- * The index was added to `createTable()`, which uses `CREATE TABLE IF NOT EXISTS`,
- * so stores that were already installed do not have it and
- * `CartAgentStorage::purgeExpired()` does a full scan on every agent cart
- * creation. This script creates it when missing (additive and idempotent: it
- * checks `SHOW INDEX` before the `ALTER`).
+ * Revisión de seguridad 2026-10-10 (B5): el índice se añadió a `createTable()`,
+ * que usa `CREATE TABLE IF NOT EXISTS`, así que las tiendas ya instaladas no lo
+ * tienen y `CartAgentStorage::purgeExpired()` hace un barrido completo en cada
+ * alta agéntica. Este script lo crea si falta (aditivo e idempotente: comprueba
+ * `SHOW INDEX` antes del `ALTER`).
  *
- * Defensive, like upgrade/2.3.1.php and 2.3.3.php: a failure here must not abort
- * the module upgrade; the worst case is the previous state (table without index).
+ * Defensivo, como upgrade/2.3.1.php y 2.3.3.php: un fallo aquí no debe abortar la
+ * actualización del módulo; el peor caso es el estado anterior (tabla sin índice).
  *
  * @param \Trusteed $module
  */

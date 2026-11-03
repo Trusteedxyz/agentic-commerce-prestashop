@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Trusteed\Service;
 
 /**
- * Backend rejection when attaching the read key. It carries only a short code
- * (e.g. `read_key_rejected`, `store_unreachable`): never the key or the request
- * body, because the message ends up on screen.
+ * Rechazo del backend al adjuntar la clave de lectura. Lleva sólo un código
+ * corto (p. ej. `read_key_rejected`, `store_unreachable`): nunca la clave ni
+ * el cuerpo de la petición, porque el mensaje acaba en pantalla.
  */
 final class ReadKeyBackendException extends \RuntimeException
 {
@@ -15,7 +15,7 @@ final class ReadKeyBackendException extends \RuntimeException
 
     public function __construct(string $reason)
     {
-        // Code characters only: whatever comes from the backend is not rendered as is.
+        // Sólo caracteres de código: lo que venga del backend no se pinta tal cual.
         $this->reason = (string) preg_replace('/[^A-Za-z0-9_]/', '', substr($reason, 0, 64));
         parent::__construct('read-key: backend rejected (' . $this->reason . ')');
     }

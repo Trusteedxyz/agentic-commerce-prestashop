@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Trusteed: Agentic MCP Stores PrestaShop module.
+ * Trusteed — Trusteed Agentic MCP Stores PrestaShop module.
  *
  * This module extends the Trusteed Trust Center with AgenticTools support:
  * when the PrestaShop MCP Server add-on (marketplace ID 96617) is installed,
@@ -11,7 +11,7 @@ declare(strict_types=1);
  * (Claude Desktop, etc.) to sign trust receipts and dispatch payments
  * directly from the PrestaShop back office.
  *
- * Compatible: PrestaShop 8.0.0 to 9.99.99
+ * Compatible: PrestaShop 8.0.0 – 9.99.99
  * PHP:        8.1+
  *
  * @author  Trusteed
@@ -27,7 +27,7 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-// Composer autoloader, present when vendor/ is generated inside the package.
+// Composer autoloader — present when vendor/ is generated inside the package.
 $autoloader = __DIR__ . '/vendor/autoload.php';
 if (file_exists($autoloader)) {
     require_once $autoloader;
@@ -54,7 +54,7 @@ class Trusteed extends Module
     {
         $this->name             = 'trusteed';
         $this->tab              = 'administration';
-        $this->version          = '2.3.4';
+        $this->version          = '2.3.6';
         $this->author           = 'Trusteed';
         $this->need_instance    = 0;
         $this->ps_versions_compliancy = ['min' => '8.0.0', 'max' => '9.99.99'];
@@ -93,12 +93,12 @@ class Trusteed extends Module
         // Gap 2: canonical S2S secret key (legacy TRUSTEED_BOOTSTRAP_TOKEN kept for upgrade compat).
         Configuration::updateValue('TRUSTEED_EMBED_S2S_SECRET', '');
 
-        // Persist per-tool toggle defaults (sign+verify ON, ACP/x402/AP2 OFF).
+        // FR-018b: persist per-tool toggle defaults (sign+verify ON, ACP/x402/AP2 OFF).
         if (class_exists('Trusteed\\AgenticTools\\ToolToggleSettings')) {
             \Trusteed\AgenticTools\ToolToggleSettings::installDefaults();
         }
 
-        // Register the admin Tab (back office menu)
+        // Registrar Tab de administración (menú back office)
         $this->installAdminTab();
 
         // CEL enforcement defaults
@@ -108,7 +108,7 @@ class Trusteed extends Module
         Configuration::updateValue('TRUSTEED_CEL_INSTALLATION_ID', '');
         Configuration::updateValue('TRUSTEED_CEL_HMAC_SECRET', '');
 
-        // UCP `.well-known` discovery redirect is OPT-IN, default OFF.
+        // ADR-077: UCP `.well-known` discovery redirect is OPT-IN, default OFF.
         Configuration::updateValue('TRUSTEED_UCP_WELLKNOWN_ENABLED', '0');
 
         // FriendlyURL route for /.well-known/ucp → ucpwellknown front controller.
@@ -116,8 +116,10 @@ class Trusteed extends Module
         // until the merchant opts in.
         $this->registerHook('moduleRoutes');
 
-        // Back office header badge hook
+        // Hook badge en el back office header
         $this->registerHook('displayBackOfficeTop');
+        // Tools WebMCP del checkout: sólo emiten algo en la página `order` con el ajuste activo.
+        $this->registerHook('displayHeader');
 
         // CEL hook registration (PS 9+ forward compat + telemetry)
         if (class_exists('Trusteed\\Enforcement\\ValidateOrderHook')) {
@@ -134,27 +136,27 @@ class Trusteed extends Module
             $this->registerHook('actionWebserviceCallBefore');
         }
 
-        // PS MCP No-Auth mode detection (observe-by-default).
+        // Spec-048 W1.1 — PS MCP No-Auth mode detection (observe-by-default).
         if (class_exists('Trusteed\\Enforcement\\McpNoAuthDetector')) {
             \Trusteed\Enforcement\McpNoAuthDetector::register($this);
         }
 
-        // Order events (fulfillment + refund proxy).
+        // Spec 042 T042-082..084 — order events (fulfillment + refund proxy).
         if (class_exists('Trusteed\\Hooks\\OrderEventsEmitter')) {
             \Trusteed\Hooks\OrderEventsEmitter::register($this);
         }
 
-        // Payment failure emitter (actionPaymentCCAdd + displayPaymentReturn).
+        // Spec-048 P0b — payment failure emitter (actionPaymentCCAdd + displayPaymentReturn).
         if (class_exists('Trusteed\\Enforcement\\PaymentFailureEmitter')) {
             \Trusteed\Enforcement\PaymentFailureEmitter::register($this);
         }
 
-        // Coupon-attempt-failed emitter (actionValidateOrder).
+        // Spec-048 G1 — coupon-attempt-failed emitter (actionValidateOrder).
         if (class_exists('Trusteed\\Enforcement\\CouponFailureEmitter')) {
             \Trusteed\Enforcement\CouponFailureEmitter::register($this);
         }
 
-        // Transient cart→agentDid store for agentIdHash propagation.
+        // R023: transient cart→agentDid store for agentIdHash propagation.
         if (class_exists('Trusteed\\Storage\\CartAgentStorage')) {
             \Trusteed\Storage\CartAgentStorage::createTable();
         }
@@ -168,27 +170,27 @@ class Trusteed extends Module
     {
         $this->uninstallAdminTab();
 
-        // The read key is an artifact of this module: it is deleted from the
-        // store and Trusteed is asked to forget it BEFORE deregistering, while
-        // the install_key and API base still exist. Never throws.
+        // La clave de lectura es un artefacto de este módulo: se borra de la
+        // tienda y se pide a Trusteed que la olvide ANTES de dar de baja, que
+        // es cuando aún existen la install_key y el API base. Nunca lanza.
         if (class_exists('Trusteed\\Admin\\ReadKeyPanel')) {
             \Trusteed\Admin\ReadKeyPanel::revokeOnUninstall();
         }
         Configuration::deleteByName('TRUSTEED_WS_READ_KEY_ID');
         Configuration::deleteByName('TRUSTEED_WS_ENABLED_BY_MODULE');
 
-        // Notify Trusteed BEFORE deleting anything.
+        // Avisar a Trusteed ANTES de borrar nada — 2026-09-05.
         //
-        // PrestaShop has no equivalent of Shopify's `app/uninstalled`. Without
-        // this call the keys below were deleted silently: the merchant vanished
-        // from their back office but stayed published in
-        // `/.well-known/merchant-index.json`, in the directory and with an
-        // announced MCP endpoint.
+        // PrestaShop no tiene equivalente al `app/uninstalled` de Shopify.
+        // Hasta hoy este método borraba las claves de abajo y no avisaba a
+        // nadie: el comercio desaparecía de su back-office y seguía publicado
+        // en `/.well-known/merchant-index.json`, en el directorio y con su
+        // endpoint MCP anunciado.
         //
-        // It goes first because it needs `TRUSTEED_API_BASE` and
-        // `TRUSTEED_INSTALL_KEY`, which the next four lines delete.
-        // `deregister()` never throws: an uninstall must not stop halfway
-        // because the backend does not answer.
+        // Va primero porque necesita `TRUSTEED_API_BASE` y
+        // `TRUSTEED_INSTALL_KEY`, que las cuatro líneas siguientes borran.
+        // `deregister()` no lanza nunca: una desinstalación no puede quedarse
+        // a medias porque el backend no conteste.
         $this->notifyTrusteedOfUninstall();
 
         Configuration::deleteByName('TRUSTEED_API_BASE');
@@ -196,7 +198,7 @@ class Trusteed extends Module
         Configuration::deleteByName('TRUSTEED_BOOTSTRAP_TOKEN');
         Configuration::deleteByName('TRUSTEED_INSTALL_KEY');
 
-        // Remove per-tool toggle config keys.
+        // FR-018b: remove per-tool toggle config keys.
         if (class_exists('Trusteed\\AgenticTools\\ToolToggleSettings')) {
             \Trusteed\AgenticTools\ToolToggleSettings::uninstallDefaults();
         }
@@ -204,6 +206,8 @@ class Trusteed extends Module
         // CEL configuration cleanup
         Configuration::deleteByName('TRUSTEED_CEL_ENABLED');
         Configuration::deleteByName('TRUSTEED_CEL_FALLBACK_MODE');
+        Configuration::deleteByName('TRUSTEED_BROWSER_SIGNATURE_MODE');
+        Configuration::deleteByName('TRUSTEED_WEBMCP_CHECKOUT_TOOLS');
         Configuration::deleteByName('TRUSTEED_CEL_MERCHANT_ID');
         Configuration::deleteByName('TRUSTEED_CEL_INSTALLATION_ID');
         Configuration::deleteByName('TRUSTEED_CEL_HMAC_SECRET');
@@ -211,8 +215,14 @@ class Trusteed extends Module
         Configuration::deleteByName('TRUSTEED_CEL_CAPS_REPORTED_AT');
         Configuration::deleteByName('TRUSTEED_CEL_CAPS_ATTEMPT_AT');
 
-        // UCP `.well-known` discovery flag cleanup.
+        // ADR-077: UCP `.well-known` discovery flag cleanup.
         Configuration::deleteByName('TRUSTEED_UCP_WELLKNOWN_ENABLED');
+
+        // Sincronización de PayPal (plan 2026-10-12 F4.1): sólo las claves
+        // PROPIAS. Las del módulo `paypal` (PAYPAL_*) son ajenas y no se tocan.
+        Configuration::deleteByName('TRUSTEED_PAYPAL_SYNC_ENABLED');
+        Configuration::deleteByName('TRUSTEED_PAYPAL_SYNC_HASH');
+        Configuration::deleteByName('TRUSTEED_PAYPAL_SYNC_RETRY_AT');
 
         // Unregister CEL hooks
         if (class_exists('Trusteed\\Enforcement\\ValidateOrderHook')) {
@@ -240,14 +250,15 @@ class Trusteed extends Module
         // Symmetry with install(): unregister the directly-registered hooks.
         $this->unregisterHook('moduleRoutes');
         $this->unregisterHook('displayBackOfficeTop');
+        $this->unregisterHook('displayHeader');
 
         return parent::uninstall();
     }
 
     /**
-     * Deregisters the store with Trusteed before `uninstall()` deletes the
-     * credentials. Best-effort and silent: a failure here must never stop the
-     * merchant from uninstalling the module.
+     * Da de baja la tienda en Trusteed antes de que `uninstall()` borre las
+     * credenciales. Best-effort y silencioso: cualquier fallo aquí no puede
+     * impedir que el comerciante desinstale su módulo.
      */
     private function notifyTrusteedOfUninstall(): void
     {
@@ -272,8 +283,8 @@ class Trusteed extends Module
             $service = new \Trusteed\Service\AutoRegister($apiBase);
             $service->deregister((string) Tools::getShopDomainSsl(true), $installKey);
         } catch (\Throwable $e) {
-            // The constructor validates apiBase and may throw; a misconfigured
-            // URL must not break the uninstall.
+            // El constructor valida el apiBase y puede lanzar; una URL mal
+            // configurada no debe romper la desinstalación.
         }
     }
 
@@ -317,12 +328,12 @@ class Trusteed extends Module
         $apiClient      = new \Trusteed\AgenticTools\BackendApiClient($apiBase, $token);
         $permissionGuard = new \Trusteed\AgenticTools\PermissionGuard();
 
-        // Compute the effective enabled set.
-        //  - Read the bundled catalog (agentic-tools-catalog.json) to get
+        // FR-018a + FR-018b: compute the effective enabled set.
+        //  - FR-018a: read the bundled catalog (agentic-tools-catalog.json) to get
         //    each tool's honest backendStatus. The remote catalog endpoint is the
         //    SSOT, but on first bootstrap / when unreachable the bundle is the
         //    fallback (the module never blocks activation on a remote fetch).
-        //  - Combine with the per-tool merchant toggles. Disabled or
+        //  - FR-018b: combine with the per-tool merchant toggles. Disabled or
         //    not-module-fulfillable or backendStatus:"planned" tools are OMITTED.
         $enabledMap = $this->resolveEnabledToolMap();
 
@@ -345,12 +356,12 @@ class Trusteed extends Module
     }
 
     /**
-     * Resolves the effective per-tool enabled map.
+     * Resolves the effective per-tool enabled map (FR-018a + FR-018b).
      *
      * Reads the bundled catalog for backendStatus and the persisted merchant
      * toggles, then combines them via ToolToggleSettings. If the bundle cannot be
      * read (packaging error), every tool with an unknown status defaults to
-     * "planned" (disabled): fail-closed, never crash plugin activation.
+     * "planned" (disabled) — fail-closed, never crash plugin activation.
      *
      * @return array<string,bool>
      */
@@ -367,8 +378,8 @@ class Trusteed extends Module
             $catalog = \Trusteed\AgenticTools\ToolToggleSettings::bundledCatalog();
             $statusMap = \Trusteed\AgenticTools\ToolToggleSettings::backendStatusMap($catalog);
         } catch (\Throwable $e) {
-            // Bundle missing/corrupt: fail closed (everything "planned" → disabled),
-            // log, but never block module activation (activation is non-blocking).
+            // Bundle missing/corrupt — fail closed (everything "planned" → disabled),
+            // log, but never block module activation (FR-018a non-blocking rule).
             if (class_exists('\\PrestaShopLogger')) {
                 \PrestaShopLogger::addLog('Trusteed: bundled catalog unreadable: ' . $e->getMessage(), 2);
             }
@@ -381,21 +392,21 @@ class Trusteed extends Module
     // ─── Admin Tab ────────────────────────────────────────────────────────────
 
     /**
-     * Registers the admin Tab in the back office menu.
-     * It is shown under "Modules" (CONFIGURE) as a standalone entry.
+     * Registra el Tab de administración en el menú del back office.
+     * Se muestra bajo "Módulos" (CONFIGURE) como entrada independiente.
      */
     /**
-     * Module tabs: parent `AdminTrusteed` plus children. The ORDER of this array
-     * is the menu order (seven entries, same order and wording as Shopify,
-     * WooCommerce and Magento).
+     * Tabs del módulo: padre `AdminTrusteed` + hijos. El ORDEN de este array es el
+     * orden del menú (diseño de navegación unificada 2026-10-03 §4: siete entradas,
+     * mismo orden y vocabulario que Shopify, WooCommerce y Magento).
      *
-     * `visible => false` leaves the tab registered with `active = 0`: it is not
-     * in the menu, but the controller still exists and resolves by URL (and from
-     * the SPA's internal links). `class_name` must never change: it is
-     * PrestaShop's permission key and the target of those links.
+     * `visible => false` deja el tab registrado con `active = 0`: no sale en el
+     * menú, pero el controlador sigue existiendo y resolviendo por URL (y por los
+     * enlaces internos de la SPA). Nunca se cambia `class_name`: es la clave de
+     * permisos de PrestaShop y el destino de esos enlaces.
      *
-     * The one-line format `'class_name' => ..., 'label' => ..., 'label_en' => ...`
-     * is read by tests/enforcement/FallbackModeDefaultTest.php to check the READMEs.
+     * El formato `'class_name' => …, 'label' => …, 'label_en' => …` en una línea lo
+     * lee tests/enforcement/FallbackModeDefaultTest.php para comprobar los README.
      *
      * @var array<int, array{class_name: string, label: string, label_en: string, visible: bool}>
      */
@@ -404,14 +415,14 @@ class Trusteed extends Module
         ['class_name' => 'AdminTrusteedVentas',         'label' => 'Mis ventas',          'label_en' => 'My sales',        'visible' => true],
         ['class_name' => 'AdminTrusteedAgentes',        'label' => 'Agentes',             'label_en' => 'Agents',          'visible' => true],
         ['class_name' => 'AdminTrusteedReglas',         'label' => 'Mis reglas',          'label_en' => 'My rules',        'visible' => true],
-        // Its own entry since 2.3.3 (before, it was only a Merchant Center tab).
+        // Entrada propia desde 2.3.3 (antes sólo existía como pestaña de Merchant Center).
         ['class_name' => 'AdminTrusteedPaymentMethods', 'label' => 'Métodos de pago',     'label_en' => 'Payment methods', 'visible' => true],
         ['class_name' => 'AdminTrusteedTrustCenter',    'label' => 'Confianza',           'label_en' => 'Trust',           'visible' => true],
         ['class_name' => 'AdminTrusteedConfig',         'label' => 'Ajustes',             'label_en' => 'Settings',        'visible' => true],
-        // Outside the menu, still reachable by URL.
+        // Fuera del menú, siguen alcanzables por URL.
         ['class_name' => 'AdminTrusteedMerchantCenter', 'label' => 'Centro de comercio',  'label_en' => 'Merchant Center', 'visible' => false],
         ['class_name' => 'AdminTrusteedSeguridad',      'label' => 'Seguridad',           'label_en' => 'Security',        'visible' => false],
-        // Agent-friendly dashboard (Observed column).
+        // Spec 065 F1 — Dashboard Agent-Friendly (columna Observada).
         ['class_name' => 'AdminTrusteedAgentReadiness', 'label' => '¿Pueden comprar los agentes?', 'label_en' => 'Agent Readiness', 'visible' => false],
     ];
 
@@ -443,13 +454,13 @@ class Trusteed extends Module
     }
 
     /**
-     * Leaves the child tabs as ADMIN_TABS declares them: creates the missing ones
-     * and, on existing ones, renames per language, sets `active` and reorders.
-     * Idempotent, and used by both install() and upgrade/2.3.3.php so an upgraded
-     * store and a fresh install end up with the same menu. It does not touch
-     * `class_name` or the parent.
+     * Deja los tabs hijos como los declara ADMIN_TABS: crea los que faltan y, en los
+     * que ya existen, renombra por idioma, fija `active` y reordena. Idempotente, y
+     * es lo que usa tanto install() como upgrade/2.3.3.php, para que una tienda
+     * actualizada y una instalada de cero acaben con el mismo menú. No toca
+     * `class_name` ni el padre.
      *
-     * Public because the upgrade script calls it on the module instance.
+     * Público porque el script de upgrade lo invoca sobre la instancia del módulo.
      */
     public function syncAdminTabs(): bool
     {
@@ -482,8 +493,8 @@ class Trusteed extends Module
                 $tab->add();
             }
 
-            // add() puts `position` at the end of the list: it is written
-            // explicitly so the array order also holds on already installed stores.
+            // `position` lo fija add() al final de la lista: para que el orden del
+            // array valga también en tiendas ya instaladas se escribe explícito.
             if ((int) $tab->id > 0) {
                 \Db::getInstance()->update(
                     'tab',
@@ -498,7 +509,7 @@ class Trusteed extends Module
     }
 
     /**
-     * Removes the parent Tab and all children when the module is uninstalled.
+     * Elimina el Tab padre y todos los hijos al desinstalar el módulo.
      */
     private function uninstallAdminTab(): void
     {
@@ -515,20 +526,22 @@ class Trusteed extends Module
         }
     }
 
-    // ─── Hook: badge in the back office header ──────────────────────────────
+    // ─── Hook: badge en el header del back office ──────────────────────────────
 
     /**
-     * Shows a "Trusteed" badge in the back office top bar, in one of three
-     * states.
+     * Muestra un badge "Trusteed" en la barra superior del back office, en uno
+     * de tres estados.
      *
-     * This used to return early when `$merchantId === ''`, so the module's only
-     * visual indicator appeared ONLY once configured. That is backwards: someone
-     * who installed but did not finish got no signal and assumed they were done,
-     * and someone who did finish saw the same green whether enforcement was
-     * evaluating rules or silent for lack of credentials.
+     * 2026-09-09 (auditoría de onboarding, huecos A4 y A2) — esto arrancaba con
+     * `if ($merchantId === '') return '';`, o sea que el único indicador visual
+     * del módulo aparecía SÓLO una vez configurado. Justo al revés de lo que
+     * hace falta: quien instalaba y no terminaba no recibía ninguna señal, y
+     * como nada le contradecía daba por hecho que había acabado. Y quien sí
+     * terminaba veía el mismo verde tanto si el enforcement evaluaba reglas
+     * como si estaba mudo por falta de credenciales.
      *
-     * Which state is which is decided in `Trusteed\Admin\SetupStatus`, which is
-     * pure logic and has tests.
+     * La decisión de qué estado es cuál vive en `Trusteed\Admin\SetupStatus`,
+     * que es lógica pura y sí tiene tests.
      */
     public function hookDisplayBackOfficeTop(array $params): string
     {
@@ -538,13 +551,20 @@ class Trusteed extends Module
             (string) Configuration::get('TRUSTEED_CEL_HMAC_SECRET')
         );
 
-        // Report signal capabilities when the module version changes. It hangs
-        // here because this is the cheapest back office hook already registered:
-        // the usual check is a `Configuration` read, and an HTTP request only
-        // happens on the first load after an upgrade.
+        // Plan 2026-10-12 F4.1 — re-sincroniza la cuenta PayPal del módulo
+        // `paypal` si el comercio activó la sincronización y cambió sus
+        // credenciales. Con el opt-in apagado es una lectura de `Configuration`.
+        // Nunca lanza.
+        \Trusteed\Service\PayPalSync\PayPalSyncFactory::resyncOnBackOfficePage();
+
+        // Spec-048 4.9 — reporta las capacidades de señales cuando cambia la
+        // versión del módulo. Se cuelga de aquí porque es el hook de
+        // back-office más barato que ya está registrado: la comprobación
+        // habitual es una lectura de `Configuration`, y sólo hay petición HTTP
+        // el primer arranque tras una actualización.
         //
-        // Still conditional on a registered store: without a `merchantId` there
-        // is nothing to report and no one to send it to.
+        // Sigue condicionado a que haya tienda registrada: sin `merchantId` no
+        // hay nada de lo que informar y la llamada no tendría destinatario.
         if (!$status->needsAttention()
             || $status->state() === \Trusteed\Admin\SetupStatus::STATE_ENFORCEMENT_INCOMPLETE
         ) {
@@ -566,7 +586,7 @@ class Trusteed extends Module
             . '</a>';
     }
 
-    // ─── Hook: FriendlyURL route for /.well-known/ucp ──────────────────────────
+    // ─── Hook: FriendlyURL route for /.well-known/ucp (ADR-077) ────────────────
 
     /**
      * Maps `/.well-known/ucp` to the `ucpwellknown` front controller, which
@@ -596,14 +616,15 @@ class Trusteed extends Module
             ];
         }
 
-        // Domain ownership challenge. It does NOT sit behind the UCP gate: they
-        // are different things, and tying them together would leave no recovery
-        // path for anyone with UCP off, which is the default.
+        // Reto de propiedad de dominio — auditoría de onboarding 2026-09-09,
+        // hueco A3. NO va detrás del gate de UCP: son cosas distintas y ligarlas
+        // dejaría sin vía de recuperación a quien tenga UCP apagado, que es el
+        // valor por defecto.
         //
-        // The route is always registered; the controller gates itself and
-        // answers 404 while there is no active challenge. Registering it only
-        // when one exists would force clearing PrestaShop's route cache in the
-        // middle of sign-up, right when the merchant is waiting.
+        // La ruta se registra siempre; el que se autogatea es el controlador,
+        // que responde 404 mientras no haya un reto vigente. Registrarla sólo
+        // cuando lo hay obligaría a limpiar la caché de rutas de PrestaShop en
+        // mitad del alta, justo cuando el comerciante está esperando.
         $routes['module-trusteed-amcpverify'] = [
             'controller' => 'amcpverify',
             'rule'       => '.well-known/amcp-verify.txt',
@@ -615,6 +636,28 @@ class Trusteed extends Module
         ];
 
         return $routes;
+    }
+
+    /**
+     * Tools WebMCP del checkout (`views/js/checkout-tools.iife.js`) y su configuración, sólo en la página
+     * `order` y sólo con `TRUSTEED_WEBMCP_CHECKOUT_TOOLS = on` (defecto off). El token y la URL se
+     * incrustan con JSON_HEX_* (ver WebmcpCheckout::headerHtml).
+     */
+    public function hookDisplayHeader(array $params): string
+    {
+        if (!class_exists('Trusteed\\Enforcement\\WebmcpCheckout')) {
+            return '';
+        }
+        $controller = $this->context->controller ?? null;
+        $phpSelf    = is_object($controller) && isset($controller->php_self) ? (string) $controller->php_self : '';
+
+        return \Trusteed\Enforcement\WebmcpCheckout::headerHtml(
+            \Trusteed\Enforcement\WebmcpCheckout::isOn((string) Configuration::get('TRUSTEED_WEBMCP_CHECKOUT_TOOLS')),
+            $phpSelf,
+            (string) $this->context->link->getModuleLink($this->name, 'webmcpcheckout', [], true),
+            (string) Tools::getToken(false),
+            (string) $this->_path . 'views/js/checkout-tools.iife.js'
+        );
     }
 
     // ─── CEL Hook dispatchers ──────────────────────────────────────────────────
@@ -633,7 +676,7 @@ class Trusteed extends Module
     }
 
     /**
-     * Coupon-attempt-failed emitter.
+     * Spec-048 G1 — coupon-attempt-failed emitter.
      *
      * Fires on actionValidateOrder (note: distinct from the PS 9+
      * actionValidateOrderBefore hook above). Delegates to CouponFailureEmitter,
@@ -653,8 +696,8 @@ class Trusteed extends Module
      */
     public function hookActionCartSave(array $params): void
     {
-        // Renews the capabilities report (every 7 days) even if nobody opens the
-        // back office; the request is sent after the response.
+        // Spec-048 4.9 — renueva el reporte de capacidades (cada 7 días) aunque
+        // nadie abra el back-office; la petición va tras enviar la respuesta.
         if (class_exists('Trusteed\\Enforcement\\CapabilitiesReporter')) {
             \Trusteed\Enforcement\CapabilitiesReporter::maybeReportAfterResponse((string) $this->version);
         }
@@ -679,11 +722,11 @@ class Trusteed extends Module
     }
 
     /**
-     * Back office sweep for PS MCP No-Auth mode.
+     * Spec-048 W1.1 — back-office sweep for PS MCP No-Auth mode.
      *
      * Observe-only here: surfaces the admin notice without ever blocking the
      * back office. The fail-closed enforce path (strict + unknown agent) lives
-     * on the agentic request path, not on admin page renders, so we never let
+     * on the agentic request path, not on admin page renders — so we never let
      * a thrown PrestaShopException break the merchant's back office.
      */
     public function hookDisplayBackOfficeHeader(array $params): string
@@ -694,7 +737,7 @@ class Trusteed extends Module
                 // context, so it must stay observe-only (never fail-closed).
                 (new \Trusteed\Enforcement\McpNoAuthDetector())->detect(false);
             } catch (\Throwable $e) {
-                // Defensive: admin UI must never break on detection.
+                // Defensive — admin UI must never break on detection.
             }
         }
 
@@ -702,7 +745,7 @@ class Trusteed extends Module
     }
 
     /**
-     * Order state transitions to FULFILLED/REFUNDED.
+     * Spec 042 T042-082 — Order state transitions to FULFILLED/REFUNDED.
      */
     public function hookActionOrderStatusUpdate(array $params): void
     {
@@ -714,10 +757,10 @@ class Trusteed extends Module
     }
 
     /**
-     * OrderSlip (credit slip) as REFUNDED proxy.
+     * Spec 042 T042-084 — OrderSlip (credit slip) as REFUNDED proxy.
      *
-     * Uses AddAfter rather than AddBefore so $slip->id > 0 and we don't emit
-     * REFUNDED for failed slip creations.
+     * R7 (codex P2#2): switched from AddBefore → AddAfter so $slip->id > 0
+     * and we don't emit REFUNDED for failed slip creations.
      */
     public function hookActionObjectOrderSlipAddAfter(array $params): void
     {
@@ -729,7 +772,7 @@ class Trusteed extends Module
     }
 
     /**
-     * Payment failure emitter (credit-card flows).
+     * Spec-048 P0b — payment failure emitter (credit-card flows).
      *
      * Fires when a payment record is added; PaymentFailureEmitter inspects
      * the related order state and emits a checkout-failure event when the
@@ -745,7 +788,7 @@ class Trusteed extends Module
     }
 
     /**
-     * Payment failure emitter (off-site PSP return).
+     * Spec-048 P0b — payment failure emitter (off-site PSP return).
      *
      * Display hooks MUST return a string. PaymentFailureEmitter inspects the
      * returning order state and emits a checkout-failure event when needed.
@@ -800,14 +843,14 @@ class Trusteed extends Module
             }
         }
 
-        // Self-serve auto-registration (additive convenience; the manual paste
+        // Self-serve auto-registration (additive convenience — the manual paste
         // path above stays fully functional).
         if (Tools::isSubmit('submitTrusteedAutoRegister')) {
             $output .= $this->handleAutoRegister();
         }
 
-        // Webservice read key, with explicit consent: it is only created or
-        // deleted when its button is pressed.
+        // Clave de lectura del Webservice con consentimiento explícito: sólo
+        // se crea o se borra al pulsar su botón.
         $readKeyPanel = class_exists('Trusteed\\Admin\\ReadKeyPanel')
             ? new \Trusteed\Admin\ReadKeyPanel($this)
             : null;
@@ -815,7 +858,7 @@ class Trusteed extends Module
             $output .= $readKeyPanel->processSubmit();
         }
 
-        // Per-tool toggle submission.
+        // FR-018b: per-tool toggle submission.
         if (Tools::isSubmit('submitTrusteedToggles')) {
             $output .= $this->saveToolToggles();
         }
@@ -837,7 +880,7 @@ class Trusteed extends Module
      * Self-serve auto-registration: POSTs the store fingerprint to Trusteed and
      * persists the returned merchant id + S2S secret + install key, so the
      * merchant does not have to paste them by hand. Never removes the manual
-     * paste path. It just pre-fills the same config keys.
+     * paste path — it just pre-fills the same config keys.
      */
     private function handleAutoRegister(): string
     {
@@ -862,15 +905,15 @@ class Trusteed extends Module
                 $installKey
             );
         } catch (\Trusteed\Service\DomainVerificationRequired $challenge) {
-            // The URL is already registered with another install_key. Instead of
-            // dead-ending, the token is published at `.well-known/amcp-verify.txt`,
-            // the backend reads it from outside and, if it finds it, hands the
-            // store over.
+            // Hueco A3 (2026-09-09) — la URL ya está registrada con otra
+            // install_key. Antes esto era el final del camino; ahora se publica
+            // el token en `.well-known/amcp-verify.txt`, el backend viene a
+            // leerlo desde fuera y, si lo encuentra, entrega la tienda.
             //
-            // This happens in the SAME request and asks nothing of the merchant:
-            // the module can already write to its own domain, so showing them a
-            // token to upload by hand would be work for them to prove something
-            // the module can prove by itself.
+            // Se hace en la MISMA petición y sin pedirle nada al comerciante:
+            // el módulo ya puede escribir en su propio dominio, así que
+            // enseñarle un token para que lo suba a mano sería trabajo suyo
+            // para probar algo que el módulo puede probar solo.
             Configuration::updateValue(
                 \Trusteed\Service\DomainChallengeStore::CONFIG_TOKEN,
                 $challenge->challengeToken()
@@ -928,12 +971,12 @@ class Trusteed extends Module
                 : $this->l('Store re-registered with Trusteed. Merchant ID and S2S secret refreshed.')
         );
 
-        // The message used to say "Credentials configured automatically" after
-        // writing only TWO of the five keys the module uses.
-        // `TRUSTEED_CEL_INSTALLATION_ID` and `TRUSTEED_CEL_HMAC_SECRET` have no
-        // automatic writer anywhere in the module, and without both of them no
-        // rule is evaluated on any checkout. The merchant left believing the
-        // opposite.
+        // 2026-09-09 (auditoría de onboarding, hueco A2) — el mensaje decía
+        // «Credentials configured automatically» habiendo escrito DOS de las
+        // cinco claves que el módulo usa. `TRUSTEED_CEL_INSTALLATION_ID` y
+        // `TRUSTEED_CEL_HMAC_SECRET` no tienen escritor automático en todo el
+        // módulo, y sin las dos no se evalúa ni una regla en ningún checkout.
+        // El comerciante salía de aquí creyendo lo contrario.
         $status = new \Trusteed\Admin\SetupStatus(
             $result['merchant_id'],
             (string) Configuration::get('TRUSTEED_CEL_INSTALLATION_ID'),
@@ -989,7 +1032,7 @@ class Trusteed extends Module
     }
 
     /**
-     * Persists the 5 per-tool toggles from the toggle form.
+     * FR-018b: persist the 5 per-tool toggles from the toggle form.
      */
     private function saveToolToggles(): string
     {
@@ -1009,7 +1052,7 @@ class Trusteed extends Module
     }
 
     /**
-     * Renders the 5 per-tool on/off toggles with safe defaults and an
+     * FR-018b: renders the 5 per-tool on/off toggles with safe defaults and an
      * honest annotation for tools whose backend is planned / not fulfillable.
      */
     private function renderToolToggleForm(): string

@@ -3,12 +3,12 @@
 declare(strict_types=1);
 
 /**
- * The body read limit, with REAL cURL.
+ * Plan 04 Task 29c (L6b) — el tope de lectura del cuerpo con cURL REAL.
  *
- * Against a local HTTP server (`php -S`): a body within the limit is read in
- * full; one that exceeds it, whether the server announces the size
- * (Content-Length) or streams it in chunks without announcing it, is abandoned
- * with `response_too_large` and the body is not returned.
+ * Contra un servidor HTTP local (`php -S`): un cuerpo dentro del tope se lee
+ * entero; uno que lo supera, sea porque el servidor anuncia el tamaño
+ * (Content-Length) o porque lo emite a trozos sin anunciarlo, se abandona con
+ * `response_too_large` sin devolver el cuerpo.
  */
 
 namespace Trusteed\Tests\Enforcement;

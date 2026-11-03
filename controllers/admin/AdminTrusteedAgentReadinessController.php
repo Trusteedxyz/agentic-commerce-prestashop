@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * €” Dashboard Agent-Friendly.
+ * Spec 065 F1 â€” Dashboard Agent-Friendly.
  *
  * Monta la misma SPA embebida en la secciÃ³n `agent-readiness`.
  * Un solo build sirve a los cuatro hosts (WooCommerce, PrestaShop, Magento, Odoo).

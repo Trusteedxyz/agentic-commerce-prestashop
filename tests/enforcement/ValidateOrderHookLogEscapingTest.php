@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 /**
- * Log JSON is built with json_encode, not by hand; the fallback_open warning is
- * not repeated during the failure window; and the local tier-1 loop no longer
- * exposes the rule code.
+ * Revisión de seguridad 2026-10-10: B3 (el JSON de los logs se construye con
+ * json_encode, no a mano), M2 (el aviso fallback_open no se repite durante la
+ * ventana de fallo) y B4 (el bucle local tier-1 ya no enseña el código de regla).
  */
 
 namespace Trusteed\Tests\Enforcement;
@@ -54,7 +54,7 @@ final class ValidateOrderHookLogEscapingTest extends ValidateOrderHookFlowTestCa
     public function testInvalidUtf8InTheReasonStillProducesAValidLine(): void
     {
         $this->withRules([['ruleCode' => 'R035.max-order-value', 'enabled' => true]]);
-        // json_encode of the body requires valid UTF-8: the raw body is served with \xff escaped by the server.
+        // json_encode del cuerpo exige UTF-8 válido: se sirve el cuerpo crudo con \xff escapado por el servidor.
         $this->client->evaluateResponse = [
             'code' => 200,
             'body' => '{"decision":"BLOCK","ruleCode":"R066","reason":"ok é end"}',
@@ -67,7 +67,7 @@ final class ValidateOrderHookLogEscapingTest extends ValidateOrderHookFlowTestCa
 
     public function testAnOutageLogsFallbackOpenOncePerWindow(): void
     {
-        // With an enforcing rule (hasEnforcingServerRule) permissive mode lets it through and warns.
+        // Con una regla que impone (hasEnforcingServerRule) el modo permisivo deja pasar y avisa.
         $this->withRules([['ruleCode' => 'R035.max-order-value', 'enabled' => true]]);
         $this->mode('permissive');
         $this->serverDown();

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Trusteed\Service;
 
 /**
- * Immutable result of enabling or revoking the read key. The module screen
- * translates `code()` into a message; there is no user-facing text here.
+ * Resultado inmutable de activar o revocar la clave de lectura. La pantalla
+ * del módulo traduce `code()` a un mensaje; aquí no hay texto para el usuario.
  */
 final class ReadKeyResult
 {
@@ -49,7 +49,7 @@ final class ReadKeyResult
         return $this->backendNotified;
     }
 
-    /** The module turned the Webservice on, no keys remain, and it is still on. */
+    /** El módulo encendió el Webservice, ya no queda ninguna clave y sigue encendido. */
     public function webserviceLeftEnabled(): bool
     {
         return $this->webserviceLeftEnabled;

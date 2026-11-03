@@ -3,11 +3,11 @@
 declare(strict_types=1);
 
 /**
- * The cause of the failure decides: tampered snapshot (invalid_signature),
- * unavailable (missing_snapshot) and layer switched off (layer_disabled), with
- * the real SnapshotClient and the JWKS retried once.
+ * Plan 04 Task 22 — la causa de la avería decide: snapshot manipulado
+ * (invalid_signature), no disponible (missing_snapshot) y capa apagada
+ * (layer_disabled), con el SnapshotClient real y el JWKS reintentado una vez.
  *
- * Harness, stubs and test network client: ValidateOrderHookFlowHarness.php.
+ * Arnés, stubs y cliente de red de prueba: ValidateOrderHookFlowHarness.php.
  */
 
 namespace Trusteed\Tests\Enforcement;
@@ -20,7 +20,7 @@ use Trusteed\Enforcement\ValidateOrderHook;
 
 final class ValidateOrderHookDegradedFlowTest extends ValidateOrderHookFlowTestCase
 {
-    // ── Tampered snapshot (invalid_signature) ──────────────────────────────
+    // ── Snapshot manipulado (invalid_signature) ────────────────────────────
 
     public function testTamperedSnapshotWithTokenBlocksTheAgentInEveryMode(): void
     {
@@ -31,6 +31,7 @@ final class ValidateOrderHookDegradedFlowTest extends ValidateOrderHookFlowTestC
             $msg = $this->outcome();
             self::assertNotNull($msg, 'antes pasaba en ' . $mode . ' sin verificar el token');
             self::assertStringContainsString('trusteed:CEL-SNAPSHOT-INVALID', $msg, $mode);
+            self::assertStringNotContainsString('snapshot_verify_failed', $msg, 'la causa interna va solo al log');
         }
         self::assertCount(0, $this->client->posts, 'con un snapshot manipulado no se evalúa nada más');
         self::assertSame(3, $this->logsContaining('"kind":"invalid_signature"'));
@@ -38,7 +39,7 @@ final class ValidateOrderHookDegradedFlowTest extends ValidateOrderHookFlowTestC
 
     public function testTamperedSnapshotNeverBlocksAHumanEvenWithAMerchantCap(): void
     {
-        // The R030 ALL cap comes INSIDE the tampered snapshot: it is not the merchant's.
+        // El tope R030 ALL viene DENTRO del snapshot manipulado: no es del comerciante.
         $this->withRules([['ruleCode' => 'R030', 'enabled' => true, 'appliesTo' => 'ALL', 'params' => ['maxAmountCents' => 5000]]]);
         $this->serveTamperedSnapshot();
         foreach (self::MODES as $mode) {
@@ -50,7 +51,7 @@ final class ValidateOrderHookDegradedFlowTest extends ValidateOrderHookFlowTestC
 
     public function testTheJwksIsRefetchedOnceBeforeCallingASnapshotTampered(): void
     {
-        // Rotation: the JWKS cache (first response) does not have the kid yet.
+        // Rotación: la caché JWKS (primera respuesta) no tiene aún el kid.
         $this->client->jwksResponses = [
             $this->jwks(['trusteed-old-kid' => $this->platformPublicX]),
             $this->jwks([self::SNAP_KID => $this->platformPublicX]),
@@ -88,7 +89,7 @@ final class ValidateOrderHookDegradedFlowTest extends ValidateOrderHookFlowTestC
         self::assertStringNotContainsString('SNAPSHOT-INVALID', $msg);
     }
 
-    // ── Unavailable snapshot (missing_snapshot) ────────────────────────────
+    // ── Snapshot no disponible (missing_snapshot) ──────────────────────────
 
     public function testUnavailableSnapshotWithTokenBlocksTheAgentInEveryMode(): void
     {
@@ -99,7 +100,8 @@ final class ValidateOrderHookDegradedFlowTest extends ValidateOrderHookFlowTestC
             $msg = $this->outcome();
             self::assertNotNull($msg, 'antes pasaba en ' . $mode . ' con la bandera apagada');
             self::assertStringContainsString('trusteed:CEL-TIMEOUT', $msg, $mode);
-            self::assertStringContainsString('snapshot_pull_failed', $msg, $mode);
+            self::assertStringNotContainsString('snapshot_pull_failed', $msg, 'la causa interna va solo al log: ' . $mode);
+            self::assertStringContainsString('checks_unavailable', $msg, $mode);
         }
         self::assertSame(3, $this->logsContaining('"kind":"missing_snapshot"'));
     }
@@ -132,7 +134,7 @@ final class ValidateOrderHookDegradedFlowTest extends ValidateOrderHookFlowTestC
         $this->presentToken($this->token());
         self::assertNull($this->outcome());
 
-        // Platform key rotated and endpoint down: the cached copy no longer verifies.
+        // Clave de plataforma rotada y endpoint caído: la copia en caché ya no verifica.
         (new \ReflectionProperty(SnapshotClient::class, 'memCache'))->setValue(null, array_filter(
             (new \ReflectionProperty(SnapshotClient::class, 'memCache'))->getValue(),
             static fn (string $k): bool => !str_starts_with($k, 'trusteed_cel_jwks_'),
@@ -147,7 +149,7 @@ final class ValidateOrderHookDegradedFlowTest extends ValidateOrderHookFlowTestC
         self::assertStringContainsString('trusteed:CEL-TIMEOUT', $msg, 'nuestra caché no es prueba de manipulación');
     }
 
-    // ── Layer switched off (layer_disabled) ────────────────────────────────
+    // ── Capa apagada (layer_disabled) ──────────────────────────────────────
 
     public function testDisabledLayerNeverBlocksAnAgent(): void
     {

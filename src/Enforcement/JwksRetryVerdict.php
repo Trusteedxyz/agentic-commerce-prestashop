@@ -5,21 +5,22 @@ declare(strict_types=1);
 namespace Trusteed\Enforcement;
 
 /**
- * Negative cache for the forced JWKS retry in {@see SnapshotClient}.
+ * Plan 04 Task 29c (L3) — caché negativa del reintento forzado del JWKS de
+ * {@see SnapshotClient}.
  *
- * One entry per server: the verdict of the LAST retry that failed to verify,
- * and for which `kid`. A different `kid` (a real rotation) does not inherit it,
- * and an attacker serving made-up `kid`s cannot fill the cache. The store and
- * the clock are closures supplied by the caller (tests pin the clock).
+ * Una sola entrada por servidor: el veredicto del ÚLTIMO reintento que no
+ * verificó y para qué `kid`. Un `kid` distinto (rotación real) no la hereda y
+ * un atacante que sirva `kid`s inventados no puede llenar la caché. El
+ * almacén y el reloj son cierres del llamador (los tests fijan el reloj).
  */
 final class JwksRetryVerdict
 {
-    /** Window in which a snapshot that already failed after the retry does not trigger another. */
+    /** Ventana en la que un snapshot que ya falló tras el reintento no provoca otro. */
     public const TTL_SECONDS = 60;
 
     /**
-     * @param \Closure():mixed             $load  Reads the entry (anything, garbage included).
-     * @param \Closure(array):void         $store Writes the entry (may throw).
+     * @param \Closure():mixed             $load  Lee la entrada (cualquier cosa, incluida basura).
+     * @param \Closure(array):void         $store Escribe la entrada (puede lanzar).
      * @param \Closure():int               $now
      */
     public function __construct(
@@ -29,7 +30,7 @@ final class JwksRetryVerdict
     ) {
     }
 
-    /** @return string|null `tampered`|`unavailable` while the entry belongs to this `kid` and is still valid. */
+    /** @return string|null `tampered`|`unavailable` mientras la entrada sea de este `kid` y siga vigente. */
     public function read(string $kid): ?string
     {
         $entry = ($this->load)();
@@ -45,7 +46,7 @@ final class JwksRetryVerdict
         return (string) $entry['verdict'];
     }
 
-    /** Tolerates write failures: without the cache only the saving is lost (the next checkout retries). */
+    /** Tolerante a fallos de escritura: sin caché sólo se pierde el ahorro (el siguiente checkout reintenta). */
     public function remember(string $kid, string $verdict): void
     {
         try {

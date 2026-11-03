@@ -68,7 +68,7 @@ final class DispatchPaymentX402Tool
         if (!$this->permissionGuard->check('pay_with_agent', $this->employeeId)) {
             throw new McpToolException(
                 McpToolException::CODE_UNAUTHORIZED,
-                'Insufficient permissions: pay_with_agent requires ADMINPAYMENTCART access'
+                'Insufficient permissions: pay_with_agent requires ADMINORDERS update access'
             );
         }
 

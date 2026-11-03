@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * BackendApiClientRetryTest: double-charge prevention.
+ * BackendApiClientRetryTest — spec-046 H7 (double-charge prevention).
  *
  * Validates the PURE retry classifier so 4xx responses (notably 402 Payment
  * Required / 409 Conflict / 429 Too Many Requests) are NEVER retried, while

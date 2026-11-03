@@ -15,13 +15,13 @@ use Trusteed\Service\ReadKeyResult;
 use Trusteed\Service\ReadOnlyWebserviceKey;
 
 /**
- * Consent block ("Allow Trusteed to read the catalog") on the module
- * configuration page. Same pattern as `Enforcement\AdminSettings`: it handles
- * its own submit and renders a HelperForm.
+ * Bloque de consentimiento «Permitir a Trusteed leer el catálogo» en la página
+ * de configuración del módulo. Mismo patrón que `Enforcement\AdminSettings`:
+ * atiende su propio submit y pinta un HelperForm.
  *
- * Nothing is created until the button is pressed. The text lists exactly what
- * gets created, derived from `ReadOnlyWebserviceKey`, so what is shown and what
- * is granted cannot diverge.
+ * Nada se crea sin pulsar el botón. El texto enumera exactamente lo que se
+ * crea, derivado de `ReadOnlyWebserviceKey`, para que lo leído y lo concedido
+ * no puedan divergir.
  */
 final class ReadKeyPanel
 {
@@ -32,7 +32,7 @@ final class ReadKeyPanel
     {
     }
 
-    /** Handles the submit if there is one; returns the notice for the page header. */
+    /** Atiende el submit si lo hay; devuelve el aviso para la cabecera de la página. */
     public function processSubmit(): string
     {
         if (\Tools::isSubmit(self::SUBMIT_ENABLE)) {
@@ -46,8 +46,8 @@ final class ReadKeyPanel
     }
 
     /**
-     * Silent revocation for `uninstall()`: never throws. The key belongs to the
-     * module and must not outlive it.
+     * Revocación silenciosa para `uninstall()`: nunca lanza. La clave es un
+     * artefacto del módulo y no debe sobrevivirle.
      */
     public static function revokeOnUninstall(): void
     {
@@ -63,7 +63,7 @@ final class ReadKeyPanel
                 (string) \Configuration::get('TRUSTEED_INSTALL_KEY')
             );
         } catch (\Throwable $e) {
-            // An uninstall must not be left half done because of this.
+            // Una desinstalación no puede quedarse a medias por esto.
         }
     }
 
@@ -72,23 +72,23 @@ final class ReadKeyPanel
         $context = \Context::getContext();
         $m = $this->module;
 
-        // CSRF: the form carries the AdminModules token. PrestaShop already
-        // checks it when entering the controller; it is required explicitly
-        // here because this action creates credentials.
+        // CSRF: el formulario viaja con el token de AdminModules. PrestaShop
+        // ya lo comprueba al entrar en el controlador; aquí se exige de forma
+        // explícita porque esta acción crea credenciales.
         $token = (string) \Tools::getValue('token');
         if (!hash_equals(\Tools::getAdminTokenLite('AdminModules'), $token)) {
             return $m->displayError($m->l('Invalid security token. Reload the page and try again.'));
         }
 
-        // Creating or deleting Webservice keys is governed by the
-        // AdminWebservice tab; being able to configure modules is not enough.
+        // Crear o borrar claves de Webservice es lo que permite la pestaña
+        // AdminWebservice; no basta con poder configurar módulos.
         $employee = $context->employee;
         if (!$employee || !$employee->can($enable ? 'add' : 'delete', 'AdminWebservice')) {
             return $m->displayError($m->l('Your employee profile is not allowed to manage Webservice keys.'));
         }
 
-        // The key belongs to ONE shop: in the "all shops" or "group" context
-        // it would be unclear which shop is being granted read access.
+        // La clave se asocia a UNA tienda: en contexto «todas» o «grupo» no se
+        // sabría a cuál se está dando lectura.
         if (\Shop::isFeatureActive() && \Shop::getContext() !== \Shop::CONTEXT_SHOP) {
             return $m->displayError($m->l('Select a single shop in the shop selector first.'));
         }
@@ -135,7 +135,7 @@ final class ReadKeyPanel
                     . ($result->backendNotified() ? $m->displayConfirmation($m->l('Trusteed has stopped using it.')) : '');
         }
 
-        // Revocations that did remove the local key.
+        // Revocaciones que sí quitaron la clave local.
         $out = $m->displayConfirmation($m->l('Read access revoked. The Webservice key was deleted from PrestaShop.'));
         if (!$result->backendNotified()) {
             $out .= $m->displayWarning($m->l('Trusteed could not be notified right now. The key no longer works, so it cannot be used; click Revoke again later to clean it up on Trusteed.'));

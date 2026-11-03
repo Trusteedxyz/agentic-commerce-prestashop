@@ -5,28 +5,28 @@ declare(strict_types=1);
 namespace Trusteed\Enforcement;
 
 /**
- * Signed snapshot payload: decoding AFTER the signature is verified.
+ * Payload del snapshot firmado — decodificación TRAS verificar la firma
+ * (plan 04 de reglas de checkout, Task 24).
  *
- * The server compresses with raw DEFLATE (RFC 1951) any snapshot whose JSON
- * exceeds 50 KB and marks it with `zip: "DEF"` in the protected header. The
- * signature covers the COMPRESSED bytes, so the order is: verify the signature
- * over what was received and, only if it verifies, call this class. Never
- * inflate before.
+ * El servidor comprime con DEFLATE crudo (RFC 1951) todo snapshot cuyo JSON
+ * pasa de 50 KB y lo marca con `zip: "DEF"` en la cabecera protegida. La firma
+ * cubre los bytes COMPRIMIDOS, así que el orden es: verificar la firma sobre
+ * lo recibido y, sólo si verifica, llamar aquí. Nunca se infla antes.
  *
- * Contract (the `compressedSnapshot` section of
- * `tests/fixtures/platform-flow-conformance.json`):
- * - no `zip`: the payload is the JSON as is;
- * - `zip` exactly 'DEF': inflate with a cap of {@see MAX_INFLATED_BYTES};
- * - any other `zip`, a corrupt/truncated/empty stream, going over the cap, or
- *   an output that is not a JSON object: not usable.
+ * Contrato (sección `compressedSnapshot` de
+ * `packages/shared/src/enforcement/__fixtures__/platform-flow-conformance.json`):
+ * - sin `zip` ⇒ el payload es el JSON tal cual;
+ * - `zip` === 'DEF' exacto ⇒ inflar con tope de {@see MAX_INFLATED_BYTES};
+ * - cualquier otro `zip`, flujo corrupto/truncado/vacío, pasar del tope o una
+ *   salida que no sea un objeto JSON ⇒ no utilizable.
  *
- * Anti-bomb: `inflate_init(ZLIB_ENCODING_RAW)` + `inflate_add` fed
- * {@see INPUT_CHUNK_BYTES} bytes at a time. DEFLATE does not expand more than
- * about 1032:1, so each step produces at most about 66 KB and the accumulated
- * output is compared to the cap after every step: memory never exceeds the cap
- * plus one step, however large the bomb claims to be. (`gzinflate($d, $max)`
- * will not do: its limit is approximate, it returns one byte over the cap, and
- * it cannot tell a bomb from a corrupt stream.)
+ * Anti-bomba: `inflate_init(ZLIB_ENCODING_RAW)` + `inflate_add` alimentado de
+ * {@see INPUT_CHUNK_BYTES} en {@see INPUT_CHUNK_BYTES} bytes. DEFLATE no
+ * expande más de ~1032:1, así que cada paso produce como mucho ~66 KB y la
+ * salida acumulada se compara con el tope tras cada paso: la memoria nunca
+ * pasa del tope más un paso, por grande que sea lo que la bomba declara.
+ * (`gzinflate($d, $max)` no sirve: su límite es aproximado —devuelve un byte
+ * más del tope— y no distingue bomba de flujo corrupto.)
  */
 final class SnapshotPayloadDecoder
 {
@@ -34,7 +34,7 @@ final class SnapshotPayloadDecoder
     public const MAX_INFLATED_BYTES = 2097152;
     public const INPUT_CHUNK_BYTES = 64;
 
-    /** `validUntil` as the server emits it (`toISOString()`) or `date('c')`. */
+    /** `validUntil` como lo emite el servidor (`toISOString()`) o `date('c')`. */
     private const ISO_8601 = '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/D';
 
     public const OK = 'ok';
@@ -43,16 +43,16 @@ final class SnapshotPayloadDecoder
     public const INFLATE_OVER_CAP = 'inflate_over_cap';
     public const PAYLOAD_NOT_JSON = 'payload_not_json';
 
-    /** Does the header declare any `zip`? (with it, every failure is "not usable"). */
+    /** ¿Declara la cabecera algún `zip`? (con él, todo fallo es «no utilizable»). */
     public static function declaresZip(array $header): bool
     {
         return array_key_exists('zip', $header);
     }
 
     /**
-     * @param array  $header       Already parsed protected header.
-     * @param string $payloadBytes Payload segment after base64url (the signed bytes).
-     * @return array{0:string,1:?array} [OK or reason, payload or null]
+     * @param array  $header       Cabecera protegida ya parseada.
+     * @param string $payloadBytes Segmento payload tras base64url (lo firmado).
+     * @return array{0:string,1:?array} [OK o motivo, payload o null]
      */
     public static function decode(array $header, string $payloadBytes): array
     {
@@ -68,7 +68,7 @@ final class SnapshotPayloadDecoder
             $json = (string) $inflated;
         }
 
-        // A JSON object (not a list or a scalar): starts with '{'.
+        // Un objeto JSON (no una lista ni un escalar): empieza por '{'.
         $trimmed = ltrim($json);
         $payload = json_decode($json, true);
         if (!is_array($payload) || $trimmed === '' || $trimmed[0] !== '{') {
@@ -79,8 +79,8 @@ final class SnapshotPayloadDecoder
     }
 
     /**
-     * Payload of a JWS that was ALREADY verified when written to our cache
-     * (offline read of `validUntil`/`rules`), with the same contract.
+     * Payload de un JWS que YA se verificó al escribirlo en nuestra caché
+     * (lectura offline de `validUntil`/`rules`), con el mismo contrato.
      */
     public static function payloadOfCachedVerifiedJws(string $jws): ?array
     {
@@ -98,15 +98,16 @@ final class SnapshotPayloadDecoder
     }
 
     /**
-     * The payload `validUntil` in unix seconds, or null if missing or unreadable.
-     * The server always emits it as an ISO-8601 string: any other type (number,
-     * list, null, boolean) or a string `strtotime` cannot parse is "unreadable".
+     * `validUntil` del payload en segundos unix, o null si falta o no se lee.
+     * El servidor lo emite siempre como cadena ISO-8601: cualquier otro tipo
+     * (número, lista, null, booleano) o una cadena que `strtotime` no entiende
+     * es «ilegible».
      */
     public static function validUntil(array $payload): ?int
     {
         $raw = $payload['validUntil'] ?? null;
-        // Only ISO-8601 with a zone (what the server emits): a bare `strtotime`
-        // would accept "tomorrow", "+1 week" or "99999999999999999999".
+        // Sólo ISO-8601 con zona (lo que emite el servidor): `strtotime` a secas
+        // aceptaría «tomorrow», «+1 week» o «99999999999999999999».
         if (!is_string($raw) || preg_match(self::ISO_8601, $raw) !== 1) {
             return null;
         }
@@ -116,11 +117,11 @@ final class SnapshotPayloadDecoder
     }
 
     /**
-     * Can the snapshot be used at this time? A snapshot signed by our server
-     * ALWAYS carries `validUntil`: missing or unreadable is a malformed payload
-     * and is classed like an expired one ("unavailable", NOT tampered: the
-     * signature verified). A `validUntil` already in the past is not usable
-     * either.
+     * ¿Se puede usar el snapshot a esta hora? Un snapshot firmado por nuestro
+     * servidor SIEMPRE lleva `validUntil`: ausente o ilegible es un payload
+     * malformado y se clasifica como el caducado («no disponible»; NO
+     * manipulado: la firma verificó). Un `validUntil` ya pasado también no
+     * sirve.
      */
     public static function isUsable(array $payload, int $now): bool
     {

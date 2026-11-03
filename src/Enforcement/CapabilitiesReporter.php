@@ -1,26 +1,29 @@
 <?php
 /**
- * Reports to Trusteed which cart signals THIS PrestaShop installation can project.
+ * Spec-048 4.9 — reporta a Trusteed qué señales de carrito sabe proyectar
+ * ESTA instalación de PrestaShop.
  *
- * Why it exists: the server knows which signal each rule reads
- * (`RULE_SIGNALS_READ`), but not what each installation provides. Without that
- * cross-check, a rule whose signal never arrives returns `NO_SIGNAL` on every
- * checkout: it passes silently, and the merchant sees a rule in ENFORCE that
- * blocks nothing. With the report, the panel can warn them when they enable it.
+ * POR QUÉ EXISTE. El servidor sabe qué señal lee cada regla
+ * (`RULE_SIGNALS_READ`), pero no sabía qué aporta cada instalación. Sin ese
+ * cruce, una regla cuya señal no llega devuelve `NO_SIGNAL` en cada checkout:
+ * pasa en silencio, y el comerciante ve una regla en ENFORCE que no bloquea
+ * nada. Con el reporte, el panel puede avisarle al activarla.
  *
- * When it is sent: when the module version changes, and also every 7 days. The
- * server treats a store whose `lastSeenAt` is 30 days old as dead and this
- * report is what renews it; with a single report per release, a quiet store
- * would expire. The check is a `Configuration` read, fired from a back-office
- * hook and from a front hook (the latter AFTER the response is sent). A failed
- * attempt waits an hour before retrying.
+ * CUÁNDO SE MANDA. Al cambiar la versión del módulo y, además, cada 7 días
+ * (barrido 2026-10-10, 8b6de3808): el servidor da por muerta una tienda cuyo
+ * `lastSeenAt` tiene 30 días y este reporte es lo que lo renueva; con uno solo
+ * por release, una tienda tranquila caducaba. La comprobación es una lectura de
+ * `Configuration`; se dispara desde un hook de back-office y desde un hook de
+ * front, este último DESPUÉS de enviar la respuesta. Un intento fallido espera
+ * una hora antes de reintentar.
  *
- * Signature: same scheme as `PaymentFailureEmitter`, HMAC-SHA256 over the
- * canonical JSON of the body without `signature`. The server verifies against
- * the body as received, so the order of the signals array does not matter.
+ * FIRMA. Mismo esquema que `PaymentFailureEmitter`: HMAC-SHA256 sobre el JSON
+ * canónico del cuerpo sin `signature`. El servidor verifica contra el cuerpo
+ * tal como llega, así que el orden del array de señales da igual.
  *
- * The signal list comes from `ValidateOrderHook::signalsProvided()`, which a
- * shared gate keeps in line with what the context builder really writes.
+ * La lista de señales sale de `ValidateOrderHook::signalsProvided()`, que un
+ * gate en `packages/shared` mantiene pegada a lo que el constructor de
+ * contexto escribe de verdad.
  */
 
 declare(strict_types=1);
@@ -35,23 +38,23 @@ class CapabilitiesReporter
 {
     private const ENDPOINT_PATH = '/api/v1/enforcement/capabilities';
 
-    /** Key holding the last reported version. */
+    /** Clave donde se recuerda la última versión reportada. */
     private const CONFIG_REPORTED_VERSION = 'TRUSTEED_CEL_CAPS_REPORTED_VERSION';
 
-    /** Epoch of the last accepted report. */
+    /** Cuándo (epoch) se aceptó el último reporte. */
     private const CONFIG_REPORTED_AT = 'TRUSTEED_CEL_CAPS_REPORTED_AT';
 
-    /** Epoch of the last attempt, successful or not (backoff). */
+    /** Cuándo (epoch) fue el último intento, con o sin éxito (backoff). */
     private const CONFIG_ATTEMPT_AT = 'TRUSTEED_CEL_CAPS_ATTEMPT_AT';
 
-    /** Heartbeat renewal even when nothing changed. */
+    /** Renovación del latido aunque nada haya cambiado. */
     private const RENEW_AFTER_SECONDS = 7 * 86400;
 
-    /** Wait after an attempt, so an unresponsive server does not cost a timeout on every page load. */
+    /** Espera tras un intento, para no pagar el timeout en cada carga si el servidor no responde. */
     private const RETRY_AFTER_SECONDS = 3600;
 
     /**
-     * Is a report due? Pure: no Configuration or clock access.
+     * ¿Toca reportar? Puro: sin Configuration ni reloj.
      */
     public static function isDue(string $version, string $reportedVersion, int $reportedAt, int $attemptAt, int $now): bool
     {
@@ -77,11 +80,11 @@ class CapabilitiesReporter
     }
 
     /**
-     * Sends the report if the version changed or 7 days passed since the last one.
+     * Manda el reporte si la versión cambió o si pasaron 7 días desde el último.
      *
-     * The server also deduplicates (it answers `unchanged: true` without writing
-     * the content, but does renew the heartbeat), and checking here avoids an
-     * HTTP request on every page load.
+     * El servidor también deduplica (responde `unchanged: true` sin escribir el
+     * contenido, pero sí renueva el latido), y comprobarlo aquí evita una
+     * petición HTTP por carga de página.
      */
     public static function maybeReport(string $moduleVersion): void
     {
@@ -89,20 +92,20 @@ class CapabilitiesReporter
             if (!self::due($moduleVersion)) {
                 return;
             }
-            // Before the request: if the server is slow or down, do not retry on every page load.
+            // Antes de la petición: si el servidor tarda o cae, no se reintenta en cada carga.
             \Configuration::updateValue(self::CONFIG_ATTEMPT_AT, (string) time());
             if (self::report($moduleVersion)) {
                 \Configuration::updateValue(self::CONFIG_REPORTED_VERSION, $moduleVersion);
                 \Configuration::updateValue(self::CONFIG_REPORTED_AT, (string) time());
             }
         } catch (\Throwable $e) {
-            // A diagnostic that fails to arrive must never break the back office.
+            // Que el diagnóstico no llegue no puede romper el back-office.
         }
     }
 
     /**
-     * Like {@see maybeReport()} but for front hooks: the HTTP request (up to
-     * 3 s) runs at the end of the request, after the response was sent to the visitor.
+     * Como {@see maybeReport()} pero para hooks de front: la petición HTTP (hasta
+     * 3 s) se hace al terminar la solicitud, tras enviar la respuesta al visitante.
      */
     public static function maybeReportAfterResponse(string $moduleVersion): void
     {
@@ -122,7 +125,7 @@ class CapabilitiesReporter
     }
 
     /**
-     * @return bool true if the server accepted the report (202).
+     * @return bool true si el servidor aceptó el reporte (202).
      */
     public static function report(string $moduleVersion): bool
     {
@@ -137,8 +140,8 @@ class CapabilitiesReporter
 
         $signals = [];
         foreach (ValidateOrderHook::signalsProvided() as $attr) {
-            // The server vocabulary prefixes with `cartAttr.`; the module
-            // works with the raw cart attribute key.
+            // El vocabulario del servidor prefija con `cartAttr.`; el módulo
+            // trabaja con la clave cruda del atributo de carrito.
             $signals[] = 'cartAttr.' . $attr;
         }
 
@@ -164,7 +167,7 @@ class CapabilitiesReporter
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Content-Type: application/json',
             'Accept: application/json',
-            'User-Agent: Trusteed-PS/2.0',
+            'User-Agent: Trusteed-PS/2.0 spec-048-4.9',
         ]);
         curl_setopt($ch, CURLOPT_TIMEOUT_MS, 3000);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT_MS, 1000);
@@ -185,9 +188,9 @@ class CapabilitiesReporter
     }
 
     /**
-     * Sorts keys recursively. Lists (such as `signalsProvided`) keep their
-     * order on purpose: the server signs against the body as received, not
-     * against the one it normalizes.
+     * Ordena claves recursivamente. Las listas (como `signalsProvided`)
+     * conservan su orden a propósito: el servidor firma contra el cuerpo
+     * recibido, no contra el que él normaliza.
      *
      * @param mixed $value
      * @return mixed

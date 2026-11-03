@@ -10,7 +10,8 @@ declare(strict_types=1);
  *
  *   sign_trust_receipt    → ADMINORDERS   (order read access)
  *   verify_agent_signature → ADMINORDERS
- *   pay_with_agent        → ADMINPAYMENTCART  (cart/payment access)
+ *   pay_with_agent        → ADMINORDERS (UPDATE: authorising a payment is a write;
+ *                           PrestaShop core has no ADMINPAYMENTCART tab, BUG-307)
  *
  * Unknown capabilities are denied by default (fail-closed).
  */
@@ -20,14 +21,14 @@ namespace Trusteed\AgenticTools;
 final class PermissionGuard implements PermissionGuardInterface
 {
     /**
-     * Map abstract capability → PS core permission token.
+     * Map abstract capability → [PS core tab class, access level].
      *
-     * @var array<string,string>
+     * @var array<string,array{string,string}>
      */
     private const CAPABILITY_MAP = [
-        'sign_trust_receipt'     => 'ADMINORDERS',
-        'verify_agent_signature' => 'ADMINORDERS',
-        'pay_with_agent'         => 'ADMINPAYMENTCART',
+        'sign_trust_receipt'     => ['ADMINORDERS', 'READ'],
+        'verify_agent_signature' => ['ADMINORDERS', 'READ'],
+        'pay_with_agent'         => ['ADMINORDERS', 'UPDATE'],
     ];
 
     /**
@@ -36,9 +37,9 @@ final class PermissionGuard implements PermissionGuardInterface
      */
     public function check(string $abstractCapability, int $employeeId): bool
     {
-        $psPermission = self::CAPABILITY_MAP[$abstractCapability] ?? null;
+        $entry = self::CAPABILITY_MAP[$abstractCapability] ?? null;
 
-        if ($psPermission === null) {
+        if ($entry === null) {
             // Unknown capability — deny by default (fail-closed).
             return false;
         }
@@ -47,27 +48,26 @@ final class PermissionGuard implements PermissionGuardInterface
             return false;
         }
 
-        return $this->hasAccess($psPermission, $employeeId);
+        return $this->hasAccess($entry[0], $entry[1], $employeeId);
     }
 
     /**
-     * Verifies the employee has 'view' access to the given PS core tab/module.
+     * Verifies the employee holds the READ role of the given PS core tab.
      *
-     * Uses `Access::isGranted()` when available (PS 8+), falling back to a
-     * direct employee profile check for older environments.
+     * Real signature (PS 1.7.8 / 8): `Access::isGranted(string $role, int $idProfile)`
+     * with a `ROLE_MOD_TAB_<CLASS>_READ` slug (BUG-307). Any failure denies.
      */
-    private function hasAccess(string $psPermission, int $employeeId): bool
+    private function hasAccess(string $psPermission, string $level, int $employeeId): bool
     {
-        // PS 8+ — preferred API.
         if (class_exists('\\Access')) {
-            /** @var int|false $tabId */
-            $tabId = \Tab::getIdFromClassName($psPermission);
-            if ($tabId !== false && $tabId > 0) {
-                /** @var \Employee|null $employee */
+            try {
                 $employee = new \Employee($employeeId);
                 if ($employee->id_profile !== null) {
-                    return (bool) \Access::isGranted('view', (int) $tabId, (int) $employee->id_profile);
+                    $role = 'ROLE_MOD_TAB_' . strtoupper($psPermission) . '_' . $level;
+                    return (bool) \Access::isGranted($role, (int) $employee->id_profile);
                 }
+            } catch (\Throwable) {
+                return false;
             }
         }
 
@@ -75,8 +75,9 @@ final class PermissionGuard implements PermissionGuardInterface
         if (method_exists('\\Employee', 'getPermissionsForCore')) {
             /** @var array<string,mixed>|false $perms */
             $perms = \Employee::getPermissionsForCore($psPermission, $employeeId);
-            if (is_array($perms) && isset($perms['view'])) {
-                return (bool) $perms['view'];
+            $key = $level === 'READ' ? 'view' : strtolower($level);
+            if (is_array($perms) && isset($perms[$key])) {
+                return (bool) $perms[$key];
             }
         }
 

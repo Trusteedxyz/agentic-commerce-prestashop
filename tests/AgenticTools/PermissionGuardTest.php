@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * PermissionGuardTest: tests the REAL PermissionGuard.
+ * PermissionGuardTest — tests the REAL PermissionGuard (spec-046 H1 + T033).
  *
  * Previously this suite tested an inline MockPermissionGuardImpl that
  * re-implemented the capability→permission mapping, so it never exercised the
@@ -14,7 +14,7 @@ declare(strict_types=1);
  * Canonical mapping (PermissionGuard::CAPABILITY_MAP):
  *   sign_trust_receipt     → ADMINORDERS
  *   verify_agent_signature → ADMINORDERS
- *   pay_with_agent         → ADMINPAYMENTCART
+ *   pay_with_agent         → ADMINORDERS:UPDATE (no ADMINPAYMENTCART tab exists in PS core)
  */
 
 namespace Trusteed\Tests\AgenticTools;
@@ -43,19 +43,19 @@ final class PermissionGuardTest extends TestCase
 
     public function testUnknownCapabilityIsDenied(): void
     {
-        $guard = $this->guardWith('ADMINORDERS', 'ADMINPAYMENTCART');
+        $guard = $this->guardWith('ADMINORDERS:READ', 'ADMINORDERS:UPDATE');
         $this->assertFalse($guard->check('unknown_capability', self::EMPLOYEE_ID));
     }
 
     public function testEmptyCapabilityIsDenied(): void
     {
-        $guard = $this->guardWith('ADMINORDERS');
+        $guard = $this->guardWith('ADMINORDERS:READ');
         $this->assertFalse($guard->check('', self::EMPLOYEE_ID));
     }
 
     public function testNonPositiveEmployeeIdIsDenied(): void
     {
-        $guard = $this->guardWith('ADMINORDERS');
+        $guard = $this->guardWith('ADMINORDERS:READ');
         $this->assertFalse($guard->check('sign_trust_receipt', 0));
         $this->assertFalse($guard->check('sign_trust_receipt', -1));
     }
@@ -64,25 +64,25 @@ final class PermissionGuardTest extends TestCase
 
     public function testSignTrustReceiptGrantedByAdminOrders(): void
     {
-        $guard = $this->guardWith('ADMINORDERS');
+        $guard = $this->guardWith('ADMINORDERS:READ');
         $this->assertTrue($guard->check('sign_trust_receipt', self::EMPLOYEE_ID));
     }
 
     public function testSignTrustReceiptDeniedWithoutAdminOrders(): void
     {
-        $guard = $this->guardWith('ADMINPAYMENTCART'); // wrong permission
+        $guard = $this->guardWith('ADMINORDERS:UPDATE'); // wrong level
         $this->assertFalse($guard->check('sign_trust_receipt', self::EMPLOYEE_ID));
     }
 
     public function testVerifyAgentSignatureGrantedByAdminOrders(): void
     {
-        $guard = $this->guardWith('ADMINORDERS');
+        $guard = $this->guardWith('ADMINORDERS:READ');
         $this->assertTrue($guard->check('verify_agent_signature', self::EMPLOYEE_ID));
     }
 
     public function testVerifyAgentSignatureDeniedWithoutAdminOrders(): void
     {
-        $guard = $this->guardWith('ADMINPAYMENTCART');
+        $guard = $this->guardWith('ADMINORDERS:UPDATE');
         $this->assertFalse($guard->check('verify_agent_signature', self::EMPLOYEE_ID));
     }
 
@@ -90,13 +90,13 @@ final class PermissionGuardTest extends TestCase
 
     public function testPayWithAgentGrantedByPaymentPermission(): void
     {
-        $guard = $this->guardWith('ADMINPAYMENTCART');
+        $guard = $this->guardWith('ADMINORDERS:UPDATE');
         $this->assertTrue($guard->check('pay_with_agent', self::EMPLOYEE_ID));
     }
 
     public function testPayWithAgentDeniedByAdminOrdersAlone(): void
     {
-        $guard = $this->guardWith('ADMINORDERS');
+        $guard = $this->guardWith('ADMINORDERS:READ');
         $this->assertFalse($guard->check('pay_with_agent', self::EMPLOYEE_ID));
     }
 
@@ -110,7 +110,7 @@ final class PermissionGuardTest extends TestCase
 
     public function testSuperAdminPassesAllChecks(): void
     {
-        $guard = $this->guardWith('ADMINORDERS', 'ADMINPAYMENTCART');
+        $guard = $this->guardWith('ADMINORDERS:READ', 'ADMINORDERS:UPDATE');
         $this->assertTrue($guard->check('sign_trust_receipt', self::EMPLOYEE_ID));
         $this->assertTrue($guard->check('verify_agent_signature', self::EMPLOYEE_ID));
         $this->assertTrue($guard->check('pay_with_agent', self::EMPLOYEE_ID));
@@ -119,9 +119,9 @@ final class PermissionGuardTest extends TestCase
     public function testMappingContractAndComplementaryDenial(): void
     {
         $mapping = [
-            'sign_trust_receipt'     => 'ADMINORDERS',
-            'verify_agent_signature' => 'ADMINORDERS',
-            'pay_with_agent'         => 'ADMINPAYMENTCART',
+            'sign_trust_receipt'     => 'ADMINORDERS:READ',
+            'verify_agent_signature' => 'ADMINORDERS:READ',
+            'pay_with_agent'         => 'ADMINORDERS:UPDATE',
         ];
 
         foreach ($mapping as $capability => $token) {
@@ -133,14 +133,12 @@ final class PermissionGuardTest extends TestCase
             );
 
             \TestPsPermissions::reset();
-            $other = $token === 'ADMINORDERS' ? 'ADMINPAYMENTCART' : 'ADMINORDERS';
+            $other = $token === 'ADMINORDERS:READ' ? 'ADMINORDERS:UPDATE' : 'ADMINORDERS:READ';
             $denied = $this->guardWith($other);
-            if ($capability === 'pay_with_agent') {
-                $this->assertFalse(
-                    $denied->check($capability, self::EMPLOYEE_ID),
-                    "'$capability' must NOT be granted by '$other'"
-                );
-            }
+            $this->assertFalse(
+                $denied->check($capability, self::EMPLOYEE_ID),
+                "'$capability' must NOT be granted by '$other'"
+            );
         }
     }
 }

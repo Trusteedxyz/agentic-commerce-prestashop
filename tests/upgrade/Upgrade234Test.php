@@ -10,7 +10,7 @@ require_once __DIR__ . '/../../upgrade/2.3.4.php';
 
 use PHPUnit\Framework\TestCase;
 
-/** The index reaches already-installed shops, without being duplicated. */
+/** B5 — el índice llega a las tiendas ya instaladas, sin duplicarse. */
 final class Upgrade234Test extends TestCase
 {
     protected function setUp(): void
@@ -34,7 +34,9 @@ final class Upgrade234Test extends TestCase
     public function testModuleVersionIsAtLeastTheUpgradeScript(): void
     {
         $src = (string) file_get_contents(__DIR__ . '/../../trusteed.php');
-        self::assertMatchesRegularExpression("/\\\$this->version\\s*=\\s*'2\\.3\\.4'/", $src);
+        // El nombre dice «al menos»: una versión posterior (2.3.5, …) también cumple.
+        self::assertSame(1, preg_match("/\\\$this->version\\s*=\\s*'([0-9.]+)'/", $src, $m));
+        self::assertTrue(version_compare($m[1], '2.3.4', '>='), $m[1]);
     }
 
     public function testFreshInstallsStillCreateTheIndex(): void

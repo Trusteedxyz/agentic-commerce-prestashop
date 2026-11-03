@@ -10,12 +10,12 @@ use Trusteed\Enforcement\CapabilitiesReporter;
 require_once __DIR__ . '/../../src/Enforcement/CapabilitiesReporter.php';
 
 /**
- * The server treats a store as dead when its `lastSeenAt` is 30 days old, and
- * that mark is only renewed by the capabilities report or by /rules/* traffic.
- * PrestaShop used to report ONCE per module version, so a quiet store looked
- * "dead" after 30 days even though it was working. The report is now also
- * renewed every 7 days (the server dedupes the content with `unchanged: true`
- * and only touches the heartbeat).
+ * 8b6de3808 (barrido 2026-10-10). El servidor da por muerta una tienda cuyo
+ * `lastSeenAt` tiene 30 días, y esa marca sólo la renueva el reporte de
+ * capacidades o el tráfico de /rules/*. PrestaShop reportaba UNA vez por versión
+ * del módulo: una tienda tranquila quedaba «muerta» a los 30 días aunque siguiera
+ * funcionando. Ahora además se renueva cada 7 días (el servidor deduplica el
+ * contenido con `unchanged: true` y sólo toca el latido).
  */
 final class CapabilitiesReporterTest extends TestCase
 {
@@ -45,23 +45,23 @@ final class CapabilitiesReporterTest extends TestCase
 
     public function testAnOldReportWithoutTimestampIsRenewed(): void
     {
-        // Installs from before this change: version remembered, no timestamp.
+        // Instalaciones anteriores a este cambio: versión recordada, sin fecha.
         self::assertTrue(CapabilitiesReporter::isDue('2.4.0', '2.4.0', 0, 0, self::NOW));
     }
 
     public function testAFailedAttemptBacksOffForAnHour(): void
     {
-        // The server is not answering: without this, every back-office load or
-        // cart save would pay up to a 3 s timeout.
+        // El servidor no responde: sin esto cada carga del back-office o guardado
+        // de carrito pagaría hasta 3 s de timeout.
         self::assertFalse(CapabilitiesReporter::isDue('2.4.1', '2.4.0', 0, self::NOW - 600, self::NOW));
         self::assertTrue(CapabilitiesReporter::isDue('2.4.1', '2.4.0', 0, self::NOW - 3601, self::NOW));
     }
 
     public function testTheModuleRenewsTheReportFromTheStorefrontToo(): void
     {
-        // A quiet store may not open the back office for weeks, so the trigger
-        // also hangs off a front hook (it runs after the response is sent, never
-        // on the buyer's path).
+        // Una tienda tranquila puede no abrir el back-office en semanas: el
+        // disparador también cuelga de un hook de front (se ejecuta tras
+        // enviar la respuesta, nunca en la ruta del comprador).
         $src = (string) file_get_contents(__DIR__ . '/../../trusteed.php');
 
         self::assertMatchesRegularExpression(

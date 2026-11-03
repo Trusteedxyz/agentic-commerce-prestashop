@@ -24,17 +24,18 @@ if (!defined('_PS_VERSION_')) {
 class TokenVerifier
 {
     /**
-     * Maximum token age (seconds from `iat` until now).
+     * Antigüedad máxima del token (segundos desde `iat` hasta ahora).
      *
-     * The SAME number in every verifier: the 300 s the contract declares
-     * (`AgentTokenPayloadSchema`: `exp - iat <= 300`). PrestaShop used to have no
-     * age cap (only the lifetime cap `exp - iat`, which does not cover a token
-     * with a renewed `exp` and an old `iat`). Kept identical across the
-     * platform verifiers.
+     * Decisión 48 (2026-10-02): el MISMO número en todos los verificadores, los
+     * 300 s que declara el contrato (`AgentTokenPayloadSchema`: `exp - iat <= 300`).
+     * PrestaShop no tenía tope de antigüedad (sólo el de vida `exp - iat`, que
+     * un token con `exp` renovado cuya `iat` es vieja no cubre). Atado entre
+     * lenguajes por
+     * packages/shared/src/enforcement/__tests__/agent-token-max-age-parity.test.ts.
      */
     private const MAX_AGE_SECONDS = 300;
 
-    /** @var array<mixed> List `[{did, publicKeyJwk}]` from the server or legacy map `{did: jwk}`. */
+    /** @var array<mixed> Lista `[{did, publicKeyJwk}]` del servidor o mapa antiguo `{did: jwk}`. */
     private array $agentDidResolver;
 
     private string $merchantId;
@@ -43,7 +44,7 @@ class TokenVerifier
     private static array $nonceCache = [];
 
     /**
-     * @param array<mixed> $agentDidResolver The snapshot `agentDidResolver` (list or map; {@see resolveAgentDidPublicKey()}).
+     * @param array<mixed> $agentDidResolver `agentDidResolver` del snapshot (lista o mapa; {@see resolveAgentDidPublicKey()}).
      * @param string                           $merchantId       Merchant ID to validate aud binding.
      */
     public function __construct(array $agentDidResolver, string $merchantId)
@@ -66,17 +67,17 @@ class TokenVerifier
      * @param  string $checkoutIntentHash SHA-256 hex of canonical cart JSON.
      * @return array{agentId: string, trustScore: float|null, platform: string|null, kid: string, iat: int, scope: string, returnPolicyAccepted: string, jti: string, exp: int, jtiError: string}|null
      *         Verified claims on success, null if invalid. Includes jti/exp for
-     *         backend nonce-consume replay protection. The `jti`
+     *         spec-048 P2.8 backend nonce-consume replay protection. The `jti`
      *         key holds the token's single-use identifier: the canonical `nonce`
-     *         claim, or the legacy `jti` claim as an alias when `nonce` is absent.
-     *         When both are missing or malformed (16 to 64 base64url chars),
+     *         claim, or the legacy `jti` claim as an alias when `nonce` is absent
+     *         (B5). When both are missing or malformed (16–64 base64url chars),
      *         returns null and the caller (ValidateOrderHook) treats the token
      *         as invalid.
      */
     public const REPLAY_ID_RE = '/^[A-Za-z0-9_-]{16,64}$/';
 
     /**
-     * Single-use identifier of a (signature-verified) payload. The canonical
+     * Single-use identifier of a (signature-verified) payload (B5). The canonical
      * contract is `nonce` (AgentTokenPayloadSchema; the server keys its
      * anti-replay store on it). `jti` is only a legacy alias, read when `nonce`
      * is absent or empty; with both present `nonce` wins; a malformed `nonce`
@@ -122,15 +123,16 @@ class TokenVerifier
         if (($header['typ'] ?? '') !== 'trusteed-agent-token+jwt') {
             return null;
         }
-        // RFC 7515 4.1.11: `crit` lists extensions the receiver MUST understand.
-        // This verifier understands none and the agent token signer never emits
-        // `crit`: if present (even `[]`, which the RFC declares invalid), reject.
-        // Same rule as the snapshot verifiers and the WooCommerce token verifier.
+        // RFC 7515 §4.1.11: `crit` lista extensiones que el receptor DEBE
+        // entender. Este verificador no entiende ninguna ni el firmante de
+        // tokens de agente emite `crit`: presente (incluso `[]`, que el RFC
+        // declara inválida) ⇒ rechazo. Mismo criterio que los verificadores
+        // de snapshot y que el de tokens de WooCommerce.
         if (array_key_exists('crit', $header)) {
             return null;
         }
 
-        // Extract DID from kid, strip #fragment if present
+        // Extract DID from kid — strip #fragment if present
         $kid      = (string) ($header['kid'] ?? '');
         $agentDid = strstr($kid, '#', true);
         if ($agentDid === false) {
@@ -140,13 +142,13 @@ class TokenVerifier
             return null;
         }
 
-        // Resolve public key from snapshot agentDidResolver (the server's real
-        // list or the legacy map).
+        // Resolve public key from snapshot agentDidResolver (lista real del
+        // servidor o mapa antiguo; plan 04 Task 22).
         $jwk = self::resolveAgentDidPublicKey($this->agentDidResolver, $agentDid);
         if ($jwk === null) {
             return null;
         }
-        // A key that declares another type or curve is not Ed25519: not used.
+        // Una clave que declara otro tipo o curva no es Ed25519: no se usa.
         if ((isset($jwk['kty']) && $jwk['kty'] !== 'OKP') || (isset($jwk['crv']) && $jwk['crv'] !== 'Ed25519')) {
             return null;
         }
@@ -159,12 +161,13 @@ class TokenVerifier
 
         // Verify Ed25519 signature.
         //
-        // sodium_crypto_sign_verify_detached() requires $sig to be exactly SODIUM_CRYPTO_SIGN_BYTES (64) bytes and
+        // GHSA-2j2x-5q52-g48m issue 1: sodium_crypto_sign_verify_detached()
+        // requires $sig to be exactly SODIUM_CRYPTO_SIGN_BYTES (64) bytes and
         // THROWS SodiumException for any other length instead of returning
         // false. $sig decodes from an unauthenticated request parameter, so a
         // malformed length must be rejected as an ordinary invalid token
         // (null), the same way every other malformed-input branch in this
-        // method already behaves, never let it escape as an exception, which
+        // method already behaves — never let it escape as an exception, which
         // callers upstream treat as an unexpected infrastructure failure
         // rather than "this token is bad".
         $signingInput = $headerB64 . '.' . $payloadB64;
@@ -179,7 +182,7 @@ class TokenVerifier
                 return null;
             }
         } catch (\SodiumException $e) {
-            // Defense in depth: the length check above should make this
+            // Defense in depth — the length check above should make this
             // unreachable, but sodium's contract is "throws on malformed
             // input" broadly, not just on length. Never a system failure.
             return null;
@@ -192,13 +195,13 @@ class TokenVerifier
             return null;
         }
 
-        // Validate iss matches kid-derived DID to prevent key-confusion
+        // T108 HIGH-3: Validate iss matches kid-derived DID to prevent key-confusion
         // attacks where an attacker uses their own registered key (kid=attacker#k1)
         // but sets iss=victim-agent. The signature would verify (attacker key is valid)
         // but the returned agentId would be the victim's DID, bypassing the allowlist.
         $iss = (string) ($payload['iss'] ?? '');
         if ($iss === '' || $iss !== $agentDid) {
-            return null; // iss/kid mismatch: potential key confusion attack
+            return null; // iss/kid mismatch — potential key confusion attack
         }
 
         if (($payload['aud'] ?? '') !== 'trusteed') {
@@ -208,48 +211,50 @@ class TokenVerifier
             return null;
         }
 
-        // `exp`, `iat` and `nonce` are MANDATORY. The canonical schema requires
-        // them (`AgentTokenPayloadSchema`:
-        // positive integer `iat`/`exp` and a 16..64 character `nonce`), and the
-        // WooCommerce verifier already did. Here each protection below (expiry,
-        // 330s lifetime cap, anti-replay) hung off an `isset`, so a token that
-        // simply OMITTED the claim skipped the check: without `exp` it was valid
-        // forever, and without `nonce` nothing was deduplicated. Fail closed.
+        // H4 (verificación 2026-07-28) — `exp`, `iat` y `nonce` son
+        // OBLIGATORIOS. El schema canónico los exige
+        // (`AgentTokenPayloadSchema` en packages/shared/src/enforcement/types.ts:
+        // `iat`/`exp` enteros positivos y `nonce` de 16..64 caracteres), y el
+        // verificador de WooCommerce ya los exigía. Aquí cada protección de
+        // abajo (caducidad, tope de vida de 330s, anti-replay) colgaba de un
+        // `isset`, así que un token que simplemente OMITÍA el claim se saltaba
+        // la comprobación: sin `exp` era válido para siempre, y sin `nonce` no
+        // se deduplicaba nada. Rechazo fail-closed.
         if (!isset($payload['exp']) || !is_numeric($payload['exp'])) {
             return null;
         }
         if (!isset($payload['iat']) || !is_numeric($payload['iat'])) {
             return null;
         }
-        // The single-use identifier is `nonce` (canonical) or, as a legacy alias,
-        // `jti`; both 16..64 base64url characters. It comes from the payload
-        // that was ALREADY verified (the signature was checked above).
+        // B5 — el identificador de un solo uso es `nonce` (canónico) o, como
+        // alias heredado, `jti`; ambos de 16..64 caracteres base64url. Sale del
+        // payload YA verificado (la firma se comprobó arriba).
         $nonceClaim = self::replayIdentifier($payload);
         if ($nonceClaim === '') {
             return null;
         }
 
-        // Validate expiry: allow 30s clock skew grace
+        // Validate expiry — allow 30s clock skew grace
         $now = time();
         if (((int) $payload['exp'] + 30) < $now) {
             return null;
         }
 
-        // Future `iat`: combined with the 330s cap it would give a sliding window
-        // (iat=+1h means the token lives 1h+330s of wall clock even if
-        // exp-iat <= 330s). Same guard as the WooCommerce verifier.
+        // `iat` futuro: combinado con el tope de 330s daría una ventana
+        // deslizante (iat=+1h ⇒ el token vive 1h+330s de reloj de pared aunque
+        // exp-iat ≤ 330s). Mismo guard que el verificador de WooCommerce.
         if (((int) $payload['iat'] - 30) > $now) {
             return null;
         }
 
-        // Validate token lifetime: max 5min (300s) + 30s grace = 330s
+        // Validate token lifetime — max 5min (300s) + 30s grace = 330s
         if (((int) $payload['exp'] - (int) $payload['iat']) > 330) {
             return null;
         }
 
-        // Age since `iat`: the same cap as WooCommerce, Magento and Odoo. Without
-        // it, an `exp` inside the lifetime window did not bound how long ago the
-        // token was issued.
+        // Antigüedad desde `iat` (decisión 48): el mismo tope que WooCommerce,
+        // Magento y Odoo. Sin él, un `exp` dentro de la ventana de vida no
+        // acotaba cuánto hace que se emitió el token.
         if ((time() - (int) $payload['iat']) > self::MAX_AGE_SECONDS) {
             return null;
         }
@@ -259,13 +264,13 @@ class TokenVerifier
             return null;
         }
 
-        // Nonce deduplication (offline, best-effort). The claim was already
-        // validated as mandatory above, so only uniqueness is left to check.
+        // Nonce deduplication (offline, best-effort). El claim ya se validó
+        // como obligatorio arriba, así que aquí sólo queda comprobar unicidad.
         if (!$this->isNonceNew($nonceClaim, $agentDid)) {
             return null;
         }
 
-        // iss has been verified above to equal $agentDid, use $iss directly.
+        // iss has been verified above to equal $agentDid — use $iss directly.
         return [
             'agentId'              => $iss,
             'trustScore'           => isset($payload['agentTrustScore']) ? (float) $payload['agentTrustScore'] : null,
@@ -280,22 +285,22 @@ class TokenVerifier
     }
 
     /**
-     * Port of `resolveAgentDidPublicKey` (platform-flow.ts; pinned by the
-     * `snapshotResolverShape` section of the fixture).
+     * Port de `resolveAgentDidPublicKey` (platform-flow.ts, Task 20; fijado por
+     * la sección `snapshotResolverShape` del fixture).
      *
-     * The server emits a LIST `[{did, publicKeyJwk:{kty,crv,x,kid?}}]`
-     * (`RuleSnapshotPayloadSchema`); this module used to read only the legacy
-     * MAP `{did: jwk}`, so no legitimate token verified. It accepts both:
+     * El servidor emite una LISTA `[{did, publicKeyJwk:{kty,crv,x,kid?}}]`
+     * (`RuleSnapshotPayloadSchema`); este módulo leía sólo el MAPA antiguo
+     * `{did: jwk}`, así que ningún token legítimo verificaba. Acepta las dos:
      *
-     * - List: the LAST well-formed entry with an exact `did` wins.
-     * - Map: only the exact key.
-     * - Malformed entries (not an object, non-string `did`, non-object
-     *   `publicKeyJwk`, missing/empty/non-string `x`) are ignored without
-     *   throwing; any other `$resolver` (null, string, number) resolves nothing.
+     * - Lista: vale la ÚLTIMA entrada bien formada con `did` exacto.
+     * - Mapa: sólo la clave exacta.
+     * - Entradas malformadas (no objeto, `did` no cadena, `publicKeyJwk` no
+     *   objeto, `x` ausente/vacío/no cadena) se ignoran sin lanzar; cualquier
+     *   otro `$resolver` (null, cadena, número) no resuelve nada.
      *
-     * It only resolves: {@see verify()} checks `kty`/`crv` and the signature.
+     * Sólo resuelve: `kty`/`crv` y la firma los comprueba {@see verify()}.
      *
-     * @param mixed $resolver The snapshot `agentDidResolver` as is.
+     * @param mixed $resolver `agentDidResolver` del snapshot tal cual.
      * @return array{x:string,kty?:string,crv?:string,kid?:string}|null
      */
     public static function resolveAgentDidPublicKey($resolver, string $did): ?array
@@ -316,7 +321,7 @@ class TokenVerifier
         return array_key_exists($did, $resolver) ? self::toPublicKey($resolver[$did]) : null;
     }
 
-    /** A decoded JSON object: an associative array (or empty), never a list. */
+    /** Un objeto JSON decodificado: array asociativo (o vacío), nunca una lista. */
     private static function isJsonObject($value): bool
     {
         return is_array($value) && ($value === [] || !array_is_list($value));
@@ -347,7 +352,7 @@ class TokenVerifier
     {
         $key = 'trusteed_cel_nonce_' . hash('sha256', $agentDid . $nonce);
 
-        // Persistent file-cache for cross-request nonce dedup so plain
+        // B5: persistent file-cache for cross-request nonce dedup so plain
         // PrestaShop installs without APCu also defend against replays.
         $fc = self::fileCache();
         if ($fc !== null) {

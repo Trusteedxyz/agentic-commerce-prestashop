@@ -3,9 +3,10 @@
 declare(strict_types=1);
 
 /**
- * Every checkout calls layer 2. After a failure, layer 2 is considered down for
- * about 60 s (no retry on each checkout), the connection has its own short
- * timeout, and the `fallback_open` warning is not repeated during the window.
+ * M2 (revisión de seguridad 2026-10-10) — con B4 todos los checkouts llaman a la
+ * capa 2. Tras un fallo, la capa 2 se da por caída ~60 s (sin reintentar en cada
+ * checkout), la conexión tiene su propio plazo corto y el aviso `fallback_open`
+ * no se repite durante la ventana.
  */
 
 namespace Trusteed\Tests\Enforcement;
@@ -29,7 +30,7 @@ class CountingSnapshotClient extends SnapshotClient
         return array_shift($this->responses) ?? ['code' => 0, 'body' => '', 'error' => 'timeout'];
     }
 
-    /** Exposes the real httpPost to measure the connection timeout. */
+    /** Expone el httpPost real para medir el plazo de conexión. */
     public function realPost(string $url, int $timeout): array
     {
         return parent::httpPost($url, [], '{}', $timeout);
@@ -84,7 +85,7 @@ final class SnapshotClientLayer2BreakerTest extends TestCase
         $ttl = SnapshotClient::LAYER2_FAILURE_MEMORY_SECONDS;
         self::assertGreaterThanOrEqual(30, $ttl);
         self::assertLessThanOrEqual(120, $ttl);
-        // Simulates expiry by rewriting the marker with an already exhausted TTL.
+        // Simula el vencimiento reescribiendo la marca con un TTL ya agotado.
         (new \ReflectionProperty(SnapshotClient::class, 'memCache'))->setValue(null, []);
         $this->client->responses = [$this->ok()];
         self::assertNotNull($this->client->callRulesEvaluate(null, 100, 'EUR', 1, null));

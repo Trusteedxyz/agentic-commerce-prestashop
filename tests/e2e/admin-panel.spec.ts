@@ -1,22 +1,22 @@
 /**
- * E2E suite for the Trusteed PrestaShop module.
+ * Suite E2E — Módulo PrestaShop AgenticMCPStores
  *
- * Covers:
- *  T01  Login and access to the PS back office
- *  T02  Trusteed panel loads (HTTP 200, wrapper present)
- *  T03  Config injected as data-amcp-* attributes on #amcp-root (CSP-safe)
- *  T04  admin-spa.js bundle loaded (network request and script element)
- *  T05  SPA mounts the #amcp-root container with the right data-section
- *  T06  AJAX token endpoint returns a valid bootstrap JWT
- *  T07  JWT payload has the required claims
- *  T08  Badge in the back office header (displayBackOfficeTop)
- *  T09  Navigation between sections through the ?section= parameter
- *  T10  "Not configured" state shows a visible notice
- *  T11  "Bundle missing" state shows a visible notice
- *  T12  SSRF guard: an API base with a disallowed host does not appear in config
- *  T13  No critical console errors while the panel loads
- *  T14  JS bundle is served with the right Content-Type
- *  T15  TrusteedEmbed global present on window after the bundle loads
+ * Cubre:
+ *  T01  Login y acceso al back office PS
+ *  T02  Panel Trusteed — carga del controlador (HTTP 200, wrapper presente)
+ *  T03  Config inyectada como data-amcp-* attributes en #amcp-root (CSP-safe)
+ *  T04  Bundle admin-spa.js cargado (petición de red + elemento script)
+ *  T05  SPA monta el contenedor #amcp-root con data-section correcto
+ *  T06  AJAX token endpoint — genera bootstrap JWT válido
+ *  T07  JWT payload — claims obligatorios
+ *  T08  Badge en cabecera del back office (displayBackOfficeTop)
+ *  T09  Navegación entre secciones via parámetro ?section=
+ *  T10  Estado "no configurado" — aviso visible
+ *  T11  Estado "bundle ausente" — aviso visible
+ *  T12  SSRF guard — API base con host no permitido no aparece en config
+ *  T13  Sin errores críticos en consola durante carga del panel
+ *  T14  Bundle JS responde con Content-Type correcto
+ *  T15  TrusteedEmbed global presente en window tras carga del bundle
  */
 
 import { test, expect, type Page } from "@playwright/test";
@@ -30,7 +30,7 @@ import {
   TEST_MERCHANT_ID,
 } from "./helpers/ps-admin";
 
-// ─── Shared session state ─────────────────────────────────────────────────────
+// ─── Estado compartido de sesión ──────────────────────────────────────────────
 
 let sessionPage: Page;
 
@@ -58,14 +58,14 @@ test("T01 — Login al back office PrestaShop", async ({ page }) => {
     page.click("#submit_login"),
   ]);
 
-  // Check that we are on the dashboard (not on the login page)
+  // Verifica que estamos en el dashboard (no en el login)
   await expect(page).not.toHaveURL(/controller=AdminLogin/);
   await expect(
     page.locator("#header_infos, .header-nav, #top-nav")
   ).toBeVisible();
 });
 
-// ─── T02 Trusteed panel: HTTP 200, wrapper present ───────────────────────────
+// ─── T02 Panel Trusteed — HTTP 200, wrapper presente ─────────────────────────
 
 test("T02 — Panel Trusteed carga con HTTP 200 y wrapper presente", async () => {
   const page = sessionPage;
@@ -75,14 +75,14 @@ test("T02 — Panel Trusteed carga con HTTP 200 y wrapper presente", async () =>
   await expect(page).not.toHaveURL(/controller=AdminLogin/);
 });
 
-// ─── T03 Config injected as data-amcp-* attributes (CSP-safe) ────────────────
+// ─── T03 Config inyectada como data-amcp-* attributes (CSP-safe) ─────────────
 
 test("T03 — #amcp-root expone la config como data-amcp-* attributes", async () => {
   const page = sessionPage;
   await navigateToTrusteed(page);
 
-  // The module does NOT inject any window.__AMCP_PS_CONFIG__ global (CSP-safe):
-  // all public config lives in data-amcp-* attributes that trusteed-init.js reads.
+  // El módulo NO inyecta ningún global window.__AMCP_PS_CONFIG__ (CSP-safe):
+  // toda la config pública vive en data-amcp-* attributes que trusteed-init.js lee.
   const config = await page.evaluate(() => {
     const root = document.getElementById("amcp-root");
     if (!root) return null;
@@ -109,13 +109,13 @@ test("T03 — #amcp-root expone la config como data-amcp-* attributes", async ()
   expect(typeof config!.locale).toBe("string");
 });
 
-// ─── T04 admin-spa.js bundle loaded ──────────────────────────────────────────
+// ─── T04 Bundle admin-spa.js cargado ─────────────────────────────────────────
 
 test("T04 — Bundle admin-spa.js presente en el DOM y responde OK", async () => {
   const page = sessionPage;
   await navigateToTrusteed(page);
 
-  // Script tag in the DOM
+  // Script tag en el DOM
   const scriptSrc = await page.evaluate(() => {
     const scripts = Array.from(document.querySelectorAll("script[src]"));
     return (
@@ -127,7 +127,7 @@ test("T04 — Bundle admin-spa.js presente en el DOM y responde OK", async () =>
   expect(scriptSrc).toBeTruthy();
   expect(scriptSrc).toContain("admin-spa");
 
-  // Network request for the bundle
+  // Petición de red al bundle
   const bundleReq = page.waitForResponse(
     (r) => r.url().includes("admin-spa") && r.status() === 200,
     { timeout: 10_000 }
@@ -139,7 +139,7 @@ test("T04 — Bundle admin-spa.js presente en el DOM y responde OK", async () =>
   expect(ct).toMatch(/javascript/);
 });
 
-// ─── T05 #amcp-root with the right data-section ──────────────────────────────
+// ─── T05 #amcp-root con data-section correcto ────────────────────────────────
 
 test('T05 — #amcp-root tiene data-section="inicio" y data-auto-mount="false"', async () => {
   const page = sessionPage;
@@ -151,7 +151,7 @@ test('T05 — #amcp-root tiene data-section="inicio" y data-auto-mount="false"',
   await expect(root).toHaveAttribute("data-auto-mount", "false");
 });
 
-// ─── T06 AJAX token endpoint: embed token ────────────────────────────────────
+// ─── T06 AJAX token endpoint — embed token ───────────────────────────────────
 
 test("T06 — AJAX token endpoint devuelve token de embed", async () => {
   const page = sessionPage;
@@ -163,7 +163,7 @@ test("T06 — AJAX token endpoint devuelve token de embed", async () => {
   expect(tokenData!.token.length).toBeGreaterThan(0);
 });
 
-// ─── T07 Embed token: required fields ────────────────────────────────────────
+// ─── T07 Embed token — campos obligatorios ───────────────────────────────────
 
 test("T07 — Token de embed tiene token, expires_at y jti válidos", async () => {
   const page = sessionPage;
@@ -182,12 +182,12 @@ test("T07 — Token de embed tiene token, expires_at y jti válidos", async () =
   expect(tokenData!.jti.length).toBeGreaterThan(0);
 });
 
-// ─── T08 Header badge ─────────────────────────────────────────────────────────
+// ─── T08 Badge en cabecera ────────────────────────────────────────────────────
 
 test("T08 — Badge Trusteed visible en la cabecera del back office", async () => {
   const page = sessionPage;
 
-  // Go to the Dashboard to see the header
+  // Navegar al Dashboard para ver la cabecera
   await page.goto(
     `${PS_BASE}${PS_ADMIN_PATH}/index.php?controller=AdminDashboard`
   );
@@ -195,12 +195,12 @@ test("T08 — Badge Trusteed visible en la cabecera del back office", async () =
     timeout: 15_000,
   });
 
-  // The badge is injected through displayBackOfficeTop
+  // El badge se inyecta vía displayBackOfficeTop
   const badge = page.locator('a[href*="AdminTrusteed"]').first();
   await expect(badge).toBeVisible({ timeout: 10_000 });
 });
 
-// ─── T09 Navigation between sections ─────────────────────────────────────────
+// ─── T09 Navegación entre secciones ──────────────────────────────────────────
 
 test.describe("T09 — Navegación entre secciones", () => {
   const SECTIONS = [
@@ -239,7 +239,7 @@ test.describe("T09 — Navegación entre secciones", () => {
   });
 });
 
-// ─── T10 "Not configured" state ──────────────────────────────────────────────
+// ─── T10 Estado "no configurado" ─────────────────────────────────────────────
 
 test('T10 — Aviso "no configurado" visible cuando falta merchant_id', async ({
   page,
@@ -247,17 +247,17 @@ test('T10 — Aviso "no configurado" visible cuando falta merchant_id', async ({
   await loginToAdmin(page);
   await navigateToTrusteed(page);
 
-  // At minimum the HTML must contain the wrapper (configured or not)
+  // Al menos que el HTML contenga el wrapper (sea configurado o no)
   const html = await page.content();
   expect(html).toContain("trusteed-admin-wrapper");
-  // With a merchantId configured: amcp-root; otherwise: info notice
+  // Si hay merchantId configurado → amcp-root; si no → aviso info
   const hasRoot = html.includes("amcp-root");
   const hasAlert =
     html.includes("alert-info") || html.includes("alert-warning");
   expect(hasRoot || hasAlert).toBe(true);
 });
 
-// ─── T11 JS bundle returns the right Content-Type ────────────────────────────
+// ─── T11 Bundle JS devuelve Content-Type correcto ────────────────────────────
 
 test("T11 — Bundle admin-spa.js Content-Type es JavaScript", async ({
   page,
@@ -272,7 +272,7 @@ test("T11 — Bundle admin-spa.js Content-Type es JavaScript", async ({
   expect(body.length).toBeGreaterThan(1000);
 });
 
-// ─── T12 SSRF guard: adminToken exposes no secrets ───────────────────────────
+// ─── T12 SSRF guard — adminToken no tiene secretos expuestos ─────────────────
 
 test("T12 — Los data-amcp-* attributes no exponen el bootstrap secret en el DOM", async () => {
   const page = sessionPage;
@@ -280,7 +280,7 @@ test("T12 — Los data-amcp-* attributes no exponen el bootstrap secret en el DO
 
   const html = await page.content();
 
-  // Collect all public data-amcp-* attributes of #amcp-root.
+  // Recolecta todos los data-amcp-* attributes públicos de #amcp-root.
   const attrs = await page.evaluate(() => {
     const root = document.getElementById("amcp-root");
     if (!root) return null;
@@ -293,21 +293,21 @@ test("T12 — Los data-amcp-* attributes no exponen el bootstrap secret en el DO
 
   expect(attrs).toBeTruthy();
 
-  // adminToken is PS's CSRF token (32 hex chars), not the bootstrap secret (64 hex).
+  // adminToken es token CSRF de PS (32 hex chars), no el bootstrap secret (64 hex).
   expect(attrs!["data-amcp-admin-token"]).toMatch(/^[a-f0-9]{32}$/);
 
-  // No public attribute carries the secret or a 64 hex char value.
+  // Ningún atributo público lleva el secreto o un valor de 64 hex chars.
   expect(attrs).not.toHaveProperty("data-amcp-secret");
   expect(attrs).not.toHaveProperty("data-amcp-bootstrap-token");
   for (const value of Object.values(attrs!)) {
     expect(value).not.toMatch(/\b[0-9a-fA-F]{64}\b/);
   }
 
-  // The secret must not appear in the rendered HTML either.
+  // El secret tampoco debe aparecer en el HTML renderizado.
   expect(html).not.toMatch(/data-amcp-(secret|bootstrap-token)/);
 });
 
-// ─── T13 No critical console errors ──────────────────────────────────────────
+// ─── T13 Sin errores críticos en consola ─────────────────────────────────────
 
 test("T13 — Sin errores de JavaScript en consola durante carga del panel", async ({
   page,
@@ -323,7 +323,7 @@ test("T13 — Sin errores de JavaScript en consola durante carga del panel", asy
   await navigateToTrusteed(page);
   await page.waitForTimeout(3000); // Dar tiempo al bundle a ejecutarse
 
-  // Filter expected network errors (API unavailable with test credentials)
+  // Filtrar errores esperados de red (API no disponible con credenciales de test)
   const criticalErrors = errors.filter(
     (e) =>
       !e.includes("embed-bootstrap") &&
@@ -335,7 +335,7 @@ test("T13 — Sin errores de JavaScript en consola durante carga del panel", asy
   expect(criticalErrors).toHaveLength(0);
 });
 
-// ─── T14 TrusteedEmbed exposed on window ─────────────────────────────────────
+// ─── T14 TrusteedEmbed expuesto en window ────────────────────────────────────
 
 test("T14 — window.TrusteedEmbed expuesto con método mount()", async ({
   page,
@@ -343,7 +343,7 @@ test("T14 — window.TrusteedEmbed expuesto con método mount()", async ({
   await loginToAdmin(page);
   await navigateToTrusteed(page);
 
-  // Wait for the bundle to run (deferred script)
+  // Esperar que el bundle se ejecute (script defer)
   await page.waitForFunction(
     () => typeof (window as any).TrusteedEmbed !== "undefined",
     { timeout: 15_000 }
@@ -357,7 +357,7 @@ test("T14 — window.TrusteedEmbed expuesto con método mount()", async ({
   expect(hasMountFn).toBe(true);
 });
 
-// ─── T15 Section parameter injection does not break the panel ────────────────
+// ─── T15 Parámetro section injection no rompe el panel ───────────────────────
 
 test("T15 — XSS en parámetro section sanitizado correctamente", async ({
   page,
@@ -369,13 +369,13 @@ test("T15 — XSS en parámetro section sanitizado correctamente", async ({
   // encoded <script> in URL is aborted by Chromium's navigation security.
   await navigateToTrusteed(page, xssSection);
 
-  // The invalid section is replaced by 'inicio'
+  // La sección inválida se reemplaza por 'inicio'
   const actualSection = await page
     .locator("#amcp-root")
     .getAttribute("data-section");
   expect(actualSection).toBe("inicio");
 
-  // No script injected into the attribute value
+  // Ningún script inyectado en el valor del atributo
   const rawAttr = await page.evaluate(
     () => document.getElementById("amcp-root")?.dataset.section
   );

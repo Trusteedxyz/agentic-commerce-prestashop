@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * ValidateOrderHookTest — PHPUnit 10 tests for CEL enforcement.
+ * ValidateOrderHookTest — PHPUnit 10 tests for CEL enforcement (T078, spec-048).
  *
  * Tests cover the core rule-evaluation logic shared by:
  *   - override/classes/PaymentModule.php  (PS 8.x blocking path)
@@ -31,7 +31,7 @@ declare(strict_types=1);
  *
  * Run from repo root:
  *   vendor/bin/phpunit \
- *     tests/enforcement/ValidateOrderHookTest.php
+ *     packages/prestashop-module-agenticmcpstores/tests/enforcement/ValidateOrderHookTest.php
  */
 
 namespace Trusteed\Tests\Enforcement;

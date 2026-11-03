@@ -3,18 +3,18 @@
 declare(strict_types=1);
 
 /**
- * The TOKEN verifier rejects the JWS `crit` header.
+ * Plan 04 Task 38c — el verificador de TOKEN rechaza la cabecera JWS `crit`.
  *
- * RFC 7515 section 4.1.11: `crit` lists extensions the receiver MUST understand;
- * if it does not understand one (or the list is empty or malformed) the JWS is
- * rejected. The agent token signer never emits `crit` and this verifier
- * understands no extension, so a present `crit` (even `[]`) means an invalid
- * token. The module's SNAPSHOT verifiers already do this
- * (SnapshotHardeningFlowTest); this covers the token one.
+ * RFC 7515 §4.1.11: `crit` lista extensiones que el receptor DEBE entender; si
+ * no entiende alguna (o la lista llega vacía/mal formada) el JWS se rechaza.
+ * Ni el firmante de tokens de agente emite `crit` ni este verificador entiende
+ * ninguna extensión: presente (incluso `[]`) ⇒ token inválido. Los verificadores
+ * de SNAPSHOT del módulo ya lo hacían (SnapshotHardeningFlowTest); este
+ * cierra el del token.
  *
- * REAL TokenVerifier with a real Ed25519 signature (`crit` sits inside what is
- * signed, so the header is the only reason for rejection), and also through the
- * real order hook. Harness: ValidateOrderHookFlowHarness.php.
+ * TokenVerifier REAL con firma Ed25519 real (el `crit` va dentro de lo firmado,
+ * así que el único motivo de rechazo es la cabecera) y, además, por el hook real
+ * del pedido. Arnés: ValidateOrderHookFlowHarness.php.
  */
 
 namespace Trusteed\Tests\Enforcement;

@@ -5,19 +5,20 @@ declare(strict_types=1);
 namespace Trusteed\Enforcement;
 
 /**
- * Encodes the `kid => raw Ed25519 key (32 bytes)` map for the cache.
+ * Codifica el mapa `kid => clave Ed25519 cruda (32 bytes)` para la caché.
  *
- * `FileCache` serializes with `json_encode`, which fails on non-UTF-8 bytes
- * (raw keys almost never are UTF-8): the entry was not stored and the JWKS was
- * downloaded on every checkout. On disk they go as base64. An empty list is not
- * cached: an empty JWKS (a transient error) must not stick around for an hour.
+ * `FileCache` serializa con `json_encode`, que falla con bytes que no son
+ * UTF-8 (las claves crudas casi nunca lo son): la entrada no se guardaba y el
+ * JWKS se descargaba en cada checkout. En disco van en base64, como en
+ * Magento (`JwksPositiveCache`). Una lista vacía no se cachea: un JWKS vacío
+ * (error transitorio) no debe quedarse una hora.
  */
 final class JwksCacheCodec
 {
     private const KEY_BYTES = 32;
 
     /**
-     * @param array<string,string> $keys kid => 32 raw bytes
+     * @param array<string,string> $keys kid => 32 bytes crudos
      * @return array<string,string> kid => base64
      */
     public static function encode(array $keys): array
@@ -31,8 +32,8 @@ final class JwksCacheCodec
     }
 
     /**
-     * @param mixed $stored What the cache returned.
-     * @return array<string,string>|null null = nothing usable (must download).
+     * @param mixed $stored Lo que devolvió la caché.
+     * @return array<string,string>|null null = nada utilizable (hay que descargar).
      */
     public static function decode(mixed $stored): ?array
     {

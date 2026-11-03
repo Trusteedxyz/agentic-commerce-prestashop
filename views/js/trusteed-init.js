@@ -1,22 +1,21 @@
 /**
- * trusteed-init.js: token relay and SPA mount for the PrestaShop back office.
+ * trusteed-init.js — Token relay + SPA mount para el back office PrestaShop.
  *
- * Reads its configuration from the data-amcp-* attributes of the #amcp-root
- * element, which avoids inline scripts and works with a strict
- * Content-Security-Policy.
+ * Lee la configuración desde los atributos data-amcp-* del elemento #amcp-root,
+ * evitando inline scripts para compatibilidad con Content-Security-Policy estricta.
  *
- * Loaded with defer after the SPA bundle (trusteed admin-spa.js), so
- * TrusteedEmbed may not be available yet when this script runs.
- * mountWhenReady() polls until the bundle is ready.
+ * Cargado con defer después del bundle SPA (trusteed admin-spa.js), por lo que
+ * TrusteedEmbed puede no estar disponible aún cuando este script se ejecuta.
+ * mountWhenReady() sondea hasta que el bundle esté listo.
  *
- * CSP requirement: 'self' in script-src. No 'unsafe-inline' needed.
+ * CSP requirement: 'self' en script-src — sin 'unsafe-inline' necesario.
  */
 (function () {
   "use strict";
 
   /**
-   * Reads the configuration from the #amcp-root element's data-amcp-* attributes.
-   * Returns null if the element is missing or a required attribute is absent.
+   * Lee la configuración del elemento #amcp-root via data-amcp-* attributes.
+   * Devuelve null si el elemento no existe o faltan atributos obligatorios.
    *
    * @returns {{ ajaxUrl: string, adminToken: string, apiBase: string,
    *             merchantId: string, shopId: number, shopDomain: string,
@@ -48,15 +47,14 @@
   }
 
   /**
-   * Requests an access token from the S2S AJAX relay (PHP calls
-   * /v1/embed/ps/issue-token with X-Embed-Ps-Secret; the secret never reaches
-   * the browser).
+   * Pide un access token al relay AJAX S2S (PHP → /v1/embed/ps/issue-token con
+   * X-Embed-Ps-Secret; el secreto nunca sale al navegador, C-003).
    *
-   * It only requests: caching is done by `TrusteedEmbed.createTokenSource`. The
-   * cache that used to live here read `expires_at` (epoch seconds) as
-   * milliseconds (`new Date(1790000000)` is January 1970), so it never hit and
-   * every SPA call asked for a new token against a limit of 10 per minute per
-   * merchant. With two tabs open, that meant 429 responses.
+   * Sólo PIDE: la caché la lleva `TrusteedEmbed.createTokenSource`. B13
+   * (auditoría 2026-09-26): la caché que vivía aquí leía `expires_at` —segundos
+   * epoch— como milisegundos (`new Date(1790000000)` es enero de 1970), así que
+   * no valía nunca y cada llamada de la SPA pedía un token nuevo contra un
+   * límite de 10 por minuto y comerciante. Con dos pestañas, 429.
    *
    * @returns {Promise<{ token: string, expires_at: unknown }>}
    */
@@ -88,8 +86,8 @@
   }
 
   /**
-   * Waits for the bundle to load and mounts the SPA.
-   * Polls every 50 ms and gives up after 30 s so it never spins forever.
+   * Espera a que el bundle esté cargado y monta la SPA.
+   * Sondea cada 50 ms; abort tras 30 s para no bloquear el navegador indefinidamente.
    */
   function mountWhenReady() {
     var attempts = 0;
@@ -118,8 +116,19 @@
         return;
       }
 
-      // Cache shared by the tabs of this page, using the token's REAL expiry
-      // and a `refresh` for the retry after a 401.
+      // Acciones AJAX del controlador admin que la SPA llama directamente (hoy:
+      // tarjeta «Usar la cuenta PayPal de PrestaShop»: paypalSyncStatus y
+      // paypalSync). Es la URL del controlador y el token de admin de PS; ningún
+      // secreto de PayPal ni de Trusteed (C-003). Antes de montar la SPA.
+      window.__AMCP_PS_CONFIG__ = {
+        ajaxUrl: cfg.ajaxUrl,
+        adminToken: cfg.adminToken,
+        apiBase: cfg.apiBase,
+        locale: cfg.locale,
+      };
+
+      // Caché compartida por las pestañas de esta página, con la caducidad
+      // REAL del token y `refresh` para el reintento tras un 401.
       var tokens = window.TrusteedEmbed.createTokenSource(psFetchToken);
       window.TrusteedEmbed.mount(rootEl, {
         section: rootEl.dataset.section || "inicio",

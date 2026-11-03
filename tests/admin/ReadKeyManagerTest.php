@@ -12,11 +12,11 @@ use Trusteed\Service\ReadKeyManager;
 use Trusteed\Service\ReadOnlyWebserviceKey;
 
 /**
- * Orchestration of the consent-based "Allow read access" / "Revoke" actions.
+ * Orquestación de «Permitir lectura» / «Revocar» con consentimiento.
  *
- * Runs against PrestaShop and backend doubles, as `SetupStatus` does: what
- * matters (what is created, what is undone on failure, what is left as it
- * was) is plain logic and does not need a PrestaShop runtime.
+ * Va contra dobles de PrestaShop y del backend por la misma razón que
+ * `SetupStatus`: lo que hay que fijar —qué se crea, qué se deshace si algo
+ * falla, qué se deja como estaba— es lógica, y no necesita levantar PS.
  */
 final class ReadKeyManagerTest extends TestCase
 {
@@ -38,15 +38,15 @@ final class ReadKeyManagerTest extends TestCase
         $this->assertSame(ReadOnlyWebserviceKey::DESCRIPTION, $description);
         $this->assertSame(ReadOnlyWebserviceKey::permissions(), $permissions);
 
-        // The same key reaches the backend, through the sign-up channel.
+        // La misma clave llega al backend, por el canal del alta.
         $this->assertSame([[self::STORE_URL, self::INSTALL_KEY, $key]], $backend->attached);
 
-        // Locally only the id is stored; the key is not kept in any configuration value.
+        // Localmente sólo el id; la clave no queda en ninguna configuración.
         $this->assertSame(7, $env->storedKeyId());
         $this->assertNotContains($key, $env->configValues());
 
-        // The Webservice was off: it is switched on as part of the consented
-        // action, and the module remembers that it was the one that enabled it.
+        // El Webservice estaba apagado: se enciende como parte del acto
+        // consentido, y se recuerda que fue el módulo quien lo encendió.
         $this->assertTrue($env->webserviceEnabled());
         $this->assertTrue($env->enabledByModule());
     }
@@ -72,10 +72,10 @@ final class ReadKeyManagerTest extends TestCase
         $this->assertFalse($result->ok());
         $this->assertSame('backend_rejected', $result->code());
         $this->assertSame('read_key_rejected', $result->detail());
-        // A key nobody will use is not left alive in the shop.
+        // Una clave que nadie va a usar no se queda viva en la tienda.
         $this->assertSame([7], $env->deleted);
         $this->assertSame(0, $env->storedKeyId());
-        // The consented action did not complete: everything is as it was.
+        // El acto consentido no se completó: todo como estaba.
         $this->assertFalse($env->webserviceEnabled());
         $this->assertFalse($env->enabledByModule());
     }
@@ -118,7 +118,7 @@ final class ReadKeyManagerTest extends TestCase
 
     public function testUnIdHuerfanoSeDescartaYSeCreaUnaClaveNueva(): void
     {
-        // The merchant deleted the key by hand from Advanced Parameters.
+        // El comerciante borró la clave a mano desde Parámetros avanzados.
         $env = new FakeEnvironment(webserviceEnabled: true, storedKeyId: 3, existingKeyIds: []);
 
         $result = (new ReadKeyManager($env, new FakeBackend()))->enable(self::STORE_URL, self::INSTALL_KEY);
@@ -148,12 +148,12 @@ final class ReadKeyManagerTest extends TestCase
 
         $this->assertTrue($result->ok());
         $this->assertSame('revoked', $result->code());
-        // Delete first: if the backend does not answer, the key is already useless.
+        // Borrar primero: si el backend no contesta, la clave ya no sirve.
         $this->assertSame(['delete:7', 'backend:revoke'], $env->log->entries);
         $this->assertTrue($result->backendNotified());
         $this->assertSame(0, $env->storedKeyId());
-        // Other integrations may depend on the Webservice: it is not switched
-        // off silently, the merchant is told.
+        // Otras integraciones pueden depender del Webservice: no se apaga en
+        // silencio, se avisa.
         $this->assertSame(0, $env->disableCalls);
         $this->assertTrue($result->webserviceLeftEnabled());
         $this->assertFalse($env->enabledByModule());
@@ -200,15 +200,15 @@ final class ReadKeyManagerTest extends TestCase
 
         $this->assertFalse($result->ok());
         $this->assertSame('key_deletion_failed', $result->code());
-        // The backend stops using it even though it is still alive here.
+        // El backend deja de usarla aunque siga viva aquí.
         $this->assertSame(1, $backend->revokeCalls);
         $this->assertSame(7, $env->storedKeyId());
     }
 
     public function testLasImplementacionesRealesCumplenLosContratos(): void
     {
-        // Without this the doubles could follow an interface the production
-        // classes no longer implement, and the tests would pass vacuously.
+        // Sin esto los dobles podrían seguir una interfaz que las clases de
+        // producción ya no implementan, y los tests pasarían en vacío.
         $this->assertTrue(
             (new \ReflectionClass(\Trusteed\Service\AutoRegister::class))
                 ->implementsInterface(ReadKeyBackend::class)
@@ -221,8 +221,8 @@ final class ReadKeyManagerTest extends TestCase
 
     public function testRevocarSinIdLocalAunAsiPideAlBackendQueOlvide(): void
     {
-        // Configuration deleted or restored from a backup: the backend may still
-        // hold a key that can no longer be located from here.
+        // Configuración borrada o restaurada de copia: el backend puede seguir
+        // teniendo una clave que ya no se puede localizar desde aquí.
         $env = new FakeEnvironment(webserviceEnabled: true);
         $backend = new FakeBackend();
 
@@ -234,7 +234,7 @@ final class ReadKeyManagerTest extends TestCase
     }
 }
 
-/** Shared log used to check the ORDER of calls between environment and backend. */
+/** Registro compartido para comprobar el ORDEN entre entorno y backend. */
 final class CallLog
 {
     /** @var list<string> */
@@ -332,7 +332,7 @@ final class FakeEnvironment implements ReadKeyEnvironment
         $this->enabledByModule = $value;
     }
 
-    /** @return list<string> every value this environment persists as configuration */
+    /** @return list<string> todo lo que este entorno persiste como configuración */
     public function configValues(): array
     {
         return [(string) $this->storedKeyId, $this->enabledByModule ? '1' : '0'];

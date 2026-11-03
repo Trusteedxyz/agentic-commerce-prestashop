@@ -5,55 +5,58 @@ declare(strict_types=1);
 namespace Trusteed\Enforcement;
 
 /**
- * Main-flow failure policy. PHP port of the shared Trusteed reference
- * implementation, pinned by the conformance vectors in
- * tests/fixtures/platform-flow-conformance.json
+ * Política del flujo principal — port PHP de
+ * packages/shared/src/enforcement/platform-flow.ts, fijado por
+ * packages/shared/src/enforcement/__fixtures__/platform-flow-conformance.json
  * (tests/enforcement/PlatformFlowConformanceTest.php).
  *
- * Invariant: a human buyer (a checkout with no agentic signal) is never blocked
- * by a fault of ours (network, 5xx, any 4xx including 429, timeout, unreadable
- * response, missing or unverifiable snapshot, internal exception), not even in
- * `strict`. Only a merchant rule with `appliesTo: ALL`/`HUMAN` that the offline
- * valve still evaluates can block them (the R030 cap, countries, schedule...).
- * `TRUSTEED_CEL_FALLBACK_MODE` only governs agentic checkouts: `strict` means
- * "strict with agents".
+ * Invariante (auditoría spec-048 2026-09-27, A8/A9; decisión D1 del plan 04):
+ * un comprador humano —checkout sin ninguna señal agéntica— nunca se bloquea
+ * por una avería nuestra (red, 5xx, 4xx incluido 429, timeout, respuesta
+ * ilegible, snapshot ausente o que no verifica, excepción interna), tampoco en
+ * `strict`. Sólo puede bloquearlo una regla `appliesTo: ALL`/`HUMAN` del propio
+ * comerciante que la válvula offline siga evaluando (el tope de R030, países,
+ * horario…). `TRUSTEED_CEL_FALLBACK_MODE` sólo gobierna a los agénticos:
+ * `strict` pasa a significar «estricto con los agentes».
  *
- * The fourth decision of the reference (`needsServerEvaluation`) lives in
- * {@see RuleCode::needsServer()}, next to the code normalization; the sixth
- * (`resolveAgentDidPublicKey`) in {@see TokenVerifier::resolveAgentDidPublicKey()}.
+ * La cuarta decisión de la referencia (`needsServerEvaluation`) vive en
+ * {@see RuleCode::needsServer()}, junto a la normalización del código; la
+ * sexta (`resolveAgentDidPublicKey`) en
+ * {@see TokenVerifier::resolveAgentDidPublicKey()}.
  *
- * The mode passed to {@see decideUnavailable()} is resolved by
- * {@see MerchantResolver::getFallbackMode()}: it returns a value of
- * {@see FAILURE_MODES} compared exactly, and anything else (missing, empty,
- * `observe`/`enforce` from another platform, `STRICT`, `BALANCED`) becomes
- * `strict` (a corruption guard, pinned by FallbackModeDefaultTest). An
- * unresolved mode therefore CLOSES on an agent and never touches a human.
+ * El modo que recibe {@see decideUnavailable()} lo resuelve
+ * {@see MerchantResolver::getFallbackMode()}: devuelve un valor de
+ * {@see FAILURE_MODES} comparado exactamente, y cualquier otro —ausente,
+ * vacío, `observe`/`enforce` de otra plataforma, `STRICT`, `BALANCED`— lo
+ * convierte en `strict` (guarda de corrupción, fijada por
+ * FallbackModeDefaultTest). Un modo no resuelto, por tanto, CIERRA a un agente
+ * y no toca a un humano.
  *
- * Pure functions: no PrestaShop, no I/O. They do not mutate their parameters
- * (PHP passes arrays by value and only copies are filtered here).
+ * Funciones puras: sin PrestaShop, sin I/O. No mutan sus parámetros (PHP pasa
+ * los arrays por valor y aquí sólo se filtran copias).
  *
  * @since 2.3.2
  */
 final class FailurePolicy
 {
-    /** Vocabulary of `TRUSTEED_CEL_FALLBACK_MODE` in this module (same as the fixture). */
+    /** Vocabulario de `TRUSTEED_CEL_FALLBACK_MODE` en este módulo (igual que el fixture). */
     public const FAILURE_MODES = ['strict', 'balanced', 'permissive'];
 
     /**
-     * Modes that OPEN to an agent on a fault, compared exactly. This is the
-     * reference's GLOBAL list (`AGENT_OPENING_FAILURE_MODES`); `observe` is not
-     * part of this module's vocabulary and never gets here (the resolver turns
-     * it into `strict`).
+     * Modos que ABREN a un agente ante una avería, comparados exactamente. Es la
+     * lista GLOBAL de la referencia (`AGENT_OPENING_FAILURE_MODES`); `observe`
+     * no es de este vocabulario y nunca llega aquí (el resolutor lo convierte
+     * en `strict`).
      */
     public const AGENT_OPENING_FAILURE_MODES = ['observe', 'balanced', 'permissive'];
 
     /**
-     * Any signal that only our side or the agent sets means agentic. A presented
-     * token counts even if it does not verify: it is never treated as human.
+     * Cualquier señal que sólo pone nuestro lado o el agente ⇒ agéntico. Un
+     * token presentado cuenta aunque no verifique: nunca se trata como humano.
      *
-     * @param string|null $agentId      Agent DID; '' is the same as missing.
-     * @param bool        $tokenPresent `_trusteed_agent_token` was presented.
-     * @param bool        $originMarker Origin marker set by our MCP.
+     * @param string|null $agentId      DID del agente; '' equivale a ausente.
+     * @param bool        $tokenPresent Se presentó `_trusteed_agent_token`.
+     * @param bool        $originMarker Marca de origen de nuestro MCP.
      */
     public static function isAgentic(?string $agentId, bool $tokenPresent, bool $originMarker): bool
     {
@@ -61,14 +64,14 @@ final class FailurePolicy
     }
 
     /**
-     * Rules the offline valve may apply, in received order and reindexed.
-     * `appliesTo` is case-insensitive.
+     * Reglas que la válvula offline puede aplicar, en el orden recibido y
+     * reindexadas. `appliesTo` sin distinguir mayúsculas.
      *
-     * - Agent: all but `HUMAN` (a missing `appliesTo` included).
-     * - Human: only `ALL` and `HUMAN`; missing does not count (when in doubt,
-     *   never block a person).
+     * - Agente: todas salvo las `HUMAN` (con `appliesTo` ausente incluido).
+     * - Humano: sólo `ALL` y `HUMAN`; ausente no cuenta (ante la duda, nunca
+     *   bloquear a una persona).
      *
-     * @param array<int,mixed> $rules `rules[]` of the signed snapshot.
+     * @param array<int,mixed> $rules `rules[]` del snapshot firmado.
      * @return array<int,array<string,mixed>>
      */
     public static function offlineRulesFor(array $rules, bool $isAgentic): array
@@ -88,11 +91,11 @@ final class FailurePolicy
     }
 
     /**
-     * The server did not answer (or there is no readable policy). The offline
-     * valve, already filtered with offlineRulesFor(), blocks anyone; without it a
-     * human ALWAYS passes, and an agent gets the merchant's mode: it opens only
-     * with a mode in AGENT_OPENING_FAILURE_MODES and closes on any other value,
-     * null included. It does not normalize (same as the reference).
+     * El servidor no contestó (o no hay política legible). La válvula offline ya
+     * filtrada con offlineRulesFor() bloquea a cualquiera; sin ella, un humano
+     * pasa SIEMPRE, y a un agente se le aplica el modo del comerciante: abre
+     * sólo con un modo de AGENT_OPENING_FAILURE_MODES y cierra con cualquier
+     * otro valor, null incluido. No normaliza (igual que la referencia).
      *
      * @return string 'ALLOW' | 'BLOCK'.
      */
@@ -110,12 +113,12 @@ final class FailurePolicy
     }
 
     /**
-     * An exception of OURS during evaluation (not a rule, not the network). A
-     * human is never blocked by it; an agent is not let through in any mode (an
-     * internal fault is not a permission), not even with `balanced` or
-     * `permissive`, which open on a service outage and not on a failure of our
-     * own code. Same as `decide_on_internal_error` in Odoo and
-     * `trusteed:CEL-INTERNAL-ERROR` in WooCommerce.
+     * Una excepción NUESTRA durante la evaluación (no una regla, no la red). Un
+     * humano nunca se bloquea por ella; a un agente no se le abre en ningún modo
+     * —una avería propia no es un permiso—, ni siquiera con `balanced` o
+     * `permissive`, que abren ante una caída del servicio y no ante un fallo de
+     * nuestro código. Igual que `decide_on_internal_error` de Odoo y el
+     * `trusteed:CEL-INTERNAL-ERROR` de WooCommerce.
      *
      * @return string 'ALLOW' | 'BLOCK'.
      */
@@ -125,17 +128,17 @@ final class FailurePolicy
     }
 
     /**
-     * Causes of a degraded layer (`PlatformDegradedKind` in the reference).
-     * In this module:
+     * Causas de una capa degradada (`PlatformDegradedKind` de la referencia).
+     * En este módulo:
      *
-     * - `invalid_signature`: the freshly served snapshot does not verify after
-     *   fetching the JWKS once more ({@see SnapshotClient::pullResult()}).
-     * - `missing_snapshot`: no usable snapshot (network, HTTP other than 200,
-     *   unreachable JWKS, own cache that no longer verifies).
-     * - `evaluator_unavailable`: verified snapshot (cached too) and
-     *   `/v1/rules/evaluate` did not answer.
-     * - `layer_disabled`: `TRUSTEED_CEL_ENABLED` off or module not configured
-     *   (MerchantResolver::buildSnapshotClient() returns null).
+     * - `invalid_signature`: el snapshot recién servido no verifica tras volver
+     *   a descargar el JWKS una vez ({@see SnapshotClient::pullResult()}).
+     * - `missing_snapshot`: no hay snapshot utilizable (red, HTTP ≠ 200, JWKS
+     *   inalcanzable, caché propia que ya no verifica).
+     * - `evaluator_unavailable`: snapshot verificado (también de caché) y
+     *   `/v1/rules/evaluate` sin respuesta.
+     * - `layer_disabled`: `TRUSTEED_CEL_ENABLED` apagado o módulo sin
+     *   configurar (MerchantResolver::buildSnapshotClient() devuelve null).
      */
     public const KIND_INVALID_SIGNATURE     = 'invalid_signature';
     public const KIND_MISSING_SNAPSHOT      = 'missing_snapshot';
@@ -150,22 +153,22 @@ final class FailurePolicy
     ];
 
     /**
-     * Port of `decideOnDegradedEnforcement` (platform-flow.ts; pinned by the
-     * `degradedEnforcement` section of the fixture). For an AGENT:
+     * Port de `decideOnDegradedEnforcement` (platform-flow.ts, Task 20; fijado
+     * por la sección `degradedEnforcement` del fixture). Sobre un AGENTE:
      *
-     * - `invalid_signature`: BLOCK in every mode (neither the rules nor the DID
-     *   resolver belong to the merchant).
-     * - `missing_snapshot` with a token: BLOCK in every mode (without a snapshot
-     *   there is no resolver to verify the token); without a token, the mode.
-     * - `evaluator_unavailable`: the mode and the offline valve
+     * - `invalid_signature` ⇒ BLOCK en todos los modos (ni las reglas ni el
+     *   resolver de DIDs son del comerciante).
+     * - `missing_snapshot` con token ⇒ BLOCK en todos los modos (sin snapshot
+     *   no hay resolver con el que verificar el token); sin token ⇒ el modo.
+     * - `evaluator_unavailable` ⇒ el modo y la válvula offline
      *   ({@see decideUnavailable()}).
-     * - `layer_disabled`: ALLOW (configuration, not a fault).
+     * - `layer_disabled` ⇒ ALLOW (configuración, no avería).
      *
-     * A HUMAN is never closed on a fault: only `offlineBlock` from a VERIFIED
-     * snapshot (`evaluator_unavailable`) blocks them; it is ignored for
-     * `invalid_signature` and `missing_snapshot`. A presented token counts as
-     * agentic even if `$isAgentic` arrives as false. An unknown cause is treated
-     * as `invalid_signature`.
+     * Sobre un HUMANO nunca se cierra por avería: sólo `offlineBlock` de un
+     * snapshot VERIFICADO (`evaluator_unavailable`) lo bloquea; en
+     * `invalid_signature` y `missing_snapshot` se ignora. Un token presentado
+     * cuenta como agéntico aunque `$isAgentic` llegue a false. Una causa
+     * desconocida se trata como `invalid_signature`.
      *
      * @return string 'ALLOW' | 'BLOCK'.
      */
@@ -191,7 +194,7 @@ final class FailurePolicy
                 }
                 return self::decideUnavailable($agentic, $failureMode, false);
             default:
-                // `invalid_signature` and any unknown cause.
+                // `invalid_signature` y cualquier causa desconocida.
                 return $agentic ? 'BLOCK' : 'ALLOW';
         }
     }

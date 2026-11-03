@@ -10,11 +10,11 @@ use Trusteed\Enforcement\WebserviceGapMiddleware;
 require_once __DIR__ . '/../../src/Enforcement/WebserviceGapMiddleware.php';
 
 /**
- * `POST /api/orders` of the PrestaShop Webservice does not go through the
- * PaymentModule override. The middleware only WARNS (real blocking would be a
- * separate decision) and its only signal for "this already went through the
- * proxy" was the self-declared `X-Trusteed-Proxy: true` header: anyone could
- * write it to silence the warning.
+ * f9ccd618a / cd7d5b573 / 8bf83de50 / 61df2f619 (barrido 2026-10-10).
+ * `POST /api/orders` del Webservice de PrestaShop no pasa por el override de
+ * PaymentModule. El middleware sólo AVISA (el bloqueo real sería otra decisión) y
+ * su única señal de «esto ya pasó por el proxy» era la cabecera autodeclarada
+ * `X-Trusteed-Proxy: true`: cualquiera podía escribirla para silenciar el aviso.
  */
 final class WebserviceGapMiddlewareTest extends TestCase
 {

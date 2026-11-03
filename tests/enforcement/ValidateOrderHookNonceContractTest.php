@@ -3,22 +3,21 @@
 declare(strict_types=1);
 
 /**
- * The single-use identifier of the agent token is `nonce`.
+ * B5 (2026-10-01) — el identificador de un solo uso del token de agente es `nonce`.
  *
- * The canonical contract is `nonce`; the server indexes its anti-replay by it and
- * the canonical test token generator emits `nonce` WITHOUT `jti`. This module
- * used to also require a `jti` that no canonical issuer produces, so a canonical
- * token was INVALID here.
+ * El contrato canónico (`AgentTokenPayloadSchema`, packages/shared) es `nonce`; el
+ * servidor indexa su anti-replay por él y `generate-test-agent-token.ts` emite
+ * `nonce` SIN `jti`. Antes de B5 este módulo exigía además un `jti` que ningún
+ * emisor canónico produce, así que un token canónico era INVÁLIDO aquí.
  *
- * Now: `nonce` (16..64 base64url) is the identifier consumed at
- * `/v1/agent-events/nonce-consume`; `jti` only counts as a legacy alias when
- * `nonce` is missing; when both exist and differ, `nonce` wins. A token with
- * neither, or with a malformed one, is invalid (`_agent_token_signature_invalid`)
- * and NO identifier is spent on the server.
+ * Ahora: `nonce` (16..64 base64url) es el identificador que se consume en
+ * `/v1/agent-events/nonce-consume`; `jti` sólo vale como alias heredado cuando
+ * `nonce` falta; con ambos distintos gana `nonce`. Un token sin ninguno, o con
+ * uno mal formado, es inválido (`_agent_token_signature_invalid`) y NO se gasta
+ * ningún identificador en el servidor.
  *
- * Everything goes through `ValidateOrderHook::evaluateCart()` with the real
- * SnapshotClient (only the network edge is a test double).
- * Harness: ValidateOrderHookFlowHarness.php.
+ * Todo pasa por `ValidateOrderHook::evaluateCart()` con el SnapshotClient real
+ * (sólo el borde de red es de prueba). Arnés: ValidateOrderHookFlowHarness.php.
  */
 
 namespace Trusteed\Tests\Enforcement;
@@ -27,7 +26,7 @@ require_once __DIR__ . '/ValidateOrderHookFlowHarness.php';
 
 final class ValidateOrderHookNonceContractTest extends ValidateOrderHookFlowTestCase
 {
-    /** @return list<string> identifiers the module sent to nonce-consume */
+    /** @return list<string> identificadores que el módulo mandó a nonce-consume */
     private function consumedIds(): array
     {
         return array_map(static fn (array $b): string => (string) ($b['nonce'] ?? ''), $this->client->bodiesTo('/v1/agent-events/nonce-consume'));

@@ -3,11 +3,11 @@
 declare(strict_types=1);
 
 /**
- * Upgrade233Test: unified back-office menu.
+ * Upgrade233Test — unified back-office menu (design 2026-10-03 §4).
  *
  * Two layers:
  *  1. upgrade/2.3.3.php delegates to Trusteed::syncAdminTabs() and never aborts the
- *     module upgrade (unit-tested against a stub module, no PS runtime here).
+ *     module upgrade (unit-tested against a stub module — no PS runtime here).
  *  2. A static gate on `ADMIN_TABS` in trusteed.php: the seven visible entries, their
  *     order and wording, the three hidden pages, and that no `class_name` was renamed
  *     (it is PrestaShop's permission key) and each one still has its controller.

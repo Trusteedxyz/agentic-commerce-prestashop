@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * UCP `.well-known` discovery resolver (PrestaShop).
+ * ADR-077 — UCP `.well-known` discovery resolver (PrestaShop).
  *
  * Unit-tests the REAL Trusteed\Discovery\UcpWellknownResolver against a
  * configurable \Configuration stub. Verifies:
@@ -60,16 +60,16 @@ namespace Trusteed\Tests\Discovery {
         protected function setUp(): void
         {
             TestUcpConfigState::reset();
-            // When the whole suite runs, the bootstrap has already declared
-            // `\Configuration` (tests/stubs/PsContextStubs.php), which reads
-            // `TestPsState::$config`. This file's stub is skipped by the
-            // `class_exists` guard, so the tests that set the flag wrote to a
-            // store nobody read. The two stores are linked so the test measures
-            // the same thing in isolation and in the full suite.
+            // R2 (2026-09-26) — cuando la suite corre entera, el bootstrap ya ha
+            // declarado `\Configuration` (tests/stubs/PsContextStubs.php), que
+            // lee `TestPsState::$config`; el stub de este fichero se salta por
+            // el `class_exists`, y los 7 tests que ponen la bandera la escribían
+            // en un almacén que nadie leía. Se enlazan los dos almacenes para
+            // que el test mida lo mismo aislado que en la suite completa.
             if (class_exists('TestPsState', false)) {
                 \TestPsState::$config = &TestUcpConfigState::$values;
-                // Another test in the suite may have left its merchant id set;
-                // the stub's special case would take precedence over it.
+                // Otro test de la suite puede haber dejado su identificador de
+                // comerciante puesto; el caso especial del stub lo antepondría.
                 $this->merchantIdPrevio = \TestPsState::$merchantId;
                 \TestPsState::$merchantId = '';
             }
@@ -158,14 +158,14 @@ namespace Trusteed\Tests\Discovery {
 
         public function testTargetUrlFailsClosedWithoutMerchantId(): void
         {
-            // Fail-closed: no merchant id means no redirect target (404).
+            // ADR-077 fail-closed: no merchant id → no redirect target (→ 404).
             TestUcpConfigState::$values['TRUSTEED_API_BASE'] = 'https://api.trusteed.xyz';
             $this->assertSame('', UcpWellknownResolver::targetUrl());
         }
 
         public function testTargetUrlIsReferenceNotManifestBody(): void
         {
-            // REFERENCE, never DUPLICATE: bare URL only.
+            // ADR-077 doctrine: REFERENCE, never DUPLICATE — bare URL only.
             TestUcpConfigState::$values['TRUSTEED_API_BASE']     = 'https://api.trusteed.xyz';
             TestUcpConfigState::$values['TRUSTEED_CEL_MERCHANT_ID'] = 'acme-store';
 

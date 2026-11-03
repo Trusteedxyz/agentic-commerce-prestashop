@@ -9,11 +9,12 @@ use Trusteed\Enforcement\JwksCacheCodec;
 use Trusteed\Storage\FileCache;
 
 /**
- * JWKS public keys are 32 raw bytes: `json_encode` of non-UTF-8 bytes returns
- * `false` ("Malformed UTF-8"), `FileCache::set()` wrote an empty string and
- * `get()` returned null. Result: the JWKS was downloaded (5 s timeout) on EVERY
- * checkout and never got cached. Magento solves it with base64
- * (`JwksPositiveCache`); this is the same fix.
+ * Las claves públicas del JWKS son 32 bytes crudos: `json_encode` de bytes que
+ * no son UTF-8 devuelve `false` («Malformed UTF-8»), `FileCache::set()` escribía
+ * una cadena vacía y `get()` devolvía null. Resultado: el JWKS se descargaba (5 s
+ * de timeout) en CADA checkout y nunca llegaba a cachearse (barrido 2026-10-10,
+ * 2017dfb82 / bd72fbf46 / 21986925d). Magento lo resuelve con base64
+ * (`JwksPositiveCache`); este es el mismo arreglo.
  */
 final class JwksCacheCodecTest extends TestCase
 {
@@ -34,7 +35,7 @@ final class JwksCacheCodecTest extends TestCase
 
     public function testA32ByteKeySurvivesTheFileCacheRoundTrip(): void
     {
-        $raw = random_bytes(31) . "\xff"; // not valid UTF-8: worst case
+        $raw = random_bytes(31) . "\xff"; // no es UTF-8 válido: peor caso
         $cache = new FileCache($this->dir);
 
         $cache->set('jwks', JwksCacheCodec::encode(['kid-1' => $raw]), 60);

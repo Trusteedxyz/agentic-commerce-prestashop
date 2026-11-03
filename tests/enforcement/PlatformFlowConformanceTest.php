@@ -3,17 +3,17 @@
 declare(strict_types=1);
 
 /**
- * Consumes the shared conformance fixture for the main flow
- * (platform-flow-conformance.json), the same one the TS reference
- * `platform-flow.ts` is validated against.
+ * Consume el fixture compartido del flujo principal
+ * (packages/shared/src/enforcement/__fixtures__/platform-flow-conformance.json),
+ * el mismo que valida la referencia TS `platform-flow.ts`.
  *
- * Each block counts the vectors it EXECUTES: a block that runs nothing would
- * also come out green. `serverRouting` does apply to PrestaShop
- * ({@see RuleCode::needsServer()}), and `unavailableDecision` is filtered by
- * this module's vocabulary (strict|balanced|permissive).
+ * Cada bloque cuenta los vectores que EJECUTA: un bloque que no corre nada
+ * también sale verde. `serverRouting` sí aplica a PrestaShop
+ * ({@see RuleCode::needsServer()}), y `unavailableDecision` se filtra por el
+ * vocabulario de este módulo (strict|balanced|permissive).
  *
- * No PS globals except `TestPsState`/`\Configuration` from the bootstrap,
- * which the real mode-resolver test uses.
+ * Sin globals de PS salvo `TestPsState`/`\Configuration` del bootstrap, que
+ * usa el test del resolutor real de modo.
  */
 
 namespace Trusteed\Tests\Enforcement;
@@ -39,9 +39,9 @@ final class PlatformFlowConformanceTest extends TestCase
 
     private static function fixture(): array
     {
-        $path = __DIR__ . '/../fixtures/platform-flow-conformance.json';
+        $path = __DIR__ . '/../../../shared/src/enforcement/__fixtures__/platform-flow-conformance.json';
         $json = json_decode((string) file_get_contents($path), true);
-        self::assertIsArray($json, 'the conformance fixture must exist under tests/fixtures');
+        self::assertIsArray($json, 'el fixture tiene que ser alcanzable desde el monorepo (monta la raíz)');
         return $json;
     }
 
@@ -75,8 +75,8 @@ final class PlatformFlowConformanceTest extends TestCase
 
     public function testLocalListMatchesTheFixtureVocabularyOfTheReference(): void
     {
-        // The TS reference declares `prestashop: []`; the `ps-only-r001` and
-        // `ps-only-r007-now-server` vectors pin it by behaviour.
+        // La referencia TS declara `prestashop: []`; los vectores
+        // `ps-only-r001` y `ps-only-r007-now-server` lo fijan por conducta.
         self::assertSame([], RuleCode::LOCAL_ONLY_SHORT_CODES);
     }
 
@@ -106,7 +106,7 @@ final class PlatformFlowConformanceTest extends TestCase
         self::assertSame([['ruleCode' => 'R030', 'enabled' => true, 'appliesTo' => 'ALL']], $out, 'reindexado desde 0');
     }
 
-    /** The vectors whose mode is in this vocabulary, against the pure port. */
+    /** Los vectores cuyo modo es de este vocabulario, contra el port puro. */
     public function testUnavailableDecisionVectorsForThisVocabulary(): void
     {
         $fx    = self::fixture();
@@ -128,7 +128,7 @@ final class PlatformFlowConformanceTest extends TestCase
         self::assertSame(7, $run, 'vectores unavailableDecision de este vocabulario ejecutados');
     }
 
-    /** The 21 vectors against the pure port, which compares EXACTLY like the reference. */
+    /** Los 21 vectores contra el port puro, que compara EXACTAMENTE como la referencia. */
     public function testEveryUnavailableDecisionVectorAgainstThePurePort(): void
     {
         $run = 0;
@@ -144,11 +144,11 @@ final class PlatformFlowConformanceTest extends TestCase
     }
 
     /**
-     * The mode goes through the module's REAL resolver
-     * (`MerchantResolver::getFallbackMode`, the one ValidateOrderHook uses)
-     * before the policy. A value from another vocabulary (`observe`, `enforce`)
-     * or an unresolved one (empty, `unknown`, `STRICT`, `Enforce`) closes on an
-     * agent and leaves a human alone; the three in the vocabulary are honoured.
+     * CARRY de la Task 1: el modo pasa por el resolutor REAL del módulo
+     * (`MerchantResolver::getFallbackMode`, el que usa ValidateOrderHook) antes
+     * de la política. Un valor de otro vocabulario (`observe`, `enforce`) o no
+     * resuelto (vacío, `unknown`, `STRICT`, `Enforce`) cierra a un agente y no
+     * toca a un humano; los tres del vocabulario se respetan.
      */
     public function testFailureModeResolvedByTheRealResolverClosesAgentsOnly(): void
     {
@@ -198,9 +198,9 @@ final class PlatformFlowConformanceTest extends TestCase
         self::assertSame(3 + 2 + 4 + 1, $run, 'modos ejecutados: vocabulario + ajenos + muestras + ausente');
     }
 
-    // ── Degraded failure and DID resolver ───────────────────────────────────
+    // ── Task 22: avería degradada y resolver de DID ─────────────────────────
 
-    /** The 22 PrestaShop `degradedEnforcement` vectors against the pure port. */
+    /** Los 22 vectores `degradedEnforcement` de PrestaShop contra el port puro. */
     public function testDegradedEnforcementVectorsForPrestashop(): void
     {
         $run = 0;
@@ -225,10 +225,10 @@ final class PlatformFlowConformanceTest extends TestCase
     }
 
     /**
-     * The same 22, with the mode stored in the configuration and resolved by
-     * the REAL resolver (`MerchantResolver::getFallbackMode`) before the policy,
-     * as ValidateOrderHook does. `""` comes out `strict` and closes, as the
-     * `unresolved-empty` vector requires.
+     * Los mismos 22, con el modo guardado en la configuración y resuelto por el
+     * resolutor REAL (`MerchantResolver::getFallbackMode`) antes de la política,
+     * como hace ValidateOrderHook. `""` sale `strict` y cierra, como pide el
+     * vector `unresolved-empty`.
      */
     public function testDegradedEnforcementVectorsThroughTheRealModeResolver(): void
     {
@@ -254,7 +254,7 @@ final class PlatformFlowConformanceTest extends TestCase
         self::assertSame(22, $run, 'vectores degradedEnforcement por el resolutor real');
     }
 
-    /** All the vectors (100): the pure port compares exactly like the reference. */
+    /** Todos los vectores (100): el port puro compara exactamente como la referencia. */
     public function testEveryDegradedEnforcementVectorAgainstThePurePort(): void
     {
         $run = 0;
@@ -290,7 +290,7 @@ final class PlatformFlowConformanceTest extends TestCase
         self::assertSame('ALLOW', FailurePolicy::decideOnDegradedEnforcement('texto crudo', false, false, 'strict', true), 'humano con causa desconocida');
     }
 
-    /** The 19 `snapshotResolverShape` vectors against the verifier's resolver. */
+    /** Los 19 vectores `snapshotResolverShape` contra el resolver del verificador. */
     public function testSnapshotResolverShapeVectors(): void
     {
         $run = 0;
@@ -307,7 +307,7 @@ final class PlatformFlowConformanceTest extends TestCase
         self::assertSame(19, $run, 'vectores snapshotResolverShape ejecutados');
     }
 
-    /** The REAL payload's `agentDidResolver` is a list and it resolves. */
+    /** El `agentDidResolver` del payload REAL es una lista y se resuelve. */
     public function testRealSnapshotPayloadResolverIsAListAndResolves(): void
     {
         $payload  = self::fixture()['snapshotResolverShape']['snapshotPayload'];

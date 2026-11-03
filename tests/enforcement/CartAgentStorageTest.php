@@ -11,12 +11,12 @@ use PHPUnit\Framework\TestCase;
 use Trusteed\Storage\CartAgentStorage;
 
 /**
- * `trusteed_agent_carts` stores the agent DID in clear, and its docblock said
- * "rows deleted after the first read", but `delete()` had no caller, so DIDs
- * persisted forever in the merchant's database. They cannot be deleted on the
- * first read (three emitters read them at different moments: order creation,
- * shipping/delivery, refund), so retention is a time window: expired rows are
- * not read and get purged.
+ * 77ab260d4 (barrido 2026-10-10, DSAR). `trusteed_agent_carts` guarda el DID del
+ * agente en claro y su docblock decía «filas borradas tras la primera lectura»:
+ * `delete()` no tenía ningún llamador, así que los DID persistían para siempre en
+ * la base del comerciante. No se puede borrar en la primera lectura —lo leen tres
+ * emisores en momentos distintos (alta del pedido, envío/entrega, reembolso)—, así
+ * que la retención es un plazo: lo vencido no se lee y se purga.
  */
 final class CartAgentStorageTest extends TestCase
 {
@@ -68,9 +68,9 @@ final class CartAgentStorageTest extends TestCase
 
     public function testTheDidIsPersistedBeforeAnyEmitterThatReadsItCanRun(): void
     {
-        // CouponFailureEmitter/PaymentFailureEmitter/OrderEventsEmitter read the
-        // DID AFTER validateOrder. The override evaluates (and stores the DID on
-        // ALLOW) before delegating to parent.
+        // B7 (91c7f88d9 / 31441c2ca): CouponFailureEmitter/PaymentFailureEmitter/
+        // OrderEventsEmitter leen el DID DESPUÉS de validateOrder. El override
+        // evalúa (y guarda el DID en ALLOW) antes de delegar en parent.
         $src = (string) file_get_contents(__DIR__ . '/../../override/classes/PaymentModule.php');
         $eval = strpos($src, '$this->runCelEvaluation(');
         $parent = strpos($src, 'return parent::validateOrder(');

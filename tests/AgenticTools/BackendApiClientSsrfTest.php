@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * BackendApiClientSsrfTest: SSRF parity with the WordPress and Odoo guards.
+ * BackendApiClientSsrfTest — spec-046 F8 (SSRF parity with WP/Odoo guards).
  *
  * Validates that the BackendApiClient rejects HTTPS URLs whose host is the
  * localhost label or an IP-literal in a private / loopback / link-local /

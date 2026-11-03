@@ -3,37 +3,38 @@
 declare(strict_types=1);
 
 /**
- * Shared harness (not a *Test.php) for ValidateOrderHookAgenticFlowTest and
+ * Arnés compartido (no es un *Test.php) de ValidateOrderHookAgenticFlowTest y
  * ValidateOrderHookDegradedFlowTest.
  *
- * Runs the main flow of `ValidateOrderHook::evaluateCart()` FOR REAL instead of
- * reading it as text:
+ * Auditoría 2026-09-27 (A9 + M3/M4; plan 04 Tasks 8 y 22) — el flujo principal
+ * de `ValidateOrderHook::evaluateCart()` ejecutado DE VERDAD, no leído como
+ * texto:
  *
- *   - derived routing: every enabled rule reaches the server (R035 alone, R001
- *     alone), and with none enabled the server is not called;
- *   - a presented but invalid token outside `strict` is an agent for the server
- *     (`endpointClass: agentic_endpoint` + `_agent_token_*`), not an organic one;
- *   - a legitimate token VERIFIES against the LIST-shaped resolver the server
- *     emits, and a forged one does not;
- *   - the cause of the failure decides (tampered snapshot, unavailable, layer 2
- *     down with a verified snapshot, also from cache, layer switched off); a
- *     `strict` agent with layer 2 down and a cache gets BLOCK;
- *   - a human is never blocked by a failure of ours, only by a merchant ALL rule
- *     in the offline valve;
- *   - the organic payload comes out byte for byte in its usual shape.
+ *   - enrutado derivado: toda regla habilitada llega al servidor (R035 sola,
+ *     R001 sola), y sin ninguna habilitada no se llama;
+ *   - token presentado e inválido fuera de `strict` = agente para el servidor
+ *     (`endpointClass: agentic_endpoint` + `_agent_token_*`), no un orgánico;
+ *   - Task 22: el token legítimo VERIFICA contra el resolver en forma de LISTA
+ *     que emite el servidor, y uno falsificado no;
+ *   - Task 22: la causa de la avería decide (snapshot manipulado, no
+ *     disponible, capa 2 caída con snapshot verificado —también de caché—,
+ *     capa apagada); I1-PS: agente `strict` + capa 2 caída + caché ⇒ BLOCK;
+ *   - D1: un humano nunca se bloquea por una avería nuestra; sólo por una
+ *     regla ALL del comerciante en la válvula offline;
+ *   - el payload orgánico sale byte a byte con la forma de siempre.
  *
- * The `SnapshotClient` is the REAL one end to end (download, verification with
- * JWKS retry, 5 min and 24 h caches, layer 2 body and HMAC, nonce): only
- * `httpGet`/`httpPost`, the network edge, are replaced. The served snapshot is
- * the shared fixture's `snapshotPayload` (real shape, LIST resolver) signed with
- * a test platform key published in the served JWKS, with current dates and the
- * test agent's key appended at the end of the list. Tokens are really signed
- * (Ed25519, sodium).
+ * El `SnapshotClient` es el REAL de punta a punta (descarga, verificación con
+ * reintento del JWKS, caché de 5 min y de 24 h, cuerpo y HMAC de la capa 2,
+ * nonce): sólo se sustituyen `httpGet`/`httpPost`, el borde de red. El snapshot
+ * servido es el `snapshotPayload` del fixture compartido (forma real, resolver
+ * en LISTA) firmado con una clave de plataforma de prueba publicada en el JWKS
+ * servido, con las fechas al día y la clave del agente de prueba añadida al
+ * final de la lista. Los tokens se firman de verdad (Ed25519, sodium).
  *
- * PS global stubs are declared only if they do not exist: no test in the
- * phpunit.xml suites declares `\Cart`, `\Tools`, `\Currency`, `\Db`,
- * `\PrestaShopLogger` or `\PrestaShopException`, so they do not collide with
- * the bootstrap.
+ * Stubs globales de PS declarados sólo si no existen: ningún test de las
+ * suites de phpunit.xml declara `\Cart`, `\Tools`, `\Currency`, `\Db`,
+ * `\PrestaShopLogger` ni `\PrestaShopException` (comprobado 2026-09-30), así
+ * que no colisionan con el bootstrap.
  */
 
 namespace {
@@ -54,8 +55,14 @@ namespace {
             /** @var list<string> */
             public static array $executed = [];
 
-            /** @var list<string> read SQL received by getRow() */
+            /** @var list<string> SQL de lectura recibido por getRow() */
             public static array $queried = [];
+
+            /** @var array<string,mixed>|null Fila que devuelve getRow() (null = ninguna). */
+            public static ?array $rowToReturn = null;
+
+            /** Simula que execute() falla (columna ausente, error de BD). */
+            public static bool $executeFails = false;
 
             public static function getInstance(): self
             {
@@ -65,14 +72,14 @@ namespace {
             public function execute($sql): bool
             {
                 self::$executed[] = (string) $sql;
-                return true;
+                return !self::$executeFails;
             }
 
             /** @return array<string,mixed>|false */
             public function getRow($sql)
             {
                 self::$queried[] = (string) $sql;
-                return false;
+                return self::$rowToReturn ?? false;
             }
         }
     }
@@ -157,21 +164,21 @@ namespace Trusteed\Tests\Enforcement {
     use Trusteed\Enforcement\SnapshotClient;
     use Trusteed\Enforcement\ValidateOrderHook;
 
-    /** REAL client: only the network edge (`httpGet`/`httpPost`) is a test double. */
+    /** Cliente REAL: sólo el borde de red (`httpGet`/`httpPost`) es de prueba. */
     final class FlowNetSnapshotClient extends SnapshotClient
     {
         /** @var array{code:int,body:string,error:string} */
         public array $snapshotResponse = ['code' => 0, 'body' => '', 'error' => 'not set'];
-        /** @var list<array{code:int,body:string,error:string}> JWKS responses in order; the last one repeats. */
+        /** @var list<array{code:int,body:string,error:string}> Respuestas del JWKS en orden; la última se repite. */
         public array $jwksResponses = [];
         public int $jwksFetches = 0;
         public int $snapshotFetches = 0;
         public ?\Throwable $snapshotThrows = null;
-        /** Simulates the 24 h long cache not existing (without touching the 5 min one). */
+        /** Simula que la caché larga de 24 h no existe (sin tocar la de 5 min). */
         public bool $noLocalCache = false;
-        /** Fake clock of the JWKS negative cache (null = the real one). */
+        /** Reloj falso de la caché negativa del JWKS (null = el real). */
         public ?int $fakeNow = null;
-        /** Simulates the JWKS negative cache write failing. */
+        /** Simula que la escritura de la caché negativa del JWKS falla. */
         public bool $retryCacheWriteFails = false;
         /** @var array{code:int,body:string,error:string} */
         public array $evaluateResponse = ['code' => 200, 'body' => '{"decision":"ALLOW"}', 'error' => ''];
@@ -179,7 +186,7 @@ namespace Trusteed\Tests\Enforcement {
         public array $nonceResponse = ['code' => 200, 'body' => '{}', 'error' => ''];
         /** @var list<array{url:string,body:string}> */
         public array $posts = [];
-        /** @var list<string> Network calls no test expected. */
+        /** @var list<string> Llamadas de red que ningún test esperaba. */
         public array $unexpected = [];
 
         protected function httpGet(string $url, array $headers, int $timeout = 8): array
@@ -230,7 +237,7 @@ namespace Trusteed\Tests\Enforcement {
             return $this->noLocalCache ? null : parent::getLocalSnapshotCache();
         }
 
-        /** @return list<array<string,mixed>> Bodies sent to /v1/rules/evaluate. */
+        /** @return list<array<string,mixed>> Cuerpos enviados a /v1/rules/evaluate. */
         public function evaluateBodies(): array
         {
             return $this->bodiesTo('/v1/rules/evaluate');
@@ -307,17 +314,17 @@ namespace Trusteed\Tests\Enforcement {
             \Tools::$mockValues = [];
         }
 
-        // ── Harness ──────────────────────────────────────────────────────────
+        // ── Arnés ────────────────────────────────────────────────────────────
 
         protected static function realPayload(): array
         {
-            $path = __DIR__ . '/../fixtures/platform-flow-conformance.json';
+            $path = __DIR__ . '/../../../shared/src/enforcement/__fixtures__/platform-flow-conformance.json';
             $json = json_decode((string) file_get_contents($path), true);
-            self::assertIsArray($json, 'the conformance fixture must exist under tests/fixtures');
+            self::assertIsArray($json, 'el fixture tiene que ser alcanzable desde el monorepo (monta la raíz)');
             return $json['snapshotResolverShape']['snapshotPayload'];
         }
 
-        /** Real `snapshotPayload` + current dates + the test agent's key at the end of the LIST. */
+        /** `snapshotPayload` real + fechas al día + la clave del agente de prueba al final de la LISTA. */
         protected function payload(): array
         {
             $p = self::realPayload();
@@ -344,7 +351,7 @@ namespace Trusteed\Tests\Enforcement {
             $this->client->snapshotResponse = ['code' => 200, 'body' => $this->signSnapshot($this->payload()), 'error' => ''];
         }
 
-        /** Really signed and then altered: the served payload is no longer the signed one. */
+        /** Firmado de verdad y luego alterado: el payload servido ya no es el firmado. */
         protected function serveTamperedSnapshot(): void
         {
             [$h, , $s] = explode('.', $this->signSnapshot($this->payload()));
@@ -388,12 +395,12 @@ namespace Trusteed\Tests\Enforcement {
         }
 
         /**
-         * Ed25519 token bound to the stub's empty cart (ValidateOrderHook hash).
+         * Token Ed25519 ligado al carrito vacío del stub (hash de ValidateOrderHook).
          *
-         * @param array<string,mixed> $extraClaims Additional claims (e.g. agentTrustScore).
-         * @param array<string,mixed> $extraHeader Extra fields of the protected header (e.g. `crit`); signed all the same.
-         * @param list<string>        $dropClaims  Claims REMOVED from the payload (`['jti']` gives the exact shape
-         *                                         of the canonical test token generator: `nonce` without `jti`).
+         * @param array<string,mixed> $extraClaims Reclamaciones adicionales (p. ej. agentTrustScore).
+         * @param array<string,mixed> $extraHeader Campos extra de la cabecera protegida (p. ej. `crit`); firmada igual.
+         * @param list<string>        $dropClaims  Reclamaciones que se QUITAN del payload (B5: `['jti']` da la forma
+         *                                         exacta de generate-test-agent-token.ts, `nonce` sin `jti`).
          */
         protected function token(?string $secretKey = null, string $did = self::AGENT_DID, array $extraClaims = [], array $extraHeader = [], array $dropClaims = []): string
         {
@@ -436,7 +443,7 @@ namespace Trusteed\Tests\Enforcement {
             return count(array_filter(\PrestaShopLogger::$messages, static fn (string $m): bool => str_contains($m, $needle)));
         }
 
-        /** Runs the hook and returns the block message, or null if it passes. */
+        /** Ejecuta el hook y devuelve el mensaje del bloqueo, o null si pasa. */
         protected function outcome(): ?string
         {
             try {

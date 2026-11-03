@@ -9,7 +9,7 @@ if (!defined('_PS_VERSION_')) {
 use Trusteed\Discovery\UcpWellknownResolver;
 
 /**
- * Trusteed — UCP `.well-known` discovery front controller.
+ * Trusteed — UCP `.well-known` discovery front controller (ADR-077).
  *
  * Reachable via:
  *   index.php?fc=module&module=trusteed&controller=ucpwellknown

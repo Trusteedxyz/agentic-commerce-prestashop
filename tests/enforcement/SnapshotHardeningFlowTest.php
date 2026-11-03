@@ -3,17 +3,17 @@
 declare(strict_types=1);
 
 /**
- * Checks on the snapshot before trusting it.
+ * Plan 04 Task 29c (L3 y L6) — el snapshot antes de fiarse de él.
  *
- * - Negative cache (60 s, fake clock) of the forced JWKS retry: a snapshot that
- *   does not verify does not trigger a second download on every checkout.
- * - `validUntil` (served and in the 5 min copy).
- * - Body size limit before verifying.
- * - The `crit` header (RFC 7515) is rejected.
+ * - L3: caché negativa (60 s, reloj falso) del reintento forzado del JWKS: un
+ *   snapshot que no verifica no provoca una segunda descarga en cada checkout.
+ * - L6a: `validUntil` (servido y en la copia de 5 min).
+ * - L6b: tope de tamaño del cuerpo antes de verificar.
+ * - L6c: la cabecera `crit` (RFC 7515) se rechaza.
  *
- * REAL SnapshotClient; only the network edge and the negative-cache clock are
- * test doubles. Harness: ValidateOrderHookFlowHarness.php. The real cURL read
- * is covered in SnapshotClientResponseLimitTest.
+ * SnapshotClient REAL; sólo el borde de red y el reloj de la caché negativa son
+ * de prueba. Arnés: ValidateOrderHookFlowHarness.php. La lectura real por cURL
+ * está en SnapshotClientResponseLimitTest.
  */
 
 namespace Trusteed\Tests\Enforcement;
@@ -35,7 +35,7 @@ final class SnapshotHardeningFlowTest extends ValidateOrderHookFlowTestCase
         return [$r['status'], $r['jws']];
     }
 
-    // ── negative cache of the forced retry ─────────────────────────────────
+    // ── L3: caché negativa del reintento forzado ───────────────────────────
 
     public function testTheForcedJwksRetryIsNotRepeatedWithinTheNegativeWindow(): void
     {
@@ -71,7 +71,7 @@ final class SnapshotHardeningFlowTest extends ValidateOrderHookFlowTestCase
 
     public function testAnotherKidInsideTheWindowStillGetsItsForcedRetry(): void
     {
-        // Real rotation right after a failure: the new `kid` does not inherit the verdict.
+        // Rotación real justo después de un fallo: el `kid` nuevo no hereda el veredicto.
         $rotated = sodium_crypto_sign_keypair();
         $rotatedX = SnapshotClient::base64UrlEncode(sodium_crypto_sign_publickey($rotated));
         $old = $this->jwks([self::SNAP_KID => $this->platformPublicX]);
@@ -99,14 +99,14 @@ final class SnapshotHardeningFlowTest extends ValidateOrderHookFlowTestCase
         self::assertSame(SnapshotClient::PULL_UNAVAILABLE, $this->pull(self::T0 + 20)[0]);
         self::assertSame(2, $this->client->jwksFetches, 'ni la descarga normal se repite: el JWKS no responde');
 
-        // The JWKS comes back and the window expires: it recovers on its own.
+        // Vuelve el JWKS y vence la ventana: se recupera solo.
         $this->client->jwksResponses = [$this->jwks([self::SNAP_KID => $this->platformPublicX])];
         self::assertSame(SnapshotClient::PULL_OK, $this->pull(self::T0 + 61)[0]);
     }
 
     public function testAJwksThatVerifiesIsNeverBlockedByTheNegativeCache(): void
     {
-        // A recent failure (tampered), then the good snapshot with the key already cached.
+        // Un fallo reciente (manipulado) y a continuación el snapshot bueno con la clave ya en caché.
         $this->serveTamperedSnapshot();
         self::assertSame(SnapshotClient::PULL_TAMPERED, $this->pull(self::T0)[0]);
         $this->serveSnapshot();
@@ -124,7 +124,7 @@ final class SnapshotHardeningFlowTest extends ValidateOrderHookFlowTestCase
         self::assertSame(3, $this->client->jwksFetches, 'sin caché negativa reintenta, como antes (1 + 1 + 1)');
     }
 
-    // ── validUntil ─────────────────────────────────────────────────────────
+    // ── L6a: validUntil ────────────────────────────────────────────────────
 
     public function testAServedSnapshotWhoseValidUntilPassedIsUnavailable(): void
     {
@@ -136,12 +136,12 @@ final class SnapshotHardeningFlowTest extends ValidateOrderHookFlowTestCase
         $this->presentToken($this->token());
         $msg = $this->outcome();
         self::assertNotNull($msg, 'con token y sin snapshot vigente: retenido');
-        self::assertStringContainsString('snapshot_pull_failed', (string) $msg);
+        self::assertStringContainsString('checks_unavailable', (string) $msg);
     }
 
     public function testACachedSnapshotWhoseValidUntilPassedIsNotServed(): void
     {
-        // The test store does not expire by TTL: only the snapshot's own `validUntil` can stop it.
+        // El almacén de pruebas no caduca por TTL: sólo el `validUntil` propio puede pararla.
         $expired = array_merge($this->payload(), ['validUntil' => gmdate('Y-m-d\TH:i:s\Z', time() - 10)]);
         $mem = new \ReflectionProperty(SnapshotClient::class, 'memCache');
         $mem->setValue(null, ['trusteed_cel_snap_' . substr($this->merchantId, 0, 8) => $this->signSnapshot($expired)]);
@@ -163,11 +163,11 @@ final class SnapshotHardeningFlowTest extends ValidateOrderHookFlowTestCase
     }
 
     /**
-     * A snapshot signed by our server ALWAYS carries an ISO `validUntil`.
-     * Missing or unreadable means a malformed payload: "unavailable" (like an
-     * expired one), never "tampered" (the signature verified) and never served.
+     * Un snapshot firmado por nuestro servidor SIEMPRE lleva `validUntil` ISO.
+     * Ausente o ilegible es payload malformado: «no disponible» (como el
+     * caducado), nunca «manipulado» (la firma verificó) y nunca servido.
      *
-     * @return array<string,array{0:bool,1:mixed}> [is it missing?, value]
+     * @return array<string,array{0:bool,1:mixed}> [¿ausente?, valor]
      */
     public static function unusableValidUntil(): array
     {
@@ -234,7 +234,7 @@ final class SnapshotHardeningFlowTest extends ValidateOrderHookFlowTestCase
 
     public function testTheLocalOfflineCopyWithAReadableFutureValidUntilIsStillServed(): void
     {
-        // Control: the same path with a good validUntil does serve the copy.
+        // Control: la misma ruta con un validUntil bueno sí sirve la copia.
         $this->client->seedLocalSnapshotCache($this->signSnapshot($this->payload()), time() - 10);
 
         self::assertNotNull($this->client->getLocalSnapshotCache());
@@ -250,15 +250,15 @@ final class SnapshotHardeningFlowTest extends ValidateOrderHookFlowTestCase
         $msg = $this->outcome();
 
         self::assertNotNull($msg, 'con token y sin snapshot utilizable: retenido');
-        self::assertStringContainsString('snapshot_pull_failed', (string) $msg);
+        self::assertStringContainsString('checks_unavailable', (string) $msg);
         self::assertStringNotContainsString('CEL-SNAPSHOT-INVALID', (string) $msg, 'no es manipulación');
     }
 
-    // ── size limit ─────────────────────────────────────────────────────────
+    // ── L6b: tope de tamaño ────────────────────────────────────────────────
 
     public function testAnOversizedBodyIsUnavailableWithoutBeingVerified(): void
     {
-        // Over 4 MiB of garbage: if it were verified it would be "tampered" (it has no JWS shape).
+        // Basura de más de 4 MiB: si se verificara sería «tampered» (no tiene forma de JWS).
         $this->client->snapshotResponse = ['code' => 200, 'body' => str_repeat('a', SnapshotClient::MAX_RESPONSE_BYTES + 1), 'error' => ''];
 
         [$status, $jws] = $this->pull(self::T0);
@@ -272,11 +272,11 @@ final class SnapshotHardeningFlowTest extends ValidateOrderHookFlowTestCase
     {
         $this->client->snapshotResponse = ['code' => 200, 'body' => str_repeat('a', SnapshotClient::MAX_RESPONSE_BYTES), 'error' => ''];
 
-        // Within the limit it is examined (and has no JWS shape: tampered, not "too large").
+        // Dentro del tope sí se examina (y no tiene forma de JWS: manipulado, no «demasiado grande»).
         self::assertSame(SnapshotClient::PULL_TAMPERED, $this->pull(self::T0)[0]);
     }
 
-    // ── crit ───────────────────────────────────────────────────────────────
+    // ── L6c: crit ──────────────────────────────────────────────────────────
 
     /** @param array<string,mixed> $header */
     private function signWithHeader(array $header): string
@@ -291,7 +291,7 @@ final class SnapshotHardeningFlowTest extends ValidateOrderHookFlowTestCase
     {
         $base = ['alg' => 'EdDSA', 'kid' => self::SNAP_KID];
 
-        // Control: the same signature without `crit` verifies.
+        // Control: la misma firma sin `crit` verifica.
         $this->client->snapshotResponse = ['code' => 200, 'body' => $this->signWithHeader($base), 'error' => ''];
         self::assertSame(SnapshotClient::PULL_OK, $this->pull(self::T0)[0]);
 

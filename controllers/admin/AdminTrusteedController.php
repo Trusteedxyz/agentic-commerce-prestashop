@@ -41,27 +41,9 @@ class AdminTrusteedController extends ModuleAdminController
         'mis-reglas',
         'seguridad',
         'agentes',
-        // �� sin esta entrada `resolveSection()` caía a 'inicio' en
+        // Spec 065 F1 — sin esta entrada `resolveSection()` caía a 'inicio' en
         // silencio: el comerciante entraba por «Agent Readiness» y veía Home.
         'agent-readiness',
-    ];
-
-    /** Hostnames permitidos para el API base en producción (S042-004 SSRF allowlist). */
-    private const ALLOWED_API_HOSTS = [
-        'api.trusteed.xyz',
-        'agenticmcpstores-production.up.railway.app',
-        'staging-api.trusteed.xyz',
-    ];
-
-    /** IPs/hosts privados permitidos sólo en entornos de desarrollo (HTTP sin TLS). */
-    private const DEV_API_HOSTS = [
-        'localhost',
-        '127.0.0.1',
-        '172.17.0.1',
-        '172.18.0.1',
-        '172.20.0.1',
-        'host.docker.internal',
-        '38.242.232.176',
     ];
 
     public function __construct()
@@ -155,6 +137,13 @@ class AdminTrusteedController extends ModuleAdminController
      */
     public function ajaxProcessToken(): void
     {
+        // SEC-184: el token de panel puede escribir (aprobar retenidos, cambiar
+        // reglas); basta con leer la pestaña NO es suficiente. Cierra por defecto
+        // si el framework no ofrece `access()`.
+        if (!method_exists($this, 'access') || !$this->access('edit')) {
+            $this->sendJsonResponse(['error' => 'forbidden']);
+        }
+
         if (!$this->hasBootstrapSecret()) {
             $this->sendJsonResponse(['error' => 'not_configured']);
         }
@@ -191,6 +180,73 @@ class AdminTrusteedController extends ModuleAdminController
         $endpoint = rtrim($apiBase, '/') . '/v1/embed/ps/issue-token';
         $result   = $this->remotePost($endpoint, $secret, $merchantId, (string) $employeeId, $allowedShops, $isSuperAdmin);
         $this->sendJsonResponse($result);
+    }
+
+    // ─── Sincronizar la cuenta PayPal del módulo `paypal` (plan 2026-10-12, F4.1) ───
+
+    /**
+     * Estado de la sincronización de PayPal para la tienda actual (sin secreto).
+     *
+     * GET /index.php?controller=AdminTrusteed&ajax=1&action=paypalSyncStatus&token={ps_token}
+     */
+    public function ajaxProcessPaypalSyncStatus(): void
+    {
+        $service = $this->paypalSyncService();
+        $idShop = $this->currentShopId();
+        $this->sendJsonResponse(
+            $service->describe(\Trusteed\Service\PayPalSync\PayPalSyncFactory::shopGroupOf($idShop), $idShop)
+        );
+    }
+
+    /**
+     * Activa la sincronización y entrega las credenciales de la tienda actual.
+     * Con `disable=1` la desactiva (no desconecta en la plataforma).
+     *
+     * POST /index.php?controller=AdminTrusteed&ajax=1&action=paypalSync&token={ps_token}
+     */
+    public function ajaxProcessPaypalSync(): void
+    {
+        $service = $this->paypalSyncService(true);
+        $idShop = $this->currentShopId();
+        $idGroup = \Trusteed\Service\PayPalSync\PayPalSyncFactory::shopGroupOf($idShop);
+
+        if ((string) \Tools::getValue('disable') === '1') {
+            $service->disable($idGroup, $idShop);
+            $this->sendJsonResponse($service->describe($idGroup, $idShop));
+        }
+
+        $this->sendJsonResponse($service->sync($idGroup, $idShop));
+    }
+
+    /**
+     * Valida permiso y token y devuelve el servicio. Corta la petición si no.
+     * Las acciones que escriben (`$write`) exigen POST y permiso de edición.
+     */
+    private function paypalSyncService(bool $write = false): \Trusteed\Service\PayPalSync\PayPalSyncService
+    {
+        if ($write && strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? '')) !== 'POST') {
+            $this->sendJsonResponse(['ok' => false, 'code' => 'method_not_allowed']);
+        }
+        // SIN VERIFICAR: que el framework ya compruebe el token en peticiones
+        // AJAX; se comprueba aquí de forma explícita.
+        $token = (string) \Tools::getValue('token');
+        if ($token === '' || !hash_equals((string) $this->token, $token)) {
+            $this->sendJsonResponse(['ok' => false, 'code' => 'invalid_token']);
+        }
+        if ($write && method_exists($this, 'access') && !$this->access('edit')) {
+            $this->sendJsonResponse(['ok' => false, 'code' => 'forbidden']);
+        }
+        $service = \Trusteed\Service\PayPalSync\PayPalSyncFactory::build();
+        if ($service === null) {
+            $this->sendJsonResponse(['ok' => false, 'code' => 'no_employee_context']);
+        }
+
+        return $service;
+    }
+
+    private function currentShopId(): int
+    {
+        return (int) ($this->context->shop->id ?? 0);
     }
 
     /**
@@ -429,22 +485,12 @@ class AdminTrusteedController extends ModuleAdminController
 
     /**
      * Comprueba que el API base URL está en el allowlist (S042-004 SSRF guard).
+     * Solo se usa antes de enviar el secreto S2S, así que exige HTTPS a hosts de
+     * Trusteed (SEC-219): nunca los hosts de desarrollo por HTTP.
      */
     private function isAllowedApiBase(string $url): bool
     {
-        $host = parse_url($url, \PHP_URL_HOST);
-        if (!is_string($host)) {
-            return false;
-        }
-        // Producción: sólo HTTPS con hosts conocidos
-        if (str_starts_with($url, 'https://')) {
-            return in_array($host, self::ALLOWED_API_HOSTS, true);
-        }
-        // Desarrollo local: HTTP permitido sólo para IPs/hosts privados
-        if (str_starts_with($url, 'http://')) {
-            return in_array($host, self::DEV_API_HOSTS, true);
-        }
-        return false;
+        return \Trusteed\Service\ApiBaseAllowlist::isAllowedForSecrets($url);
     }
 
     /**

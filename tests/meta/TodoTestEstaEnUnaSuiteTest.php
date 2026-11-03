@@ -3,21 +3,22 @@
 declare(strict_types=1);
 
 /**
- * Gate: every `*Test.php` in this module is in some phpunit.xml suite, or is
- * listed here as an exception with its reason.
+ * Gate — todo `*Test.php` de este módulo está en alguna suite de phpunit.xml,
+ * o figura aquí como excepción con su motivo.
  *
- * WHY: `tests/hooks` existed but was not in phpunit.xml, so its tests ran
- * nowhere, and two of them had been erroring for a while unnoticed. A test that
- * does not run is not a test, and whatever leaves it out gives no warning:
- * `phpunit` does not complain about a file nobody asked it to run.
+ * POR QUÉ (lote R2, auditoría agent-readiness 2026-09-26). `tests/hooks` —la red
+ * del arreglo A4, sin la cual PrestaShop sale «cumple el 100 %» en C16— existía
+ * y no estaba en phpunit.xml: sus tests no corrían en ningún sitio, y dos de
+ * ellos llevaban tiempo dando error sin que nadie lo viera. Un test que no
+ * corre no es un test, y lo que lo deja fuera no avisa: `phpunit` no se queja
+ * de un fichero que nadie le ha pedido ejecutar.
  *
- * HOW phpunit.xml IS READ: the `<directory>` entries (with the default
- * `Test.php` suffix) and the `<file>` entries of every `<testsuite>`. A
- * `*Test.php` that falls under none of them and is not in EXCEPCIONES fails
- * this test.
+ * CÓMO SE LEE phpunit.xml: las entradas `<directory>` (con el sufijo por
+ * defecto `Test.php`) y `<file>` de todas las `<testsuite>`. Un `*Test.php` que
+ * no cae bajo ninguna y no está en EXCEPCIONES pone este test en rojo.
  *
- * Anti-rot: an exception whose file is already in a suite, or no longer
- * exists, also fails. The list has to shrink, not accumulate.
+ * Anti-podredumbre: una excepción cuyo fichero ya está en una suite, o ya no
+ * existe, también lo pone en rojo. La lista tiene que encoger, no acumular.
  */
 
 namespace Trusteed\Tests\Meta;
@@ -32,8 +33,8 @@ final class TodoTestEstaEnUnaSuiteTest extends TestCase
         . 'stubs. Mismo motivo que ya documentaba phpunit.xml para tests/enforcement.';
 
     /**
-     * Files deliberately outside every suite, with the reason. Path relative to
-     * the module root.
+     * Ficheros fuera de toda suite A PROPÓSITO, con el motivo. Ruta relativa a
+     * la raíz del módulo.
      *
      * @var array<string,string>
      */
@@ -57,8 +58,8 @@ final class TodoTestEstaEnUnaSuiteTest extends TestCase
         'tests/enforcement/ValidateOrderHookPs9BlockAttemptTest.php' => self::COLISION_DE_STUBS,
         'tests/enforcement/ValidateOrderHookTest.php' => self::COLISION_DE_STUBS,
         'tests/hmac/JcsCanonicalizeTest.php' =>
-            'It dies with a fatal error when run (measured on PHP 8.2). '
-            . 'Fix it before adding it to a suite instead of registering it broken.',
+            'Al ejecutarlo revienta con un error fatal (medido 2026-09-26 con PHP 8.2). '
+            . 'Hay que arreglarlo antes de meterlo en una suite, no meterlo roto.',
     ];
 
     private static function raiz(): string
@@ -122,9 +123,9 @@ final class TodoTestEstaEnUnaSuiteTest extends TestCase
 
     public function testElLectorVeDeVerdadLasSuites(): void
     {
-        // If the xml reader stopped seeing entries, the gate below would report
-        // everything as NOT covered or, after a format change, nothing as
-        // covered. This keeps the gate from switching itself off.
+        // Si el lector del xml dejara de ver entradas, el gate de abajo daría
+        // por NO cubierto todo… o, con un cambio de formato, por cubierto nada.
+        // Esto impide que se apague solo.
         $entradas = self::entradasDelXml();
         self::assertContains('tests/hooks/', $entradas['directorios']);
         self::assertGreaterThan(20, count(self::ficherosDeTest()));

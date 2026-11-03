@@ -3,15 +3,15 @@
 declare(strict_types=1);
 
 /**
- * Gate: no block in src/ may be thrown as a bare `\PrestaShopException`.
+ * Gate — ningún bloqueo de src/ se lanza como `\PrestaShopException` a secas.
  *
- * WHY: the order check tells our verdicts
- * ({@see \Trusteed\Enforcement\CelVerdictException}) apart from faults. A
- * `\PrestaShopException` from the core is treated as our own fault (a human
- * passes, an agent is held with CEL-INTERNAL-ERROR). If a new block were thrown
- * as a `\PrestaShopException`, it would be read as a fault and let through a
- * human the merchant meant to stop (an R030 cap, a country, ...), with no
- * visible error.
+ * POR QUÉ (plan 04, Task 26). El chequeo del pedido distingue nuestros
+ * veredictos ({@see \Trusteed\Enforcement\CelVerdictException}) de las averías:
+ * una `\PrestaShopException` del núcleo se trata como avería propia (un humano
+ * pasa, un agente se retiene con CEL-INTERNAL-ERROR). Si un bloqueo nuevo se
+ * lanzara como `\PrestaShopException`, se leería como avería y dejaría pasar a
+ * un humano que el comerciante quería parar (un tope R030, un país…), sin ningún
+ * error visible.
  */
 
 namespace Trusteed\Tests\Meta;
@@ -45,7 +45,7 @@ final class NingunBloqueoLanzaPrestaShopExceptionTest extends TestCase
         foreach ($fuentes as $ruta) {
             $codigo = '';
             foreach (token_get_all((string) file_get_contents($ruta)) as $tok) {
-                // Code only: comments and docblocks may mention it.
+                // Sólo código: los comentarios y docblocks pueden nombrarla.
                 if (is_array($tok) && in_array($tok[0], [T_COMMENT, T_DOC_COMMENT], true)) {
                     continue;
                 }

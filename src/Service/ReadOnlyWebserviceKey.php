@@ -5,23 +5,23 @@ declare(strict_types=1);
 namespace Trusteed\Service;
 
 /**
- * Definition of the READ-only Webservice key the merchant can authorize from
- * the module screen.
+ * Definición de la clave de LECTURA del Webservice que el comerciante puede
+ * autorizar desde la pantalla del módulo.
  *
- * It is the single source of "what is granted": the consent text, the key
- * creation and the tests all use it. That way the merchant cannot accept one
- * list and receive another.
+ * Es la única fuente de «qué se concede»: la usan el texto de consentimiento,
+ * la creación de la clave y los tests. Así el comerciante no puede aceptar una
+ * lista y recibir otra.
  */
 final class ReadOnlyWebserviceKey
 {
-    /** What the merchant will see under Advanced Parameters > Webservice. */
+    /** Lo que el comerciante verá en Parámetros avanzados > Webservice. */
     public const DESCRIPTION = 'Trusteed read-only';
 
     /**
-     * The minimum the PrestaShop connector reads to compare the catalog agents
-     * see (price, stock, variants, brand, category, currency, taxes). No
-     * customers, addresses, orders or carts. All thirteen exist in
-     * `WebserviceRequest::getResources()` in 1.7.8 and 8.1.
+     * Lo mínimo que lee el conector de PrestaShop para contrastar el catálogo
+     * que ven los agentes (precio, stock, variantes, marca, categoría, moneda,
+     * impuestos). Ni clientes, ni direcciones, ni pedidos, ni carritos.
+     * Los trece existen en `WebserviceRequest::getResources()` de 1.7.8 y 8.1.
      */
     public const RESOURCES = [
         'products',
@@ -43,8 +43,8 @@ final class ReadOnlyWebserviceKey
     private const LENGTH = 32;
 
     /**
-     * Shape of `WebserviceKey::setPermissionForAccount()`: resource => map whose
-     * KEYS are the methods (the core does `array_keys($resource_methods)`).
+     * Forma de `WebserviceKey::setPermissionForAccount()`: recurso → mapa cuyas
+     * CLAVES son los métodos (el core hace `array_keys($resource_methods)`).
      *
      * @return array<string, array<string, int>>
      */
@@ -59,9 +59,9 @@ final class ReadOnlyWebserviceKey
     }
 
     /**
-     * 32 characters [A-Z0-9] from `random_int` (CSPRNG). `Tools::passwdGen` is
-     * not used: its implementation differs between 1.7 and 8, and the backend
-     * requires uppercase, which `ALPHANUMERIC` does not guarantee.
+     * 32 caracteres [A-Z0-9] con `random_int` (CSPRNG). No se usa
+     * `Tools::passwdGen`: su implementación cambia entre 1.7 y 8 y el backend
+     * exige mayúsculas, que `ALPHANUMERIC` no garantiza.
      */
     public static function generate(): string
     {

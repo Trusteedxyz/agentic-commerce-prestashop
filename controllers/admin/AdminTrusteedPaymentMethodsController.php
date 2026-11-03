@@ -3,13 +3,13 @@
 declare(strict_types=1);
 
 /**
- * AdminTrusteedPaymentMethodsController: "Payment methods" menu entry.
+ * AdminTrusteedPaymentMethodsController — entrada «Métodos de pago» del menú.
  *
- * Up to 2.3.2 "payment-methods" was only reachable as a Merchant Center tab.
- * The unified menu promotes it to its own entry. The SPA already knows the
- * section and `AdminTrusteedController::ALLOWED_SECTIONS` already allows it, so
- * this controller adds no logic: it only sets the default section, like the
- * other AdminTrusteed*Controller classes.
+ * Hasta 2.3.2 «payment-methods» sólo se alcanzaba como pestaña de Merchant Center.
+ * El menú unificado (diseño 2026-10-03 §4) lo promueve a entrada propia; la SPA ya
+ * conoce la sección y `AdminTrusteedController::ALLOWED_SECTIONS` ya la admite, así
+ * que este controlador no añade lógica: sólo fija la sección por defecto, igual que
+ * los demás AdminTrusteed*Controller.
  *
  * @package Trusteed
  */

@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * McpNoAuthDetectorTest — PHPUnit 10 tests for PrestaShop
+ * McpNoAuthDetectorTest — PHPUnit 10 tests for spec-048 W1.1 PrestaShop
  * MCP "No-Auth" mode detector (src/Enforcement/McpNoAuthDetector.php).
  *
  * PrestaShop 9.x ships the official MCP server addon (ps_mcp_server, addon
@@ -287,6 +287,31 @@ namespace Trusteed\Tests\Enforcement {
                 McpNoAuthDetector::hasPendingNotice(),
                 'acknowledge must clear the pending notice'
             );
+        }
+
+        public function testAcknowledgedNoticeIsNotRaisedAgainUntilPostureRecovers(): void
+        {
+            \Configuration::set('TRUSTEED_CEL_FALLBACK_MODE', 'balanced');
+            \Configuration::set('PS_MCP_SERVER_AUTH_MODE', 'none');
+            $detector = new McpNoAuthDetector();
+            $detector->detect(true);
+            McpNoAuthDetector::acknowledgeNotice();
+
+            $detector->detect(true); // next back-office page load
+            $this->assertFalse(McpNoAuthDetector::hasPendingNotice(), 'ack must be respected');
+
+            // An UNKNOWN posture (other shop of a multishop) must not re-arm the notice.
+            \Configuration::set('PS_MCP_SERVER_AUTH_MODE', 'weird-value');
+            $detector->detect(true);
+            \Configuration::set('PS_MCP_SERVER_AUTH_MODE', 'none');
+            $detector->detect(true);
+            $this->assertFalse(McpNoAuthDetector::hasPendingNotice(), 'UNKNOWN must not reset');
+
+            \Configuration::set('PS_MCP_SERVER_AUTH_MODE', 'token');
+            $detector->detect(true);
+            \Configuration::set('PS_MCP_SERVER_AUTH_MODE', 'none');
+            $detector->detect(true);
+            $this->assertTrue(McpNoAuthDetector::hasPendingNotice(), 'a regression re-notifies');
         }
 
         public function testAdminBannerStringMentionsNoAuth(): void

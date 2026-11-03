@@ -18,7 +18,7 @@ if (!defined('_PS_VERSION_')) {
  *  - TRUSTEED_CEL_ENABLED          (checkbox)
  *  - TRUSTEED_CEL_MERCHANT_ID      (text)
  *  - TRUSTEED_CEL_INSTALLATION_ID  (text)
- *  - TRUSTEED_CEL_HMAC_SECRET      (password, never echoed back)
+ *  - TRUSTEED_CEL_HMAC_SECRET      (password — never echoed back)
  *  - TRUSTEED_CEL_FALLBACK_MODE    (select: strict|balanced|permissive)
  *
  * @package Trusteed\Enforcement
@@ -102,7 +102,7 @@ class AdminSettings
             \Configuration::updateValue('TRUSTEED_CEL_INSTALLATION_ID', $installationId);
         }
 
-        // HMAC secret: only update when explicitly provided (never echo back)
+        // HMAC secret — only update when explicitly provided (never echo back)
         $hmacSecret = trim((string) \Tools::getValue('TRUSTEED_CEL_HMAC_SECRET'));
         if ($hmacSecret !== '') {
             \Configuration::updateValue('TRUSTEED_CEL_HMAC_SECRET', $hmacSecret);
@@ -111,6 +111,16 @@ class AdminSettings
         $fallbackMode = (string) \Tools::getValue('TRUSTEED_CEL_FALLBACK_MODE');
         if (in_array($fallbackMode, ['strict', 'balanced', 'permissive'], true)) {
             \Configuration::updateValue('TRUSTEED_CEL_FALLBACK_MODE', $fallbackMode);
+        }
+
+        $browserMode = (string) \Tools::getValue(BrowserAgentSignature::CONFIG_MODE);
+        if (in_array($browserMode, BrowserAgentSignature::MODES, true)) {
+            \Configuration::updateValue(BrowserAgentSignature::CONFIG_MODE, $browserMode);
+        }
+
+        $webmcp = (string) \Tools::getValue(WebmcpCheckout::CONFIG);
+        if (in_array($webmcp, ['off', 'on'], true)) {
+            \Configuration::updateValue(WebmcpCheckout::CONFIG, $webmcp);
         }
 
         return $this->module->displayConfirmation(
@@ -212,6 +222,44 @@ class AdminSettings
                             'name' => 'name',
                         ],
                     ],
+                    [
+                        'type'    => 'select',
+                        'label'   => $this->module->l('Browser agent signature (RFC 9421)'),
+                        'name'    => BrowserAgentSignature::CONFIG_MODE,
+                        'desc'    => $this->module->l(
+                            'Verifies the Web Bot Auth signature of an AI agent that buys by browsing. '
+                            . 'observe: verify and log only. '
+                            . 'enforce: a verified agent is identified, a spoofed signature is treated as an anonymous agent. '
+                            . 'A verification failure never changes the classification.'
+                        ),
+                        'options' => [
+                            'query' => [
+                                ['id' => 'off',     'name' => $this->module->l('Off')],
+                                ['id' => 'observe', 'name' => $this->module->l('Observe (default)')],
+                                ['id' => 'enforce', 'name' => $this->module->l('Enforce')],
+                            ],
+                            'id'   => 'id',
+                            'name' => 'name',
+                        ],
+                    ],
+                    [
+                        'type'    => 'select',
+                        'label'   => $this->module->l('WebMCP checkout tools'),
+                        'name'    => WebmcpCheckout::CONFIG,
+                        'desc'    => $this->module->l(
+                            'Exposes get/update/complete checkout tools to browser agents on the checkout page. '
+                            . 'They never place an order: the buyer confirms in the checkout. '
+                            . 'A cart operated through them is treated as an agent checkout by your rules.'
+                        ),
+                        'options' => [
+                            'query' => [
+                                ['id' => 'off', 'name' => $this->module->l('Off (default)')],
+                                ['id' => 'on',  'name' => $this->module->l('On')],
+                            ],
+                            'id'   => 'id',
+                            'name' => 'name',
+                        ],
+                    ],
                 ],
                 'submit' => [
                     'title' => $this->module->l('Save CEL Settings'),
@@ -248,9 +296,11 @@ class AdminSettings
             'TRUSTEED_CEL_MERCHANT_ID'     => \Configuration::get('TRUSTEED_CEL_MERCHANT_ID'),
             'TRUSTEED_CEL_INSTALLATION_ID' => \Configuration::get('TRUSTEED_CEL_INSTALLATION_ID'),
             'TRUSTEED_CEL_HMAC_SECRET'     => '', // Never echo secret back to browser
-            // The mode the module actually applies (MerchantResolver: missing or
-            // unrecognized falls back to strict), not a `balanced` that is not in force.
+            // El modo que APLICA el módulo (MerchantResolver: ausente o no
+            // reconocido ⇒ strict), no un `balanced` que no rige.
             'TRUSTEED_CEL_FALLBACK_MODE'   => MerchantResolver::getFallbackMode(),
+            BrowserAgentSignature::CONFIG_MODE => (new BrowserAgentSignature())->mode(),
+            WebmcpCheckout::CONFIG => WebmcpCheckout::isOn((string) \Configuration::get(WebmcpCheckout::CONFIG)) ? 'on' : 'off',
         ];
 
         return $helper->generateForm([$fieldsForm]);
@@ -259,7 +309,7 @@ class AdminSettings
     /**
      * Fetch enforcement stats from the Trusteed API and render an HTML summary.
      *
-     * Non-critical path: returns a graceful degradation message on any error.
+     * Non-critical path — returns a graceful degradation message on any error.
      * Uses cURL consistent with SnapshotClient to avoid wp_remote_get dependency.
      */
     private function renderStatsBlock(): string

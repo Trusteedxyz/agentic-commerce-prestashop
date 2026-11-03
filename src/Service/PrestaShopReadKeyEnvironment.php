@@ -9,26 +9,25 @@ if (!defined('_PS_VERSION_')) {
 }
 
 /**
- * Real implementation of `ReadKeyEnvironment` on top of the core classes.
+ * Implementación real de `ReadKeyEnvironment` sobre las clases del core.
  *
- * Checked against the PrestaShop 1.7.8.11 and 8.1.7 code:
- *  - `WebserviceKey` is an ObjectModel over `webservice_account`, associated
- *    with shops (`Shop::$asso_tables['webservice_account'] = type shop`).
- *    `add()` inserts into `webservice_account_shop` the shops in
- *    `id_shop_list` or, if empty, ALL shops in the context;
- *    `WebserviceRequest::shopHasRight()` answers 403 for a key with no row for
- *    the requested shop. That is why `id_shop_list` is set to the registered
- *    shop: one shop in a multistore setup does not grant read access to the
- *    others.
- *  - `setPermissionForAccount($id, ['products' => ['GET' => 1], ...])` reads
- *    the KEYS of each resource as methods and discards unknown resources.
- *  - `delete()` also deletes `webservice_permission` and the `id_shop_list`
- *    associations; the main row only goes if no associations remain, so all
- *    shops are passed on revoke.
- *  - Note: the core `add()` and `delete()` write the key VALUE to the
- *    PrestaShop log ("Webservice key created: %s"). The same audience can
- *    already see it under Advanced Parameters > Webservice; the module does not
- *    log it anywhere else.
+ * Verificado contra el código de PrestaShop 1.7.8.11 y 8.1.7:
+ *  - `WebserviceKey` es un ObjectModel sobre `webservice_account` asociado a
+ *    tienda (`Shop::$asso_tables['webservice_account'] = type shop`). `add()`
+ *    inserta en `webservice_account_shop` las tiendas de `id_shop_list` o, si
+ *    está vacío, TODAS las del contexto; `WebserviceRequest::shopHasRight()`
+ *    rechaza con 403 una clave sin fila para la tienda pedida. Por eso se fija
+ *    `id_shop_list` a la tienda registrada: una tienda de un multitienda no
+ *    concede lectura sobre las demás.
+ *  - `setPermissionForAccount($id, ['products' => ['GET' => 1], …])` lee las
+ *    CLAVES de cada recurso como métodos y descarta recursos desconocidos.
+ *  - `delete()` borra también `webservice_permission` y las asociaciones de
+ *    `id_shop_list`; la fila principal sólo si no quedan asociaciones, así que
+ *    al revocar se pasan todas las tiendas.
+ *  - Ojo: `add()` y `delete()` del core escriben el VALOR de la clave en el
+ *    registro de PrestaShop («Webservice key created: %s»). Es el mismo público
+ *    que ya la ve en Parámetros avanzados > Webservice; el módulo no la
+ *    registra en ningún otro sitio.
  */
 final class PrestaShopReadKeyEnvironment implements ReadKeyEnvironment
 {
@@ -48,8 +47,8 @@ final class PrestaShopReadKeyEnvironment implements ReadKeyEnvironment
 
     public function enableWebservice(): void
     {
-        // Scope to the registered shop, not global: the consent is for this
-        // shop. Without multistore, `updateValue` falls back to global scope.
+        // Ámbito de la tienda registrada, no global: el consentimiento es de
+        // esta tienda. Sin multitienda, `updateValue` cae al ámbito global.
         \Configuration::updateValue('PS_WEBSERVICE', 1, false, $this->shopGroupId, $this->shopId);
     }
 
@@ -66,15 +65,15 @@ final class PrestaShopReadKeyEnvironment implements ReadKeyEnvironment
         $account->active = true;
         $account->id_shop_list = [$this->shopId];
 
-        // `add()` returns false if the key already exists (collision: 36^32,
-        // not retried).
+        // `add()` devuelve false si la clave ya existe (colisión: 36^32, no
+        // se reintenta).
         if (!$account->add()) {
             return 0;
         }
 
         $id = (int) $account->id;
         if (!\WebserviceKey::setPermissionForAccount($id, $permissions)) {
-            // An account without the right permissions is not left half created.
+            // Una cuenta sin permisos correctos no se deja a medias.
             $this->deleteKey($id);
 
             return 0;
@@ -89,8 +88,8 @@ final class PrestaShopReadKeyEnvironment implements ReadKeyEnvironment
         if (!\Validate::isLoadedObject($account)) {
             return true;
         }
-        // Never delete a key that is not ours: if the merchant deleted ours and
-        // the id was reused, the stored id points at another account.
+        // Nunca borrar una clave que no es nuestra: si el comerciante borró la
+        // suya y el id se reutilizó, el id guardado apunta a otra cuenta.
         if ((string) $account->description !== ReadOnlyWebserviceKey::DESCRIPTION) {
             return true;
         }

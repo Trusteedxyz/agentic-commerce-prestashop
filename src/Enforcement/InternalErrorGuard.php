@@ -5,16 +5,17 @@ declare(strict_types=1);
 namespace Trusteed\Enforcement;
 
 /**
- * What happens when OUR code throws an exception during the order check.
+ * Qué se hace cuando NUESTRO código lanza una excepción durante el chequeo del
+ * pedido (wiki/gotchas/una-averia-propia-no-puede-ser-un-permiso-2026-09-09.md).
  *
- * The decision is {@see FailurePolicy::decideOnInternalError()}: an agent is
- * held back in every mode (`balanced`/`permissive` open on a service outage,
- * not on a failure of our own code) and a human is never blocked. The block is
- * published as `trusteed:CEL-INTERNAL-ERROR`, never as "a rule blocked you", and
- * without the exception detail, which only goes to the internal log.
+ * La decisión es {@see FailurePolicy::decideOnInternalError()}: un agente se
+ * retiene en todos los modos (`balanced`/`permissive` abren ante una caída del
+ * servicio, no ante un fallo de nuestro código) y un humano nunca se bloquea. El
+ * bloqueo se publica como `trusteed:CEL-INTERNAL-ERROR`, nunca como «una regla te
+ * bloqueó», y sin el detalle de la excepción, que sólo va al log interno.
  *
- * Both the hook (`ValidateOrderHook::evaluateCart()`, which covers the PS 9
- * hook) and the `PaymentModule` override (errors outside `evaluateCart`) use it.
+ * Lo usan por igual el hook (`ValidateOrderHook::evaluateCart()`, que cubre el
+ * hook de PS 9) y el override `PaymentModule` (errores fuera de `evaluateCart`).
  *
  * @since 2.3.2
  */
@@ -23,15 +24,15 @@ final class InternalErrorGuard
     public const RULE_CODE = 'trusteed:CEL-INTERNAL-ERROR';
 
     /**
-     * The `_trusteed_agent_token` of the request (POST) or, failing that, of the
-     * cookie. The only source of the agentic signal in PS; no token returns ''.
+     * `_trusteed_agent_token` de la petición (POST) o, si no, de la cookie. Única
+     * fuente de la señal agéntica de PS; sin token ⇒ ''.
      *
-     * `Tools::getValue` also reads GET, and a link with
-     * `?_trusteed_agent_token=x` opened by a person would turn them into an
-     * "agent" (R001 in strict, held back on a fault). The legitimate token
-     * arrives in the order POST body; a value that only comes in the query
-     * string is ignored. If the same field comes in both POST and GET, POST wins
-     * (what `Tools::getValue` already returned).
+     * Task 27c (L5): `Tools::getValue` también lee GET, y un enlace con
+     * `?_trusteed_agent_token=x` que abre una persona la convertiría en «agente»
+     * (R001 en strict, retenida ante una avería). El token legítimo llega en el
+     * cuerpo del POST del pedido; un valor que sólo viene en la query string se
+     * ignora. Si el mismo campo viene en POST y en GET, manda el POST (lo que
+     * ya devolvía `Tools::getValue`).
      */
     public static function presentedToken(): string
     {
@@ -45,9 +46,9 @@ final class InternalErrorGuard
     }
 
     /**
-     * Is the current request agentic? If the token cannot even be read, we do not
-     * know it is human, so it is treated as agentic (the human exemption only
-     * covers a proven human).
+     * ¿La petición actual es agéntica? Si ni siquiera se puede leer el token no
+     * se sabe que sea humana: se trata como agéntica (D1 sólo ampara al humano
+     * probado).
      */
     public static function requestIsAgentic(): bool
     {
@@ -59,15 +60,15 @@ final class InternalErrorGuard
     }
 
     /**
-     * Decides, leaves a trace and, if the verdict is BLOCK, throws.
+     * Decide, deja rastro y, si el veredicto es BLOCK, lanza.
      *
-     * @throws CelVerdictException when the agent is held back.
+     * @throws CelVerdictException cuando se retiene al agente.
      */
     public static function resolve(\Throwable $e, bool $isAgentic, int $cartId): void
     {
         $block = FailurePolicy::decideOnInternalError($isAgentic) === 'BLOCK';
 
-        // A logging failure never changes the decision.
+        // Un fallo al registrar nunca cambia la decisión.
         try {
             if ($block) {
                 $detail = json_encode(
@@ -80,7 +81,7 @@ final class InternalErrorGuard
             }
             \PrestaShopLogger::addLog($line, \PrestaShopLogger::LOG_SEVERITY_ERROR, null, 'Cart', $cartId, true);
         } catch (\Throwable $logError) {
-            // See above.
+            // Ver arriba.
         }
 
         if ($block) {

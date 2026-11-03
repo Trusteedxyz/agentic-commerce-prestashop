@@ -13,18 +13,18 @@ if (!defined('_PS_VERSION_')) {
  *
  * Detects agentic traffic arriving via the PS Webservice REST API
  * (/api/orders) that bypasses the PaymentModule override (and thus the
- * CEL layer 1 offline enforcement).
+ * CEL capa-1 offline enforcement).
  *
- * The Webservice gap is mitigated at layer 2 via the Trusteed MCP proxy. This
- * middleware surfaces the gap visually to admins via PS logger + admin notice
- * when a WRITE arrives without a VERIFIED proxy mark, without blocking (the
- * layer 2 proxy is the authoritative blocker here).
+ * Per spec-048 §FR-040, the Webservice gap is mitigated at capa-2 via the
+ * Trusteed MCP proxy. This middleware surfaces the gap visually to admins
+ * via PS logger + admin notice when a WRITE arrives without a VERIFIED proxy
+ * mark, without blocking (capa-2 proxy is the authoritative blocker here).
  *
- * The "already went through the proxy" mark is not the self-declared header
- * `X-Trusteed-Proxy: true` (anyone can write it). It also requires
- * `X-Trusteed-Proxy-Signature: t=<ts>,s=<hmac>`, where
- * hmac = HMAC-SHA256(TRUSTEED_CEL_HMAC_SECRET, "<ts>.<METHOD>.<path without query>")
- * and |now - ts| <= 300 s. Reads (GET/HEAD/OPTIONS) do not warn.
+ * Barrido 2026-10-10: la marca «ya pasó por el proxy» ya no es la cabecera
+ * autodeclarada `X-Trusteed-Proxy: true` (la escribe cualquiera): hace falta
+ * además `X-Trusteed-Proxy-Signature: t=<ts>,s=<hmac>`, con
+ * hmac = HMAC-SHA256(TRUSTEED_CEL_HMAC_SECRET, "<ts>.<MÉTODO>.<path sin query>")
+ * y |ahora − ts| ≤ 300 s. Las lecturas (GET/HEAD/OPTIONS) no avisan.
  *
  * @package Trusteed\Enforcement
  */
@@ -38,7 +38,7 @@ class WebserviceGapMiddleware
     public const VERDICT_UNVERIFIED     = 'proxy_unverified';
     public const VERDICT_NO_PROXY       = 'no_proxy';
 
-    /** Maximum skew between the proxy clock and ours. */
+    /** Ventana máxima entre el reloj del proxy y el nuestro. */
     private const MAX_SKEW_SECONDS = 300;
 
     /**
@@ -63,7 +63,7 @@ class WebserviceGapMiddleware
      *
      * When an /api/orders WRITE arrives without a verified proxy signature
      * (see {@see classify()}), log a structured warning and set a persistent
-     * admin notice flag. Reads never warn. Does NOT block: the layer 2 MCP proxy is
+     * admin notice flag. Reads never warn. Does NOT block — capa-2 MCP proxy is
      * responsible for enforcement here (blocking is a pending product decision).
      *
      * @param array $params Hook parameters (resource, method, etc.).
@@ -80,8 +80,8 @@ class WebserviceGapMiddleware
             return;
         }
 
-        // The real HTTP method, not a hook parameter (its content is not
-        // documented); defaults to GET, which does not warn.
+        // El método HTTP real, no un parámetro del hook (su contenido no está
+        // documentado); por defecto GET = no avisar.
         $method  = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
         $uri     = (string) ($_SERVER['REQUEST_URI'] ?? '/api/orders');
         $secret  = (string) \Configuration::get('TRUSTEED_CEL_HMAC_SECRET');
@@ -91,7 +91,7 @@ class WebserviceGapMiddleware
             return;
         }
 
-        // Log webservice gap warning (no headers, no query: the ws_key travels there).
+        // Log webservice gap warning (sin cabeceras, sin query: la ws_key va ahí).
         \PrestaShopLogger::addLog(
             self::logLine($method, $verdict),
             \PrestaShopLogger::LOG_SEVERITY_WARNING,
@@ -106,7 +106,7 @@ class WebserviceGapMiddleware
     }
 
     /**
-     * Verdict for a request to the orders Webservice. Pure: no globals.
+     * Veredicto para una petición al Webservice de pedidos. Puro: sin globales.
      *
      * @param array<string,string> $headers
      */
@@ -124,7 +124,7 @@ class WebserviceGapMiddleware
             : self::VERDICT_UNVERIFIED;
     }
 
-    /** Log line for the gap: verdict and method, never headers or query. */
+    /** Línea de log del hueco: veredicto y método, nunca cabeceras ni query. */
     public static function logLine(string $method, string $verdict): string
     {
         return '[trusteed.webservice_gap] ' . json_encode(
@@ -149,7 +149,7 @@ class WebserviceGapMiddleware
     }
 
     /**
-     * Portable request-header reader.
+     * L1 — portable request-header reader.
      *
      * `getallheaders()` is only defined under the Apache SAPI; on nginx/php-fpm
      * (and CLI) it is absent, so the prior `getallheaders() ?: []` silently
@@ -174,7 +174,7 @@ class WebserviceGapMiddleware
                 continue;
             }
             if (strncmp($key, 'HTTP_', 5) === 0) {
-                // HTTP_X_TRUSTEED_PROXY becomes X-Trusteed-Proxy
+                // HTTP_X_TRUSTEED_PROXY → X-Trusteed-Proxy
                 $name = str_replace(
                     ' ',
                     '-',
