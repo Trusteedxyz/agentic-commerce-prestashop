@@ -133,9 +133,9 @@ final class SetupStatus
             case self::STATE_NOT_CONFIGURED:
                 return 'Your store is not registered with Trusteed yet. Agents cannot find it. Click to finish setup.';
             case self::STATE_ENFORCEMENT_INCOMPLETE:
-                return 'Your store is registered, but checkout enforcement is not active: every checkout is allowed through without evaluating a single rule. Ask Trusteed for your Installation ID and HMAC secret.';
+                return 'Your store is registered, but checkout protection is not active: every checkout goes through without any of your rules being checked. Click to finish the setup.';
             default:
-                return 'Your store is registered and checkout enforcement is active.';
+                return 'Your store is registered and checkout protection is active.';
         }
     }
 }

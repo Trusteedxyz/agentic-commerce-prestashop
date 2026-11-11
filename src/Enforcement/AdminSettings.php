@@ -54,23 +54,23 @@ class AdminSettings
         if (\Tools::isSubmit('submitTrusteedCELAckGap')) {
             WebserviceGapMiddleware::acknowledgeGapNotice();
             $output .= $this->module->displayConfirmation(
-                $this->module->l('Webservice gap notice acknowledged.')
+                $this->module->l('Webservice notice dismissed.')
             );
         }
 
         if (\Tools::isSubmit('submitTrusteedCELAckMcpNoAuth')) {
             McpNoAuthDetector::acknowledgeNotice();
             $output .= $this->module->displayConfirmation(
-                $this->module->l('MCP No-Auth notice acknowledged.')
+                $this->module->l('Notice dismissed.')
             );
         }
 
         if (WebserviceGapMiddleware::hasPendingGapNotice()) {
             $output .= $this->module->displayWarning(
                 $this->module->l(
-                    'CEL: Webservice /api/orders traffic detected without Trusteed MCP proxy. '
-                    . 'CEL enforcement is bypassed on this path. '
-                    . 'Configure the Trusteed MCP proxy or acknowledge below.'
+                    'Orders created through the PrestaShop Webservice (/api/orders) were detected without the Trusteed proxy, '
+                    . 'so checkout protection does not apply to them. '
+                    . 'Set up the Trusteed proxy or dismiss this notice below.'
                 )
             );
         }
@@ -124,7 +124,7 @@ class AdminSettings
         }
 
         return $this->module->displayConfirmation(
-            $this->module->l('CEL settings saved.')
+            $this->module->l('Checkout protection settings saved.')
         );
     }
 
@@ -136,19 +136,19 @@ class AdminSettings
         $client = MerchantResolver::buildSnapshotClient(MerchantResolver::currentShopId());
         if ($client === null) {
             return $this->module->displayError(
-                $this->module->l('CEL not fully configured. Cannot refresh snapshot.')
+                $this->module->l('Checkout protection is not fully configured: your rules cannot be refreshed.')
             );
         }
 
         $jws = $client->pull();
         if ($jws === null) {
             return $this->module->displayError(
-                $this->module->l('Failed to pull snapshot from Trusteed API. Check credentials and connectivity.')
+                $this->module->l('Your rules could not be downloaded from Trusteed. Check the credentials and the connection.')
             );
         }
 
         return $this->module->displayConfirmation(
-            $this->module->l('Snapshot refreshed successfully.')
+            $this->module->l('Your rules have been refreshed.')
         );
     }
 
@@ -160,17 +160,17 @@ class AdminSettings
         $fieldsForm = [
             'form' => [
                 'legend' => [
-                    'title' => $this->module->l('Checkout Enforcement Layer (CEL)'),
+                    'title' => $this->module->l('Checkout protection'),
                     'icon'  => 'icon-shield',
                 ],
                 'description' => $this->module->l(
-                    'CEL blocks agentic checkouts that violate your trust rules. '
-                    . 'Requires a Trusteed merchant account and installation credentials.'
+                    'Blocks the checkouts of AI agents that break your rules. '
+                    . 'It needs the store to be connected to Trusteed (see "Auto-register this store").'
                 ),
                 'input' => [
                     [
                         'type'   => 'switch',
-                        'label'  => $this->module->l('Enable CEL Enforcement'),
+                        'label'  => $this->module->l('Protect my checkout'),
                         'name'   => 'TRUSTEED_CEL_ENABLED',
                         'is_bool' => true,
                         'values' => [
@@ -180,43 +180,43 @@ class AdminSettings
                     ],
                     [
                         'type'     => 'text',
-                        'label'    => $this->module->l('Merchant ID'),
+                        'label'    => $this->module->l('Store ID in Trusteed'),
                         'name'     => 'TRUSTEED_CEL_MERCHANT_ID',
-                        'desc'     => $this->module->l('UUID from Trusteed dashboard.'),
+                        'desc'     => $this->module->l('Filled in automatically by "Auto-register this store".'),
                         'required' => false,
                     ],
                     [
                         'type'     => 'text',
                         'label'    => $this->module->l('Installation ID'),
                         'name'     => 'TRUSTEED_CEL_INSTALLATION_ID',
-                        'desc'     => $this->module->l('Installation UUID for this PS store.'),
+                        'desc'     => $this->module->l('Identifies this PrestaShop installation. Filled in automatically.'),
                         'required' => false,
                     ],
                     [
                         'type'     => 'password',
-                        'label'    => $this->module->l('HMAC Secret'),
+                        'label'    => $this->module->l('Signing key'),
                         'name'     => 'TRUSTEED_CEL_HMAC_SECRET',
-                        'desc'     => $this->module->l('Leave blank to keep existing secret.'),
+                        'desc'     => $this->module->l('Used to sign the requests this store sends to Trusteed. Leave it blank to keep the current one.'),
                         'required' => false,
                     ],
                     [
                         'type'    => 'select',
-                        'label'   => $this->module->l('Fallback Mode'),
+                        'label'   => $this->module->l('If Trusteed does not answer'),
                         'name'    => 'TRUSTEED_CEL_FALLBACK_MODE',
                         'desc'    => $this->module->l(
-                            'Applies to agent checkouts only: a customer without an agent token is never blocked '
-                            . 'because the rules service is unavailable. '
-                            . 'It decides when the rules service does not answer but a verified copy of your rules is available. '
-                            . 'strict: block the agent checkout. '
-                            . 'balanced: allow but alert. '
-                            . 'permissive: allow. '
-                            . 'In every mode, an agent checkout is held when your signed rules cannot be loaded or fail their signature check.'
+                            'Only applies to checkouts by AI agents: a customer without an agent is never blocked '
+                            . 'because Trusteed is unavailable. '
+                            . 'It decides what happens when Trusteed does not answer but a verified copy of your rules is available. '
+                            . 'Strict: block the agent checkout. '
+                            . 'Balanced: let it through and raise an alert. '
+                            . 'Permissive: let it through. '
+                            . 'In every mode, an agent checkout is held if your signed rules cannot be loaded or their signature does not check out.'
                         ),
                         'options' => [
                             'query' => [
-                                ['id' => 'strict',      'name' => $this->module->l('Strict (fail-closed)')],
+                                ['id' => 'strict',      'name' => $this->module->l('Strict')],
                                 ['id' => 'balanced',    'name' => $this->module->l('Balanced (default)')],
-                                ['id' => 'permissive',  'name' => $this->module->l('Permissive (fail-open)')],
+                                ['id' => 'permissive',  'name' => $this->module->l('Permissive')],
                             ],
                             'id'   => 'id',
                             'name' => 'name',
@@ -224,13 +224,13 @@ class AdminSettings
                     ],
                     [
                         'type'    => 'select',
-                        'label'   => $this->module->l('Browser agent signature (RFC 9421)'),
+                        'label'   => $this->module->l('Signature of browser agents'),
                         'name'    => BrowserAgentSignature::CONFIG_MODE,
                         'desc'    => $this->module->l(
-                            'Verifies the Web Bot Auth signature of an AI agent that buys by browsing. '
-                            . 'observe: verify and log only. '
-                            . 'enforce: a verified agent is identified, a spoofed signature is treated as an anonymous agent. '
-                            . 'A verification failure never changes the classification.'
+                            'Checks the signature (Web Bot Auth) that an AI agent browsing your store can attach. '
+                            . 'Observe: check and record only. '
+                            . 'Enforce: a verified agent is identified, and a forged signature is treated as an anonymous agent. '
+                            . 'A failed check never changes how an agent is classified.'
                         ),
                         'options' => [
                             'query' => [
@@ -244,12 +244,12 @@ class AdminSettings
                     ],
                     [
                         'type'    => 'select',
-                        'label'   => $this->module->l('WebMCP checkout tools'),
+                        'label'   => $this->module->l('Checkout tools for browser agents'),
                         'name'    => WebmcpCheckout::CONFIG,
                         'desc'    => $this->module->l(
-                            'Exposes get/update/complete checkout tools to browser agents on the checkout page. '
-                            . 'They never place an order: the buyer confirms in the checkout. '
-                            . 'A cart operated through them is treated as an agent checkout by your rules.'
+                            'Lets AI agents that browse your store read and update the cart and ask to complete the checkout, from the checkout page. '
+                            . 'They never place the order: the buyer always confirms it in the checkout. '
+                            . 'A cart handled this way is treated as an agent checkout by your rules.'
                         ),
                         'options' => [
                             'query' => [
@@ -262,19 +262,19 @@ class AdminSettings
                     ],
                 ],
                 'submit' => [
-                    'title' => $this->module->l('Save CEL Settings'),
+                    'title' => $this->module->l('Save checkout protection'),
                     'name'  => self::SUBMIT_KEY,
                 ],
                 'buttons' => [
                     [
-                        'title'  => $this->module->l('Refresh Snapshot Now'),
+                        'title'  => $this->module->l('Refresh my rules now'),
                         'name'   => 'submitTrusteedCELRefreshSnapshot',
                         'type'   => 'submit',
                         'class'  => 'btn btn-default',
                         'icon'   => 'process-icon-refresh',
                     ],
                     [
-                        'title'  => $this->module->l('Acknowledge Webservice Gap'),
+                        'title'  => $this->module->l('Dismiss the Webservice notice'),
                         'name'   => 'submitTrusteedCELAckGap',
                         'type'   => 'submit',
                         'class'  => 'btn btn-default',
@@ -327,25 +327,23 @@ class AdminSettings
 
         if (empty($merchantId) || empty($installId) || empty($hmacSecret)) {
             return '<div class="alert alert-info">'
-                . htmlspecialchars(
-                    $this->module->l(
-                        'Configure Merchant ID, Installation ID and HMAC Secret to see enforcement stats.'
-                    ),
-                    ENT_QUOTES,
-                    'UTF-8'
-                )
+                . $this->module->l(
+                        'Connect the store to Trusteed first to see the activity of your checkout protection.'
+                    )
                 . '</div>';
         }
 
         $ts  = time();
-        $url = rtrim($apiBase, '/') . '/v1/embed/merchant/stats?window=7&installationId=' . rawurlencode($installId);
-        $sig = 't=' . $ts . ',v1=' . hash_hmac('sha256', 't=' . $ts, $hmacSecret);
+        // Ruta HMAC por instalación: `/v1/embed/merchant/stats` es la del panel (token de embed) y devolvía 401.
+        $url = rtrim($apiBase, '/') . '/v1/embed/merchant/enforcement-stats?window=7&installationId=' . rawurlencode($installId);
+        $sig = InstallationSignature::header($hmacSecret, '', $ts);
 
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             \CURLOPT_RETURNTRANSFER => true,
             \CURLOPT_TIMEOUT        => 5,
             \CURLOPT_HTTPHEADER     => [
+                'X-Trusteed-Installation-Id: ' . $installId,
                 'X-Trusteed-Signature: ' . $sig,
                 'Accept: application/json',
             ],
@@ -357,36 +355,28 @@ class AdminSettings
 
         if ($code !== 200 || !is_string($body) || $body === '') {
             return '<div class="alert alert-warning">'
-                . htmlspecialchars(
-                    $this->module->l('Enforcement stats not available — Trusteed API unreachable.'),
-                    ENT_QUOTES,
-                    'UTF-8'
-                )
+                . $this->module->l('The activity could not be loaded from Trusteed right now.')
                 . '</div>';
         }
 
         $data  = json_decode($body, true);
         $stats = is_array($data['stats'] ?? null) ? $data['stats'] : [];
 
-        $html  = '<h4>' . htmlspecialchars($this->module->l('Actividad reciente (7 días)'), ENT_QUOTES, 'UTF-8') . '</h4>';
+        $html  = '<h4>' . $this->module->l('Recent activity (7 days)') . '</h4>';
 
         if (empty($stats)) {
             $html .= '<p class="help-block">'
-                . htmlspecialchars(
-                    $this->module->l('No enforcement events recorded in the last 7 days.'),
-                    ENT_QUOTES,
-                    'UTF-8'
-                )
+                . $this->module->l('No checkout was checked in the last 7 days.')
                 . '</p>';
             return $html;
         }
 
         $html .= '<table class="table">'
             . '<thead><tr>'
-            . '<th>' . htmlspecialchars($this->module->l('Regla'), ENT_QUOTES, 'UTF-8') . '</th>'
-            . '<th>' . htmlspecialchars($this->module->l('Bloqueados'), ENT_QUOTES, 'UTF-8') . '</th>'
-            . '<th>' . htmlspecialchars($this->module->l('Permitidos'), ENT_QUOTES, 'UTF-8') . '</th>'
-            . '<th>' . htmlspecialchars($this->module->l('Fail-open'), ENT_QUOTES, 'UTF-8') . '</th>'
+            . '<th>' . $this->module->l('Rule') . '</th>'
+            . '<th>' . $this->module->l('Blocked') . '</th>'
+            . '<th>' . $this->module->l('Allowed') . '</th>'
+            . '<th>' . $this->module->l('Let through on error') . '</th>'
             . '</tr></thead><tbody>';
 
         foreach ($stats as $row) {
@@ -410,10 +400,11 @@ class AdminSettings
         $html .= '</tbody></table>';
 
         if (isset($data['windowStart'], $data['windowEnd'])) {
-            $wStart = htmlspecialchars((string) $data['windowStart'], ENT_QUOTES, 'UTF-8');
-            $wEnd   = htmlspecialchars((string) $data['windowEnd'], ENT_QUOTES, 'UTF-8');
+            // Sólo la fecha: el instante completo (2026-11-04T18:22:24.365Z) no le dice nada al comerciante.
+            $wStart = htmlspecialchars(substr((string) $data['windowStart'], 0, 10), ENT_QUOTES, 'UTF-8');
+            $wEnd   = htmlspecialchars(substr((string) $data['windowEnd'], 0, 10), ENT_QUOTES, 'UTF-8');
             $html  .= '<p class="help-block">'
-                . htmlspecialchars($this->module->l('Período:'), ENT_QUOTES, 'UTF-8')
+                . $this->module->l('Period:')
                 . ' ' . $wStart . ' → ' . $wEnd
                 . '</p>';
         }

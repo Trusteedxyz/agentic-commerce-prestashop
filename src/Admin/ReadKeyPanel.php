@@ -122,7 +122,7 @@ final class ReadKeyPanel
             case 'already_enabled':
                 return $m->displayConfirmation($m->l('Read access is already granted.'));
             case 'not_registered':
-                return $m->displayError($m->l('Register this store with Trusteed first (Auto-register button).'));
+                return $m->displayError($m->l('Register this store with Trusteed first ("Auto-register this store" button).'));
             case 'key_creation_failed':
                 return $m->displayError($m->l('PrestaShop could not create the Webservice key. Nothing was changed.'));
             case 'backend_rejected':
@@ -164,9 +164,9 @@ final class ReadKeyPanel
             case 'store_unreachable':
                 return $m->l('Trusteed could not reach your store\'s /api/ endpoint (maintenance mode, firewall or disabled URL rewriting).');
             case 'install_key_mismatch':
-                return $m->l('Trusteed did not recognise this installation. Click Auto-register again and retry.');
+                return $m->l('Trusteed did not recognise this installation. Click "Auto-register this store" again and retry.');
             case 'store_inactive':
-                return $m->l('This store is deactivated in Trusteed. Click Auto-register again and retry.');
+                return $m->l('This store is deactivated in Trusteed. Click "Auto-register this store" again and retry.');
             default:
                 return $m->l('Trusteed did not accept the key') . ' (' . htmlspecialchars($reason, ENT_QUOTES, 'UTF-8') . ').';
         }
@@ -176,6 +176,7 @@ final class ReadKeyPanel
     {
         $m = $this->module;
         $context = \Context::getContext();
+        // `$m->l()` ya devuelve el texto escapado para HTML: escaparlo otra vez mostraba `&quot;` en pantalla.
         $e = static fn (string $s): string => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 
         $installKey = (string) \Configuration::get('TRUSTEED_INSTALL_KEY');
@@ -183,32 +184,32 @@ final class ReadKeyPanel
         $keyId = $env->storedKeyId();
         $enabled = $keyId > 0 && $env->keyExists($keyId);
 
-        $html = '<p>' . $e($m->l(
+        $html = '<p>' . ($m->l(
             'Trusteed compares what AI shopping agents are told about your store with your real catalog '
             . '(prices, stock, variants, taxes). For that it needs to read your catalog. '
             . 'Nothing is created until you click the button below.'
         )) . '</p>';
 
         if ($installKey === '') {
-            $html .= '<p><strong>' . $e($m->l('Register this store with Trusteed first (Auto-register button above).')) . '</strong></p>';
+            $html .= '<p><strong>' . $m->l('Register this store with Trusteed first ("Auto-register this store" button above).') . '</strong></p>';
         } elseif ($enabled) {
-            $html .= '<p><strong>' . $e($m->l('Read access is ON')) . '</strong> — '
-                . $e(sprintf($m->l('Webservice key #%d "%s", read-only, this shop only.'), $keyId, ReadOnlyWebserviceKey::DESCRIPTION))
-                . '</p><p>' . $e($m->l('Revoke deletes the key from PrestaShop and asks Trusteed to forget it.')) . '</p>';
+            $html .= '<p><strong>' . $m->l('Read access is ON') . '</strong> — '
+                . sprintf($m->l('Webservice key #%d "%s", read-only, this shop only.'), $keyId, $e(ReadOnlyWebserviceKey::DESCRIPTION))
+                . '</p><p>' . $m->l('Revoke deletes the key from PrestaShop and asks Trusteed to forget it.') . '</p>';
         } else {
-            $html .= '<p>' . $e($m->l('If you accept, this module will:')) . '</p><ul>'
-                . '<li>' . $e(sprintf($m->l('Create a PrestaShop Webservice key named "%s", linked to this shop only.'), ReadOnlyWebserviceKey::DESCRIPTION)) . '</li>'
-                . '<li>' . $e($m->l('Give it read-only access (GET) to:')) . ' <code>' . $e(implode(', ', ReadOnlyWebserviceKey::RESOURCES)) . '</code>. '
-                . $e($m->l('It cannot create, modify or delete anything, and has no access to customers, addresses, orders or carts.')) . '</li>';
+            $html .= '<p>' . $m->l('If you accept, this module will:') . '</p><ul>'
+                . '<li>' . sprintf($m->l('Create a PrestaShop Webservice key named "%s", linked to this shop only.'), $e(ReadOnlyWebserviceKey::DESCRIPTION)) . '</li>'
+                . '<li>' . $m->l('Give it read-only access (GET) to:') . ' <code>' . $e(implode(', ', ReadOnlyWebserviceKey::RESOURCES)) . '</code>. '
+                . $m->l('It cannot create, modify or delete anything, and has no access to customers, addresses, orders or carts.') . '</li>';
             if (!$env->webserviceEnabled()) {
-                $html .= '<li><strong>' . $e($m->l('Turn ON the PrestaShop Webservice for this shop (it is currently OFF).')) . '</strong></li>';
+                $html .= '<li><strong>' . $m->l('Turn ON the PrestaShop Webservice for this shop (it is currently OFF).') . '</strong></li>';
             }
-            $html .= '<li>' . $e($m->l(
+            $html .= '<li>' . ($m->l(
                 'Send the key once to Trusteed over the module\'s registration channel. Trusteed checks that it works, '
                 . 'stores it encrypted and uses it only to read. This module keeps only the key\'s ID, never the key itself.'
             )) . '</li></ul>'
-                . '<p>' . $e($m->l('You can revoke it at any time from this page.')) . ' '
-                . $e($m->l('Note: PrestaShop itself records the creation of every Webservice key, including its value, in Advanced Parameters > Logs.')) . '</p>';
+                . '<p>' . $m->l('You can revoke it at any time from this page.') . ' '
+                . $m->l('Note: PrestaShop itself records the creation of every Webservice key, including its value, in Advanced Parameters > Logs.') . '</p>';
         }
 
         $form = [

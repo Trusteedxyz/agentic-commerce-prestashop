@@ -54,7 +54,7 @@ class Trusteed extends Module
     {
         $this->name             = 'trusteed';
         $this->tab              = 'administration';
-        $this->version          = '2.3.7';
+        $this->version          = '2.3.8';
         $this->author           = 'Trusteed';
         $this->need_instance    = 0;
         $this->ps_versions_compliancy = ['min' => '8.0.0', 'max' => '9.99.99'];
@@ -821,11 +821,11 @@ class Trusteed extends Module
 
             if ($apiBase !== '' && !str_starts_with($apiBase, 'https://')) {
                 $output .= $this->displayError(
-                    $this->l('API Base URL must use HTTPS.')
+                    $this->l('The Trusteed server address must start with https://.')
                 );
             } elseif ($token !== '' && preg_match('/\A[0-9a-fA-F]{64}\z/', $token) !== 1) {
                 $output .= $this->displayError(
-                    $this->l('S2S secret must be exactly 64 hex characters.')
+                    $this->l('The connection key must have exactly 64 hexadecimal characters.')
                 );
             } else {
                 if ($apiBase !== '') {
@@ -972,8 +972,8 @@ class Trusteed extends Module
 
         $confirmation = $this->displayConfirmation(
             $result['is_new']
-                ? $this->l('Store registered with Trusteed. Merchant ID and S2S secret configured automatically.')
-                : $this->l('Store re-registered with Trusteed. Merchant ID and S2S secret refreshed.')
+                ? $this->l('Store registered with Trusteed. The connection has been set up automatically.')
+                : $this->l('Store registered with Trusteed again. The connection has been refreshed.')
         );
 
         // 2026-09-09 (auditoría de onboarding, hueco A2) — el mensaje decía
@@ -991,11 +991,11 @@ class Trusteed extends Module
         if (!$status->enforcementActive()) {
             $confirmation .= $this->displayWarning(
                 $this->l(
-                    'Checkout enforcement is NOT active yet: every checkout is allowed '
-                    . 'through without evaluating a single rule. It needs two more values '
-                    . 'that auto-registration cannot issue — the Installation ID and the '
-                    . 'HMAC secret. Ask Trusteed for them and enter them in the '
-                    . '"Checkout Enforcement" section below.'
+                    'Checkout protection is not active yet: every checkout goes through '
+                    . 'without any of your rules being checked. Trusteed could not issue the '
+                    . 'protection credentials for this store automatically. Click '
+                    . '"Auto-register this store" again in a few minutes; if it keeps '
+                    . 'happening, contact Trusteed support.'
                 )
             );
         }
@@ -1061,9 +1061,9 @@ class Trusteed extends Module
             'form' => [
                 'legend' => ['title' => $this->l('Auto-register with Trusteed')],
                 'description' => $this->l(
-                    'One-click registration: creates (or refreshes) this store in Trusteed '
-                    . 'and fills the Merchant ID and S2S secret automatically. You can still '
-                    . 'paste them by hand in the form below.'
+                    'One-click registration: it creates (or refreshes) this store in Trusteed '
+                    . 'and fills in the connection for you. No account and no keys to paste. '
+                    . 'You can still enter them by hand in the advanced form below.'
                 ),
                 'input'  => [],
                 'submit' => [
@@ -1129,8 +1129,8 @@ class Trusteed extends Module
         foreach (\Trusteed\AgenticTools\ToolToggleSettings::TOGGLE_KEYS as $toolKey => $cfgKey) {
             $fulfillable = \Trusteed\AgenticTools\ToolToggleSettings::moduleFulfillable($toolKey);
             $hint = $fulfillable
-                ? $this->l('Enabled tools are exposed to the MCP server.')
-                : $this->l('Not deployable yet — registered disabled even when ON (planned backend).');
+                ? $this->l('When it is on, AI agents can use this tool in your store.')
+                : $this->l('Not available yet in this version: it stays off even if you switch it on.');
 
             $inputs[] = [
                 'type'    => 'switch',
@@ -1148,11 +1148,11 @@ class Trusteed extends Module
 
         $fieldsForm = [
             'form' => [
-                'legend' => ['title' => $this->l('Agentic Tools — per-tool enablement (FR-018b)')],
+                'legend' => ['title' => $this->l('Extra tools for AI agents')],
                 'description' => $this->l(
-                    'Trust + Identity are ON by default; the three payment rails are OFF '
-                    . '(explicit opt-in). Disabled tools are omitted from MCP registration.'
-                ),
+                    'The trust and identity tools are on by default; the three payment tools '
+                    . 'stay off until you switch them on. A tool that is off is not offered to agents. '
+                ) . $this->mcpAddonNotice(),
                 'input'  => $inputs,
                 'submit' => [
                     'title' => $this->l('Save tool settings'),
@@ -1172,36 +1172,40 @@ class Trusteed extends Module
         return $helper->generateForm([$fieldsForm]);
     }
 
+    /** Aviso del add-on MCP de PrestaShop: sólo afecta a las herramientas extra para agentes. */
+    private function mcpAddonNotice(): string
+    {
+        return class_exists('PhpMcp\\Server\\Attributes\\McpTool')
+            ? $this->l('The PrestaShop MCP Server add-on is installed, so these tools are offered to AI agents.')
+            : $this->l('The PrestaShop MCP Server add-on is not installed. It is optional: the Trusteed panel and the checkout protection work without it. It is only needed for these extra tools.');
+    }
+
     private function renderForm(): string
     {
-        $mcpAvailable = class_exists('PhpMcp\\Server\\Attributes\\McpTool')
-            ? $this->l('MCP Server add-on detected — AgenticTools will be registered.')
-            : $this->l('MCP Server add-on (96617) not detected — install it to enable AgenticTools.');
-
         $fieldsForm = [
             'form' => [
-                'legend' => ['title' => $this->l('Trusteed AgenticTools Configuration')],
-                'description' => $mcpAvailable,
+                'legend' => ['title' => $this->l('Manual connection (advanced)')],
+                'description' => $this->l('Only needed if you do not use "Auto-register this store". Enter the data Trusteed gave you.'),
                 'input'  => [
                     [
                         'type'     => 'text',
-                        'label'    => $this->l('API Base URL'),
+                        'label'    => $this->l('Trusteed server address'),
                         'name'     => 'TRUSTEED_API_BASE',
-                        'desc'     => $this->l('Default: https://api.trusteed.xyz'),
+                        'desc'     => $this->l('Default: https://api.trusteed.xyz. Do not change it unless Trusteed asks you to.'),
                         'required' => true,
                     ],
                     [
                         'type'     => 'text',
-                        'label'    => $this->l('Merchant ID'),
+                        'label'    => $this->l('Store ID in Trusteed'),
                         'name'     => 'TRUSTEED_CEL_MERCHANT_ID',
-                        'desc'     => $this->l('Trusteed merchant UUID from onboarding — required to activate the admin panel.'),
+                        'desc'     => $this->l('Identifier of your store in Trusteed. It is required to activate the Trusteed panel.'),
                         'required' => true,
                     ],
                     [
                         'type'     => 'password',
-                        'label'    => $this->l('Embed S2S Secret'),
+                        'label'    => $this->l('Connection key'),
                         'name'     => 'TRUSTEED_EMBED_S2S_SECRET',
-                        'desc'     => $this->l('S2S secret (64 hex characters) from Trusteed onboarding — shown once at PrestaShop store connect.'),
+                        'desc'     => $this->l('Key of 64 hexadecimal characters that Trusteed gives you when you connect the store. It is shown only once.'),
                         'required' => true,
                     ],
                 ],

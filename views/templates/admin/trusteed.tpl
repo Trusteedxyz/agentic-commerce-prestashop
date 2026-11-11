@@ -32,7 +32,7 @@
     {* Aviso de configuración incompleta *}
     <div class="alert alert-info" style="margin: 20px;">
       <strong>Trusteed:</strong>
-      {l s='Set your Merchant ID and Embed S2S Secret to activate the panel.' mod='trusteed'}
+      {l s='Connect your store to Trusteed to activate the panel.' mod='trusteed'}
       <a href="{$link->getAdminLink('AdminModules')|escape:'html'}&configure=trusteed">
         {l s='Module settings' mod='trusteed'}
       </a>

@@ -34,6 +34,7 @@ cp -r "${REPO_DIR}/src/"                   "${STAGE}/src/"
 cp -r "${REPO_DIR}/controllers/"           "${STAGE}/controllers/"
 cp -r "${REPO_DIR}/override/"              "${STAGE}/override/"
 cp -r "${REPO_DIR}/views/"                 "${STAGE}/views/"
+cp -r "${REPO_DIR}/translations/"          "${STAGE}/translations/"
 # GHSA-2j2x-5q52-g48m D4 — sin esto, PrestaShop nunca vuelve a copiar
 # override/ al pulsar "Actualizar" (Module::installOverrides() sólo corre en
 # install()), así que una tienda en 2.3.0 seguiría con el override vulnerable
