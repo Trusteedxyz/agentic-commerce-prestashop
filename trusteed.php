@@ -54,7 +54,7 @@ class Trusteed extends Module
     {
         $this->name             = 'trusteed';
         $this->tab              = 'administration';
-        $this->version          = '2.3.6';
+        $this->version          = '2.3.7';
         $this->author           = 'Trusteed';
         $this->need_instance    = 0;
         $this->ps_versions_compliancy = ['min' => '8.0.0', 'max' => '9.99.99'];
@@ -965,6 +965,11 @@ class Trusteed extends Module
             Configuration::updateValue('TRUSTEED_INSTALL_KEY', $result['install_key']);
         }
 
+        // Instalación de enforcement (Installation ID + HMAC): sin ella no se evalúa
+        // ni una regla. Sólo se pide si falta alguna de las dos, porque pedirla de
+        // nuevo rota el secreto y dejaría sin firma a un módulo que ya funciona.
+        $this->provisionEnforcementInstallation($apiBase, (string) $result['merchant_id'], (string) $result['bootstrap_secret']);
+
         $confirmation = $this->displayConfirmation(
             $result['is_new']
                 ? $this->l('Store registered with Trusteed. Merchant ID and S2S secret configured automatically.')
@@ -996,6 +1001,54 @@ class Trusteed extends Module
         }
 
         return $confirmation;
+    }
+
+    /**
+     * Pide y guarda el Installation ID y el secreto HMAC. No lanza: si la ruta está
+     * apagada o falla, el módulo queda como antes y el aviso de `handleAutoRegister`
+     * sigue explicando que faltan.
+     */
+    private function provisionEnforcementInstallation(string $apiBase, string $merchantId, string $s2sSecret): void
+    {
+        if (!\Trusteed\Enforcement\InstallationProvisioner::needed(
+            (string) Configuration::get('TRUSTEED_CEL_INSTALLATION_ID'),
+            (string) Configuration::get('TRUSTEED_CEL_HMAC_SECRET')
+        )) {
+            return;
+        }
+
+        $provisioner = new \Trusteed\Enforcement\InstallationProvisioner(
+            $apiBase,
+            static function (string $url, array $headers, string $body): array {
+                $lines = [];
+                foreach ($headers as $name => $value) {
+                    $lines[] = $name . ': ' . $value;
+                }
+                $ch = curl_init($url);
+                curl_setopt_array($ch, [
+                    \CURLOPT_RETURNTRANSFER => true,
+                    \CURLOPT_POST           => true,
+                    \CURLOPT_POSTFIELDS     => $body,
+                    \CURLOPT_HTTPHEADER     => $lines,
+                    \CURLOPT_TIMEOUT        => 10,
+                    \CURLOPT_CONNECTTIMEOUT => 8,
+                    \CURLOPT_SSL_VERIFYPEER => true,
+                    \CURLOPT_SSL_VERIFYHOST => 2,
+                ]);
+                $response = curl_exec($ch);
+                $status = (int) curl_getinfo($ch, \CURLINFO_HTTP_CODE);
+                curl_close($ch);
+
+                return ['status' => $status, 'body' => is_string($response) ? $response : ''];
+            }
+        );
+
+        $credentials = $provisioner->provision($merchantId, $s2sSecret);
+        if ($credentials === null) {
+            return;
+        }
+        Configuration::updateValue('TRUSTEED_CEL_INSTALLATION_ID', $credentials['installationId']);
+        Configuration::updateValue('TRUSTEED_CEL_HMAC_SECRET', $credentials['hmacSecret']);
     }
 
     /**

@@ -54,8 +54,10 @@ class PaymentModule extends PaymentModuleCore
         $currency_special = null,
         $dont_touch_amount = false,
         $secure_key = false,
-        \Shop $shop = null
+        ?\Shop $shop = null,
+        ?string $order_reference = null
     ) {
+        // $order_reference existe desde PS 8.1; en 8.0 el padre ignora el argumento extra.
         // Load CEL enforcement classes (autoloader may not be active in all contexts)
         $this->loadCelClasses();
 
@@ -93,7 +95,8 @@ class PaymentModule extends PaymentModuleCore
             $currency_special,
             $dont_touch_amount,
             $secure_key,
-            $shop
+            $shop,
+            $order_reference
         );
     }
 
