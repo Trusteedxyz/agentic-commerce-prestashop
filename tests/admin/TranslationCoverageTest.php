@@ -11,7 +11,7 @@ use PHPUnit\Framework\TestCase;
  * `translations/es.php`. Sin esto, la pantalla de ajustes sale en inglés para un
  * empleado en español y nadie lo ve en los tests (el 2026-11-11 salía entera así).
  *
- * `Module::l()` usa el nombre del módulo como fuente (no el fichero) y `md5(texto)` sin escapar:
+ * `Module::l()` usa el nombre del módulo como fuente (no el fichero) y el md5 del texto con los apóstrofos escapados (`'` → `\'`, como hace `Translate::getModuleTranslation`):
  * la clave es `<{trusteed}prestashop>trusteed_{md5(texto)}`.
  */
 final class TranslationCoverageTest extends TestCase
@@ -64,7 +64,7 @@ final class TranslationCoverageTest extends TestCase
 
     private static function key(string $text): string
     {
-        return '<{trusteed}prestashop>trusteed_' . md5($text);
+        return '<{trusteed}prestashop>trusteed_' . md5(str_replace("'", "\\'", $text));
     }
 
     public function testEveryStringHasASpanishTranslation(): void
