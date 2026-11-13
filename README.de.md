@@ -12,6 +12,14 @@ KI-Agenten sind eine neue Art von Online-Käufern. Mit Trusteed, dem Netzwerk, d
 - Lassen Sie Agenten und Händler direkt miteinander handeln, Peer-to-Peer.
 - Prüfen Sie, ob Agenten heute wirklich in Ihrem Shop einkaufen können: Das Agent-Readiness-Dashboard zeigt drei unabhängige Ansichten (was andere sagen, was Sie versprechen im Vergleich zu dem, was Sie tun, und was wir beobachtet haben) und fasst sie nie zu einem Gesamtwert zusammen.
 
+## Videoanleitung
+
+Eine Einführung in das Modul: Installation, Verbindung Ihres Shops und Nutzung aller Bereiche (Video auf Englisch).
+
+[![Videoanleitung ansehen (auf Englisch)](https://img.youtube.com/vi/cJAefKjvIn4/maxresdefault.jpg)](https://youtu.be/cJAefKjvIn4)
+
+[Englisch (English)](https://youtu.be/cJAefKjvIn4)
+
 ## Screenshots
 
 | Start                                       | Trust Score                                              | Merchant Center: Bestellungen                             |

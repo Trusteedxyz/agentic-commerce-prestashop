@@ -12,6 +12,14 @@ AI agents are a new kind of online shopper. With Trusteed, the network that conn
 - Let agents and merchants trade directly, peer to peer.
 - Check whether agents can actually buy from you today: the agent readiness dashboard shows three independent views (what others say, what you promise against what you do, and what we've observed) and never merges them into one score.
 
+## Video guide
+
+A walkthrough of the module: install, connect your store and use every panel.
+
+[![Watch the video guide](https://img.youtube.com/vi/cJAefKjvIn4/maxresdefault.jpg)](https://youtu.be/cJAefKjvIn4)
+
+[English](https://youtu.be/cJAefKjvIn4)
+
 ## Screenshots
 
 | Home                                       | Trust Score                                              | Merchant Center: Orders                             |

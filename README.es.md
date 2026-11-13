@@ -12,6 +12,14 @@ Los agentes de IA son un tipo nuevo de comprador online. Con Trusteed, la red qu
 - Deja que agentes y comercios comercien directamente entre pares (peer-to-peer).
 - Comprueba si los agentes pueden comprar hoy en tu tienda: el panel de preparación para agentes muestra tres vistas independientes (lo que dicen otros, lo que prometes frente a lo que haces y lo que hemos observado) y nunca las fusiona en una sola puntuación.
 
+## Guía en vídeo
+
+Recorrido por el módulo: instalación, conexión de tu tienda y uso de todos los paneles.
+
+[![Ver la guía en vídeo](https://img.youtube.com/vi/TRZDO-aI_Vc/maxresdefault.jpg)](https://youtu.be/TRZDO-aI_Vc)
+
+[Español](https://youtu.be/TRZDO-aI_Vc) · [English](https://youtu.be/cJAefKjvIn4)
+
 ## Capturas de pantalla
 
 | Inicio                                       | Puntuación de confianza                                 | Merchant Center: Pedidos                             |

@@ -12,6 +12,14 @@ Les agents IA sont un nouveau type d'acheteur en ligne. Avec Trusteed, le résea
 - Laissez agents et marchands échanger directement, de pair à pair.
 - Vérifiez si les agents peuvent réellement acheter aujourd'hui dans votre boutique : le tableau de bord Agent Readiness affiche trois vues indépendantes (ce que disent les autres, ce que vous promettez par rapport à ce que vous faites, et ce que nous avons observé) et ne les fusionne jamais en un seul score.
 
+## Guide vidéo
+
+Présentation du module : installation, connexion de votre boutique et utilisation de chaque panneau (vidéo en anglais).
+
+[![Voir le guide vidéo (en anglais)](https://img.youtube.com/vi/cJAefKjvIn4/maxresdefault.jpg)](https://youtu.be/cJAefKjvIn4)
+
+[Anglais (English)](https://youtu.be/cJAefKjvIn4)
+
 ## Captures d'écran
 
 | Accueil                                       | Score de confiance                                 | Merchant Center: Commandes                             |
