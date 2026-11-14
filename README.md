@@ -8,7 +8,7 @@ AI agents are a new kind of online shopper. With Trusteed, the network that conn
 - Get signed receipts. Every transaction produces a cryptographically signed, tamper-evident receipt you can use as proof of the purchase if there's a dispute. Aligned with eIDAS (EU) and eSIGN (USA).
 - See what agents do: how much they spend, what they buy and how often.
 - Block agents that look dangerous or cause problems.
-- Accept purchases in digital currencies through the X402 protocol.
+- Digital-currency payments through the x402 protocol are in sandbox (test value only); they are not available for real purchases.
 - Let agents and merchants trade directly, peer to peer.
 - Check whether agents can actually buy from you today: the agent readiness dashboard shows three independent views (what others say, what you promise against what you do, and what we've observed) and never merges them into one score.
 
@@ -46,7 +46,7 @@ Trusteed AgenticTools brings Trust Center, Merchant Center, MCP agentic tools an
 
 - Trust Center: signed trust receipts, signing keys, audit log, trust score breakdown.
 - Merchant Center: orders, payment methods, agents, checkout rules, certification and NLWeb status.
-- 5 native MCP tools for the PrestaShop MCP Server add-on (marketplace ID 96617): `trusteed_sign_trust_receipt`, `trusteed_verify_agent_signature`, `trusteed_dispatch_payment_acp`, `trusteed_dispatch_payment_ap2`, `trusteed_dispatch_payment_x402`. Agents (Claude Desktop and others) can sign receipts and dispatch payments straight from PrestaShop.
+- 2 native MCP tools for the PrestaShop MCP Server add-on (marketplace ID 96617): `trusteed_sign_trust_receipt` and `trusteed_verify_agent_signature`. Agents (Claude Desktop and others) can sign receipts and verify agent signatures straight from PrestaShop. The module also ships payment-dispatch tools for ACP, AP2 and x402, but they are not offered as available: ACP and x402 are in sandbox (test value only) and AP2 is planned.
 - Checkout enforcement: merchant rules (max order amount, blocked countries, business hours and more) apply on every checkout, agent or human.
 - Offline safety-valve evaluator: enforces the same universal rules locally when the remote rules API is unreachable, instead of a blanket allow/block fallback.
 - Self-serve auto-registration: one-click store registration with Trusteed. You can also paste your credentials manually.

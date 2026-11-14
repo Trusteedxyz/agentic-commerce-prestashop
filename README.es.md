@@ -8,7 +8,7 @@ Los agentes de IA son un tipo nuevo de comprador online. Con Trusteed, la red qu
 - Recibe recibos firmados. Cada transacción genera un recibo firmado criptográficamente, en el que cualquier manipulación se puede detectar, y que te sirve como prueba de la compra si hay una disputa. Alineado con eIDAS (UE) y con eSIGN (EE. UU.).
 - Consulta lo que hacen los agentes: cuánto gastan, qué productos compran y con qué frecuencia.
 - Bloquea a los agentes que parezcan peligrosos o den problemas.
-- Acepta compras en divisas digitales mediante el protocolo X402.
+- Los pagos en divisas digitales mediante el protocolo x402 están en sandbox (solo valor de prueba); no están disponibles para compras reales.
 - Deja que agentes y comercios comercien directamente entre pares (peer-to-peer).
 - Comprueba si los agentes pueden comprar hoy en tu tienda: el panel de preparación para agentes muestra tres vistas independientes (lo que dicen otros, lo que prometes frente a lo que haces y lo que hemos observado) y nunca las fusiona en una sola puntuación.
 
@@ -46,7 +46,7 @@ Trusteed AgenticTools reúne Trust Center, Merchant Center, herramientas agénti
 
 - Trust Center: recibos de confianza firmados, claves de firma, registro de auditoría, desglose de la puntuación de confianza.
 - Merchant Center: pedidos, métodos de pago, agentes, reglas de checkout, estado de certificación y de NLWeb.
-- 5 herramientas MCP nativas para el add-on PrestaShop MCP Server (marketplace ID 96617): `trusteed_sign_trust_receipt`, `trusteed_verify_agent_signature`, `trusteed_dispatch_payment_acp`, `trusteed_dispatch_payment_ap2`, `trusteed_dispatch_payment_x402`. Los agentes (Claude Desktop y otros) pueden firmar recibos y despachar pagos directamente desde PrestaShop.
+- 2 herramientas MCP nativas para el add-on PrestaShop MCP Server (marketplace ID 96617): `trusteed_sign_trust_receipt` y `trusteed_verify_agent_signature`. Los agentes (Claude Desktop y otros) pueden firmar recibos y verificar firmas de agente directamente desde PrestaShop. El módulo incluye además herramientas de despacho de pago para ACP, AP2 y x402, pero no se ofrecen como disponibles: ACP y x402 están en sandbox (solo valor de prueba) y AP2 está planificado.
 - Enforcement de checkout: las reglas del comercio (importe máximo, países bloqueados, horario comercial y más) se aplican en cada checkout, con o sin agente.
 - Evaluador offline de respaldo: aplica las mismas reglas universales en local cuando la API remota de reglas no está disponible, en lugar de un permitir/bloquear genérico por defecto.
 - Auto-registro self-serve: registro de la tienda en Trusteed con un clic. También puedes pegar las credenciales a mano.
