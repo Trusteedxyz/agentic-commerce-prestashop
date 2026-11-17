@@ -54,7 +54,7 @@ class Trusteed extends Module
     {
         $this->name             = 'trusteed';
         $this->tab              = 'administration';
-        $this->version          = '2.3.11';
+        $this->version          = '2.3.12';
         $this->author           = 'Trusteed';
         $this->need_instance    = 0;
         $this->ps_versions_compliancy = ['min' => '8.0.0', 'max' => '9.99.99'];
@@ -590,7 +590,7 @@ class Trusteed extends Module
 
     /**
      * Maps `/.well-known/ucp` to the `ucpwellknown` front controller, which
-     * 302-redirects to the centrally generated per-store UCP manifest.
+     * serves the centrally generated per-store UCP profile (relayed, HTTP 200).
      *
      * Self-gated: returns an empty route set when the opt-in flag
      * (`TRUSTEED_UCP_WELLKNOWN_ENABLED`) is OFF, so no pretty route is added and

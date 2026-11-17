@@ -16,10 +16,13 @@ use Trusteed\Discovery\UcpWellknownResolver;
  * and, when the FriendlyURL route is registered (moduleRoutes hook, gated by the
  * same flag), via `/.well-known/ucp`.
  *
- * Behavior: a thin OPT-IN 302 redirect to the CENTRALLY generated per-store UCP
- * discovery profile. Per ADR-077 it NEVER emits the manifest body — it only
- * resolves the central URL via UcpWellknownResolver and redirects. No outbound
- * fetch happens here, so there is no SSRF surface.
+ * Behavior: OPT-IN. Serves (HTTP 200, JSON) the CENTRALLY generated per-store UCP
+ * discovery profile, relayed verbatim by UcpWellknownResolver::fetchBody() from
+ * the merchant's own origin (a 302 to another host is not followed by every UCP
+ * client). It never builds or edits the body. The fetch is https-only, refuses
+ * private/reserved hosts, is cached 5 min and falls back to a stale copy; if the
+ * central endpoint is down and there is no copy it keeps the previous behaviour
+ * (302 to the central URL).
  *
  * Gated by TRUSTEED_UCP_WELLKNOWN_ENABLED (default OFF). When the flag is OFF or
  * no central URL is resolvable, the controller responds 404 — the route never
@@ -56,7 +59,17 @@ class TrusteedUcpwellknownModuleFrontController extends ModuleFrontController
             return;
         }
 
-        // 302 (temporary) so agents always re-resolve against the live central
+        $body = UcpWellknownResolver::fetchBody($target, $shopId);
+        if ($body !== null) {
+            header('HTTP/1.1 200 OK');
+            header('Content-Type: application/json; charset=utf-8');
+            header('Access-Control-Allow-Origin: *');
+            header('Cache-Control: public, max-age=300');
+            echo $body;
+            exit;
+        }
+
+        // Last resort: 302 (temporary) so agents re-resolve against the live central
         // manifest. Tool::redirectLink is unsafe for absolute external URLs;
         // emit the Location header directly.
         header('Location: ' . $target, true, 302);
