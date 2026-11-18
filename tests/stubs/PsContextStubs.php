@@ -57,6 +57,13 @@ namespace {
                 }
                 return $default;
             }
+
+            /** @param mixed $values */
+            public static function updateValue(string $key, $values, bool $html = false, $idShopGroup = null, $idShop = null): bool
+            {
+                TestPsState::$config[$key] = $values;
+                return true;
+            }
         }
     }
 

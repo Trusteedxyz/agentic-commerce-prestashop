@@ -131,3 +131,6 @@ $_MODULE['<{trusteed}prestashop>trusteed_722af421ea347eca9d6933ddc45ef9f1'] = 'T
 $_MODULE['<{trusteed}prestashop>trusteed_f25c73e69435c33a9a2991e6f3cde2b2'] = 'Tu tienda aún no está registrada en Trusteed. Los agentes no pueden encontrarla. Pulsa para terminar la configuración.';
 $_MODULE['<{trusteed}prestashop>trusteed_96a6a2e537a19ba6c0c0c2fa3685beb0'] = 'Tu tienda está registrada, pero la protección del checkout no está activa: todos los pedidos pasan sin que se compruebe ninguna de tus reglas. Pulsa para terminar la configuración.';
 $_MODULE['<{trusteed}prestashop>trusteed_efc3c5038bd2f95e236651269e53e149'] = 'Tu tienda está registrada y la protección del checkout está activa.';
+$_MODULE['<{trusteed}prestashop>trusteed_e4beaaa6a93d8f902b150148526d3226'] = 'Página de devoluciones y desistimiento';
+$_MODULE['<{trusteed}prestashop>trusteed_1c972bcce6e1bd3c850a4b572ea85301'] = 'Ninguna (no enviar nada)';
+$_MODULE['<{trusteed}prestashop>trusteed_af14160f11790ab1b64558c28ba9a370'] = 'El módulo comunica a Trusteed la dirección de esta página, junto con tu página de condiciones. Si no eliges ninguna, no se envía nada.';

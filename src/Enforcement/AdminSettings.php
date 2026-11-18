@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace Trusteed\Enforcement;
 
+use Trusteed\Service\PayPalSync\PayPalSyncFactory;
+use Trusteed\Service\PayPalSync\PrestaShopConfigStore;
+use Trusteed\Service\PolicyPages\PolicyPagesSyncFactory;
+use Trusteed\Service\PolicyPages\PolicyPagesSyncService;
+use Trusteed\Service\PolicyPages\PrestaShopCmsPageSource;
+
 if (!defined('_PS_VERSION_')) {
     exit;
 }
@@ -123,9 +129,44 @@ class AdminSettings
             \Configuration::updateValue(WebmcpCheckout::CONFIG, $webmcp);
         }
 
+        $this->saveReturnsPage();
+
         return $this->module->displayConfirmation(
             $this->module->l('Checkout protection settings saved.')
         );
+    }
+
+    /**
+     * Returns page: only an active CMS page of this shop is accepted; empty = none (nothing is sent).
+     * Then the page addresses are sent to Trusteed; a failure is never fatal.
+     */
+    private function saveReturnsPage(): void
+    {
+        $idShop = MerchantResolver::currentShopId();
+        if ($idShop <= 0) {
+            return;
+        }
+        $chosen = (int) \Tools::getValue(PolicyPagesSyncService::KEY_RETURNS_CMS);
+        $valid = array_key_exists($chosen, (new PrestaShopCmsPageSource())->activePages($idShop));
+        (new PrestaShopConfigStore())->set(
+            PolicyPagesSyncService::KEY_RETURNS_CMS,
+            $valid ? (string) $chosen : '',
+            PayPalSyncFactory::shopGroupOf($idShop),
+            $idShop
+        );
+        PolicyPagesSyncFactory::syncNow($idShop);
+    }
+
+    /** @return list<array{id:string,name:string}> */
+    private function returnsPageOptions(): array
+    {
+        $options = [['id' => '', 'name' => $this->module->l('None (send nothing)')]];
+        $idShop = MerchantResolver::currentShopId();
+        foreach ($idShop > 0 ? (new PrestaShopCmsPageSource())->activePages($idShop) : [] as $id => $title) {
+            $options[] = ['id' => (string) $id, 'name' => $title];
+        }
+
+        return $options;
     }
 
     /**
@@ -260,6 +301,20 @@ class AdminSettings
                             'name' => 'name',
                         ],
                     ],
+                    [
+                        'type'    => 'select',
+                        'label'   => $this->module->l('Returns and withdrawal page'),
+                        'name'    => PolicyPagesSyncService::KEY_RETURNS_CMS,
+                        'desc'    => $this->module->l(
+                            'The module tells Trusteed the address of this page, together with your terms and conditions page. '
+                            . 'If you choose none, nothing is sent.'
+                        ),
+                        'options' => [
+                            'query' => $this->returnsPageOptions(),
+                            'id'    => 'id',
+                            'name'  => 'name',
+                        ],
+                    ],
                 ],
                 'submit' => [
                     'title' => $this->module->l('Save checkout protection'),
@@ -301,6 +356,7 @@ class AdminSettings
             'TRUSTEED_CEL_FALLBACK_MODE'   => MerchantResolver::getFallbackMode(),
             BrowserAgentSignature::CONFIG_MODE => (new BrowserAgentSignature())->mode(),
             WebmcpCheckout::CONFIG => WebmcpCheckout::isOn((string) \Configuration::get(WebmcpCheckout::CONFIG)) ? 'on' : 'off',
+            PolicyPagesSyncService::KEY_RETURNS_CMS => (string) \Configuration::get(PolicyPagesSyncService::KEY_RETURNS_CMS),
         ];
 
         return $helper->generateForm([$fieldsForm]);

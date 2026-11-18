@@ -107,6 +107,10 @@
         <testsuite name="paypal-sync">
             <directory>tests/PayPalSync</directory>
         </testsuite>
+        <!-- Páginas de condiciones y devoluciones comunicadas a Trusteed: dependencias inyectadas, sin stubs de PS. -->
+        <testsuite name="policy-pages">
+            <directory>tests/PolicyPages</directory>
+        </testsuite>
         <testsuite name="meta">
             <directory>tests/meta</directory>
         </testsuite>

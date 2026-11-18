@@ -54,7 +54,7 @@ class Trusteed extends Module
     {
         $this->name             = 'trusteed';
         $this->tab              = 'administration';
-        $this->version          = '2.3.12';
+        $this->version          = '2.3.13';
         $this->author           = 'Trusteed';
         $this->need_instance    = 0;
         $this->ps_versions_compliancy = ['min' => '8.0.0', 'max' => '9.99.99'];
@@ -223,6 +223,11 @@ class Trusteed extends Module
         Configuration::deleteByName('TRUSTEED_PAYPAL_SYNC_ENABLED');
         Configuration::deleteByName('TRUSTEED_PAYPAL_SYNC_HASH');
         Configuration::deleteByName('TRUSTEED_PAYPAL_SYNC_RETRY_AT');
+
+        // Policy pages sent to Trusteed: only our own keys (PS_CONDITIONS_CMS_ID is PrestaShop's).
+        foreach (\Trusteed\Service\PolicyPages\PolicyPagesSyncService::OWN_CONFIG_KEYS as $policyKey) {
+            Configuration::deleteByName($policyKey);
+        }
 
         // Unregister CEL hooks
         if (class_exists('Trusteed\\Enforcement\\ValidateOrderHook')) {
@@ -556,6 +561,9 @@ class Trusteed extends Module
         // credenciales. Con el opt-in apagado es una lectura de `Configuration`.
         // Nunca lanza.
         \Trusteed\Service\PayPalSync\PayPalSyncFactory::resyncOnBackOfficePage();
+
+        // Periodic: sends the policy page addresses when they changed. Never throws.
+        \Trusteed\Service\PolicyPages\PolicyPagesSyncFactory::syncOnBackOfficePage();
 
         // Spec-048 4.9 — reporta las capacidades de señales cuando cambia la
         // versión del módulo. Se cuelga de aquí porque es el hook de

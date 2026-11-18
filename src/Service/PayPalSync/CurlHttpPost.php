@@ -17,6 +17,24 @@ final class CurlHttpPost
      */
     public static function post(string $url, array $headers, string $body): array
     {
+        return self::send('POST', $url, $headers, $body);
+    }
+
+    /**
+     * @param array<string,string> $headers
+     * @return array{status:int,body:string}
+     */
+    public static function put(string $url, array $headers, string $body): array
+    {
+        return self::send('PUT', $url, $headers, $body);
+    }
+
+    /**
+     * @param array<string,string> $headers
+     * @return array{status:int,body:string}
+     */
+    private static function send(string $method, string $url, array $headers, string $body): array
+    {
         if (!function_exists('curl_init')) {
             return ['status' => 0, 'body' => ''];
         }
@@ -30,7 +48,7 @@ final class CurlHttpPost
         }
         curl_setopt_array($ch, [
             \CURLOPT_RETURNTRANSFER => true,
-            \CURLOPT_POST => true,
+            \CURLOPT_CUSTOMREQUEST => $method,
             \CURLOPT_POSTFIELDS => $body,
             \CURLOPT_HTTPHEADER => $lines,
             \CURLOPT_TIMEOUT => 10,

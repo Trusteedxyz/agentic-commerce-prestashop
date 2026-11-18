@@ -43,6 +43,13 @@ namespace {
             {
                 return TestUcpConfigState::$values[$key] ?? $default;
             }
+
+            /** @param mixed $values */
+            public static function updateValue(string $key, $values, bool $html = false, $idShopGroup = null, $idShop = null): bool
+            {
+                TestUcpConfigState::$values[$key] = $values;
+                return true;
+            }
         }
     }
 }
@@ -173,6 +180,59 @@ namespace Trusteed\Tests\Discovery {
             $this->assertStringStartsWith('https://', $url);
             $this->assertStringNotContainsString('{', $url);
             $this->assertStringNotContainsString('capabilities', $url);
+        }
+
+        private const T = 'https://api.trusteed.xyz/.well-known/ucp?store=acme';
+
+        public function testFetchBodyRelaysAndCachesTheCentralBody(): void
+        {
+            $calls = 0;
+            $http  = function (string $u) use (&$calls): array {
+                $calls++;
+                return ['code' => 200, 'body' => '{"ucp":{"version":"x"}}'];
+            };
+            $this->assertSame('{"ucp":{"version":"x"}}', UcpWellknownResolver::fetchBody(self::T, 0, $http, 1000));
+            // Within 5 min: served from cache, no second request.
+            $this->assertSame('{"ucp":{"version":"x"}}', UcpWellknownResolver::fetchBody(self::T, 0, $http, 1100));
+            $this->assertSame(1, $calls);
+        }
+
+        public function testFetchBodyServesStaleCopyWhenCentralIsDown(): void
+        {
+            $ok   = fn (string $u): array => ['code' => 200, 'body' => '{"a":1}'];
+            $down = fn (string $u): array => ['code' => 503, 'body' => ''];
+            UcpWellknownResolver::fetchBody(self::T, 0, $ok, 1000);
+            // Fresh window over, central down → stale copy.
+            $this->assertSame('{"a":1}', UcpWellknownResolver::fetchBody(self::T, 0, $down, 1000 + 3600));
+            // Beyond 24 h the copy is no longer served.
+            $this->assertNull(UcpWellknownResolver::fetchBody(self::T, 0, $down, 1000 + 90000));
+        }
+
+        public function testFetchBodyDoesNotCacheOrServeNonJson(): void
+        {
+            $html = fn (string $u): array => ['code' => 200, 'body' => '<html>x</html>'];
+            $this->assertNull(UcpWellknownResolver::fetchBody(self::T, 0, $html, 1000));
+        }
+
+        public function testFetchBodyNeverRequestsNonHttpsOrPrivateTargets(): void
+        {
+            $calls = 0;
+            $http  = function (string $u) use (&$calls): array {
+                $calls++;
+                return ['code' => 200, 'body' => '{}'];
+            };
+            $this->assertNull(UcpWellknownResolver::fetchBody('http://api.trusteed.xyz/.well-known/ucp?store=a', 0, $http, 1));
+            $this->assertNull(UcpWellknownResolver::fetchBody('https://127.0.0.1/.well-known/ucp?store=a', 0, $http, 1));
+            $this->assertNull(UcpWellknownResolver::fetchBody('https://10.0.0.5/.well-known/ucp?store=a', 0, $http, 1));
+            $this->assertSame(0, $calls);
+        }
+
+        public function testCacheForAnotherTargetIsNotServed(): void
+        {
+            $ok   = fn (string $u): array => ['code' => 200, 'body' => '{"a":1}'];
+            $down = fn (string $u): array => ['code' => 503, 'body' => ''];
+            UcpWellknownResolver::fetchBody(self::T, 0, $ok, 1000);
+            $this->assertNull(UcpWellknownResolver::fetchBody('https://api.trusteed.xyz/.well-known/ucp?store=other', 0, $down, 1001));
         }
     }
 }

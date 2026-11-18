@@ -69,7 +69,7 @@ final class PayPalSyncFactory
      * SIN VERIFICAR: el slug ROLE_MOD_TAB_ADMINTRUSTEED_EDIT en PS 8/9 reales
      * (es el formato estándar de roles de pestaña, no se ha ejecutado aquí).
      */
-    private static function employeeMayEdit(): bool
+    public static function employeeMayEdit(): bool
     {
         try {
             $employee = \Context::getContext()->employee ?? null;
@@ -90,7 +90,7 @@ final class PayPalSyncFactory
     }
 
     /** @return list<int> */
-    private static function employeeShopIds(): array
+    public static function employeeShopIds(): array
     {
         $employee = \Context::getContext()->employee ?? null;
         if (!is_object($employee) || !method_exists($employee, 'getAssociatedShops')) {
